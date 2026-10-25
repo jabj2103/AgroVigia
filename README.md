@@ -1,10 +1,10 @@
 # AgroVigía
 
-Prototipo académico de monitoreo ambiental de cultivos, desarrollado por Juan Andrés Bustos Jiménez y Camilo Jose Carrion Ramirez. Carpeta preparada el 25 de octubre de 2026 para iniciar la implementación en un chat nuevo de Codex.
+Prototipo académico de monitoreo ambiental de cultivos, desarrollado por Juan Andrés Bustos Jiménez y Camilo Jose Carrion Ramirez.
 
 ## Punto de partida
 
-Existe un diseño documental y hay dos ESP32, un DHT22 y un LDR disponibles según lo informado por Juan. Esta carpeta contiene instrucciones, un plan y copias de referencias; todavía no contiene una aplicación, firmware ni flujos implementados. Una posible lectura de sensores reutilizable de otro proyecto no se ha importado ni probado aquí.
+Existe un diseño documental y hay dos ESP32, un DHT22 y un LDR disponibles. Esta carpeta contiene instrucciones, un plan y copias de referencias; todavía no contiene una aplicación, firmware ni flujos implementados. Una posible lectura de sensores reutilizable de otro proyecto no se ha importado ni probado aquí.
 
 Antes de programar, leer `AGENTS.md`, `docs/estado.md` y `docs/arquitectura-y-alcance.md`. El primer trabajo pendiente se encuentra en `docs/plan-implementacion.md`.
 
