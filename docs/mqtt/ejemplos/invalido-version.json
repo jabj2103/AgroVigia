@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "nodo_codigo": "agv-dht22-01",
+  "mensaje_id": "11111111-1111-4111-8111-111111111111",
+  "origen": "simulado",
+  "tomada_en": "2026-10-25T14:00:00Z",
+  "mediciones": [
+    {
+      "variable_codigo": "temperatura_aire",
+      "valor": 28.5,
+      "unidad": "°C"
+    },
+    {
+      "variable_codigo": "humedad_aire",
+      "valor": 72,
+      "unidad": "% HR"
+    }
+  ]
+}

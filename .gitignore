@@ -1,0 +1,17 @@
+# Credenciales y configuración local
+.env
+.env.*
+!.env.example
+.n8n/
+
+# Dependencias y resultados generados
+node_modules/
+dist/
+build/
+coverage/
+.pio/
+supabase/.temp/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

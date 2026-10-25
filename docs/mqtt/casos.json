@@ -1,0 +1,591 @@
+[
+  {
+    "id": "dht-valido",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "aceptar",
+    "motivo": "Dos mediciones simuladas."
+  },
+  {
+    "id": "ldr-valido",
+    "archivo": "ldr-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-ldr-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "aceptar",
+    "motivo": "Una medicion simulada; conversion fisica no demostrada."
+  },
+  {
+    "id": "real-solo-formato",
+    "archivo": "dht22-real-formato.json",
+    "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "aceptar",
+    "motivo": "Contexto ficticio: este archivo no acredita una lectura fisica."
+  },
+  {
+    "id": "unidad",
+    "archivo": "invalido-unidad.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-ldr-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "humedad-rango",
+    "archivo": "invalido-humedad-rango.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "valor-texto",
+    "archivo": "invalido-valor-texto.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "valor-null",
+    "archivo": "invalido-valor-null.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "dht-parcial",
+    "archivo": "invalido-dht-parcial.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "variable-repetida",
+    "archivo": "invalido-variable-repetida.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "campo-servidor",
+    "archivo": "invalido-campo-servidor.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "version",
+    "archivo": "invalido-version.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "id-contador",
+    "archivo": "invalido-id-contador.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "fecha-sin-zona",
+    "archivo": "invalido-fecha-sin-zona.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "json",
+    "archivo": "invalido-json.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": false,
+    "esquema_valido": false,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Incumple JSON o esquema del contrato."
+  },
+  {
+    "id": "fecha-inexistente",
+    "archivo": "invalido-fecha-calendario.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Pasa patron, pero no es fecha de calendario existente."
+  },
+  {
+    "id": "perfil-cruzado",
+    "archivo": "invalido-perfil-ldr.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-ldr-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Nodo LDR no admite el perfil DHT22."
+  },
+  {
+    "id": "futuro",
+    "archivo": "invalido-futuro.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Captura 121 segundos posterior a recepcion."
+  },
+  {
+    "id": "antiguo",
+    "archivo": "invalido-antiguo.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Captura 301 segundos anterior a recepcion."
+  },
+  {
+    "id": "limite-antiguo",
+    "archivo": "limite-antiguo.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "aceptar",
+    "motivo": "Exactamente 300 segundos antes."
+  },
+  {
+    "id": "limite-futuro",
+    "archivo": "limite-futuro.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "aceptar",
+    "motivo": "Exactamente 120 segundos despues."
+  },
+  {
+    "id": "desconocido",
+    "archivo": "invalido-nodo-desconocido.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-99/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": false,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "El formato del codigo no acredita su registro."
+  },
+  {
+    "id": "origen-no-coincide",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Payload simulado publicado en topico real."
+  },
+  {
+    "id": "nodo-no-coincide",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-ldr-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Codigo del topico distinto al payload."
+  },
+  {
+    "id": "sin-permiso",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": false,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Debe denegarse por broker; no aceptar sin ACL verificada."
+  },
+  {
+    "id": "deshabilitado",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": false,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Nodo no habilitado."
+  },
+  {
+    "id": "sin-vinculo-autorizado",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": false,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Sin cultivo autorizado de su cuenta."
+  },
+  {
+    "id": "retenido",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": true,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Telemetria retained no admitida."
+  },
+  {
+    "id": "ldr-real-bloqueado",
+    "archivo": "ldr-real-sin-conversion.json",
+    "topico": "agrovigia/v1/real/nodos/agv-ldr-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": null
+    },
+    "resultado": "rechazar",
+    "motivo": "Conversion fisica pendiente."
+  },
+  {
+    "id": "duplicado",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": "dht22-simulado.json"
+    },
+    "resultado": "duplicado",
+    "motivo": "No insertar ni renovar fechas ni ejecutar reglas."
+  },
+  {
+    "id": "conflicto",
+    "archivo": "invalido-conflicto-id.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T14:00:05Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": "dht22-simulado.json"
+    },
+    "resultado": "conflicto_id",
+    "motivo": "Mismo ID y otro valor; conservar lote anterior."
+  },
+  {
+    "id": "duplicado-antiguo",
+    "archivo": "dht22-simulado.json",
+    "topico": "agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria",
+    "validar_json": true,
+    "esquema_valido": true,
+    "contexto": {
+      "recibida_en": "2026-10-25T15:00:00Z",
+      "acl_verificada": true,
+      "nodo_conocido": true,
+      "habilitado": true,
+      "cultivo_misma_cuenta": true,
+      "conversion_ldr_real_aprobada": false,
+      "retained": false,
+      "lote_previo": "dht22-simulado.json"
+    },
+    "resultado": "duplicado",
+    "motivo": "Reconocer lote previo antes de aplicar ventana a mensajes nuevos."
+  }
+]

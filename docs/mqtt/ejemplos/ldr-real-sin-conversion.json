@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "nodo_codigo": "agv-ldr-01",
+  "mensaje_id": "44444444-4444-4444-8444-444444444444",
+  "origen": "real",
+  "tomada_en": "2026-10-25T14:00:00Z",
+  "mediciones": [
+    {
+      "variable_codigo": "iluminacion_relativa",
+      "valor": 65,
+      "unidad": "% relativo"
+    }
+  ]
+}
