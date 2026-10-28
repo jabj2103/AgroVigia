@@ -42,8 +42,4 @@ El equipo puede avanzar en paralelo usando un contrato MQTT compartido y ejemplo
 
 La base de trabajo está en [docs/contrato-mqtt-v1.md](docs/contrato-mqtt-v1.md): tópicos, perfiles de cada nodo, JSON, fechas, origen, duplicados y criterios de recepción. Incluye un [esquema JSON](docs/mqtt/telemetria.schema.json), [payloads de ejemplo](docs/mqtt/ejemplos) y [31 casos con resultados esperados](docs/mqtt/casos.json). El contrato documenta parámetros provisionales y decisiones pendientes; todavía no demuestra comunicación MQTT ni almacenamiento. Su sección de comprobación permite revisar los ejemplos localmente sin instalar herramientas.
 
-## Cómo empezar en Codex
 
-Añadir esta carpeta como proyecto y crear un chat nuevo desde cero. El archivo `INICIAR_EN_CODEX.md` contiene un mensaje de inicio breve.
-
-El repositorio Git es local. No se ha creado un repositorio en GitHub, no se ha publicado nada y no hay instalaciones ni despliegues realizados. Para compartirlo con Camilo, el siguiente paso de organización será acordar el repositorio remoto y las ramas de trabajo.
