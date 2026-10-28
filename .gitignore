@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 .n8n/
+/.local/
+/firmware/nodo-dht22-mqtt/config_local.h
 
 # Dependencias y resultados generados
 node_modules/

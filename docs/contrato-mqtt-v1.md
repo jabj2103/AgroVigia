@@ -1,5 +1,9 @@
 # Contrato MQTT v1 — AgroVigía
 
+Estado vigente: ampliacion combinada escrita y probada localmente en [contrato-mqtt-v2.md](contrato-mqtt-v2.md). V1 se conserva para el recorrido anterior; la aplicacion remota de v2 sigue pendiente.
+
+Aclaracion de arquitectura (26 de octubre de 2026): Juan define dos placas equivalentes, cada una con DHT22 y LDR, para comparar ubicaciones. El contrato de perfiles separados que sigue documenta el recorrido actual; NO habilita todavia un mensaje combinado de tres variables. Pendiente definir y probar la ampliacion coordinada de esquema/validador, identidad/ACL, catalogo, RPC, firmware y web. Se conserva el codigo del nodo que ya publica hasta preparar esa migracion; un sensor nuevo no debe declararse como otro nodo fisico de la misma placa. Escala LDR y referencias entre placas por documentar, sin presentar valores como lux.
+
 Versión de trabajo definida el 25 de octubre de 2026 para implementar las etapas 2 y 3 en paralelo. Describe requisitos; no acredita mensajes publicados, sensores probados ni persistencia ejecutada. Juan y Camilo deben revisar juntos esta base antes de integrar. Las decisiones provisionales y los bloqueos se indican al final.
 
 ## 1. Tópicos e identidad
@@ -59,6 +63,23 @@ Para iluminación, 0 significará menor iluminación y 100 mayor iluminación de
 No se envían `cultivo_id`, `agricultor_id`, UUID de base de datos, `recibida_en` ni claves. El receptor asigna estos datos según el registro autorizado. No se agregan sensores o perfiles cambiando silenciosamente v1.
 
 ## 3. Transporte, reloj y reintentos
+
+### Precision de recepcion en la demostracion 03b (decision de implementacion)
+
+El flujo 03b usa como recibida_en el inicio de su primer Code de validacion en
+la ejecucion MQTT automatica. Es una aproximacion de recepcion de aplicacion,
+no la hora exacta del broker/callback. El Trigger oficial instalado no entrega
+ese timestamp. Se conserva este valor en todos los intentos HTTP; no cambia
+la captura. Las ventanas temporales se evaluan frente a esta aproximacion,
+y una cola larga puede causar rechazo. No usar ejecuciones manuales aisladas
+con datos antiguos como evidencia de recepcion reciente. El flujo 03a de
+inspeccion sigue sin asignar recibida_en.
+
+Esta decision explicita actualiza para 03b la asignacion al entrar mencionada
+abajo. Fuente y limites se documentan en n8n/INGESTA_SUPABASE.md. No se afirma
+precision de red ni latencia MQTT. Si se incorporan receptores con otra fuente
+temporal, registrar procedencia por fila antes de mezclar precisiones.
+
 
 Base provisional para la demostración: MQTT 3.1.1, publicación y suscripción QoS 1, `retain=false`, sesión limpia y sin cola histórica fuera de línea. Un mensaje entregado con indicador retained se rechaza; la configuración deberá impedir también que publicadores dejen telemetría retenida. QoS 1 permite duplicados y no garantiza escritura en Supabase. PUBACK solo confirma el tramo MQTT; v1 no incluye confirmación de aplicación.
 

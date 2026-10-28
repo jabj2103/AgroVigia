@@ -1,0 +1,71 @@
+{
+  "fecha_reporte_bogota": "2026-10-26",
+  "fuente": "Monitor serie aportado por Juan; no captura ejecutada desde Codex",
+  "montaje_reportado": {
+    "pin": 34,
+    "resistencia_ohm": 10000,
+    "adc_bits": 12,
+    "atenuacion": "ADC_11db",
+    "muestras_por_promedio": 16
+  },
+  "condiciones_confirmadas_por_juan": {
+    "cubierto_adc": 0,
+    "linterna_cercana_adc": 4095,
+    "direccion": "crece con luz"
+  },
+  "nota": "Resumen de promedios del reporte. No es calibracion, lux, equivalencia entre LDR ni evidencia de LDR guardado en DB.",
+  "promedios_al_alejar_linterna_cada_segundo": {
+    "inicio_ms": 294684,
+    "valores": [
+      4095,
+      4095,
+      4095,
+      3859,
+      3490,
+      3142,
+      2828,
+      2513,
+      2327,
+      2071,
+      1652,
+      1536,
+      1404,
+      1292,
+      1296,
+      1294,
+      1355,
+      1343,
+      1284,
+      1518,
+      1667,
+      1692,
+      1679,
+      1649,
+      1624,
+      1615,
+      1604,
+      1600,
+      1596,
+      1587,
+      1580,
+      1585,
+      1582,
+      1576,
+      1426,
+      726,
+      670,
+      639,
+      634,
+      626,
+      625
+    ]
+  },
+  "captura_dht22_en_misma_tanda": {
+    "mensaje_id": "057d31bd-ffa8-4185-b78e-c3481906a49b",
+    "tomada_en": "2026-10-27T02:07:43Z",
+    "temperatura": 27.5,
+    "humedad": 47.8,
+    "ack_mqtt": true,
+    "confirmacion_supabase_en_este_reporte": false
+  }
+}

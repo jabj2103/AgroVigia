@@ -1,0 +1,212 @@
+{
+  "fuente": "Fragmentos de monitor serie y suscriptor MQTT aportados por Juan el 25 de octubre de 2026.",
+  "alcance": "Evidencia recibida por chat. No es una captura automatica ni un ejemplo para reproducir como dato nuevo.",
+  "fecha_recepcion_servidor": "No disponible: no existe receptor n8n ni persistencia en esta prueba.",
+  "observaciones": [
+    "El segundo y tercer UUID y sus valores coinciden entre monitor serie y suscriptor.",
+    "Entre las dos capturas anteriores al reinicio y las posteriores hay un registro POWERON_RESET; su causa no fue confirmada.",
+    "Intervalos de captura observados: 60, 62, 60 y 60 segundos.",
+    "La tanda inicial contiene dos pares cero/cero, cuestionados en este contexto aunque pasan el esquema. No se ha demostrado su causa ni se consideran evidencia de medicion correcta.",
+    "Tanda posterior aportada: cuatro capturas entre 16:18:58Z y 16:21:58Z, cada 60 s, con 28.0-28.5 grados C y 51.5-55.0 % HR, sin pares cero/cero. Juan confirmo que ajusto el cable y la protoboard. Contacto intermitente es una causa probable, no demostrada; no se identifico la union concreta ni se probo estabilidad prolongada. No se aportaron mensajes intermedios; no se infieren perdidas de datos."
+  ],
+  "mensajes": [
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "252f76e1-9f63-4396-bc15-d24b3c911c44",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:08:56Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28.2,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 51.7,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "db567011-9d6e-4166-b651-78054079947f",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:09:56Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28.2,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 56.7,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "4c732c64-dad8-46ed-a659-f0fa0e99bfaf",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:10:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28.4,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 55.1,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "661dd9a7-fe3d-4155-b65b-3c8f3167c524",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:11:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 0,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 0,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "d9b70bf9-d64d-48fc-acf1-c24e1fed3d4b",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:12:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 0,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 0,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "0539ac09-2636-48b9-8f05-a51b84a89a84",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:18:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 55,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "90d60c0c-95bc-402e-b8ae-3e5b9418077e",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:19:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28.5,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 52.6,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "71034501-2a13-4160-acf8-d0c4c5f7bf29",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:20:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28.4,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 52.3,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    },
+    {
+      "topico": "agrovigia/v1/real/nodos/agv-dht22-01/telemetria",
+      "payload": {
+        "version": 1,
+        "nodo_codigo": "agv-dht22-01",
+        "mensaje_id": "cf3d6531-bad5-4c3c-ba0b-218bbb821a19",
+        "origen": "real",
+        "tomada_en": "2026-10-25T16:21:58Z",
+        "mediciones": [
+          {
+            "variable_codigo": "temperatura_aire",
+            "valor": 28.3,
+            "unidad": "°C"
+          },
+          {
+            "variable_codigo": "humedad_aire",
+            "valor": 51.5,
+            "unidad": "% HR"
+          }
+        ]
+      }
+    }
+  ]
+}

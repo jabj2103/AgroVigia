@@ -6,7 +6,7 @@ Demostrar el monitoreo ambiental de cultivos con equipos disponibles, una plataf
 
 ## Recorrido de los datos
 
-1. DHT22 y LDR generan observaciones en nodos distintos.
+1. Cada uno de los dos ESP32 tendra DHT22 y LDR; mediran las mismas variables en distintos puntos del cultivo (aclaracion de Juan, 26 de octubre de 2026).
 2. Cada ESP32 accede a la red por Wi-Fi y publica mensajes MQTT en Mosquitto.
 3. n8n recibe los mensajes, contrasta nodo/tópico/autorización, valida el contenido y almacena observaciones en Supabase sin duplicarlas.
 4. Las reglas deterministas evalúan las condiciones y actualizan episodios de alerta.
@@ -21,7 +21,10 @@ Los mensajes y requisitos de recepción tienen una base de trabajo en [contrato-
 |---|---|---|---|
 | ESP32 1 | DHT22 | Temperatura ambiental | °C |
 | ESP32 1 | DHT22 | Humedad relativa del aire | % HR |
-| ESP32 2 | LDR | Iluminación relativa | Escala propuesta 0-100 % relativo, conversión pendiente |
+| ESP32 1 | LDR | Iluminacion relativa | Escala propuesta 0-100 % relativo, conversion pendiente |
+| ESP32 2 | DHT22 | Temperatura ambiental | Grados Celsius |
+| ESP32 2 | DHT22 | Humedad relativa del aire | % HR |
+| ESP32 2 | LDR | Iluminacion relativa | Misma escala de referencia que ESP32 1, conversion pendiente |
 
 No hay sensor de humedad de suelo ni cámara. El LDR no debe mostrarse como lux sin calibración. No se prometen distancias Wi-Fi ni cobertura de una finca sin una evaluación del sitio. LoRa/LoRaWAN son alternativas futuras por estudiar, no parte de esta demostración.
 

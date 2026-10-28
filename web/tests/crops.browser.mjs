@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import { existsSync,mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+import { chromium } from 'playwright-core';
+const web=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const images=path.resolve(web,'../.local/qa-cultivos');mkdirSync(images,{recursive:true});
+const chrome=process.env.AGROVIGIA_CHROME??['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
+let server,browser;
+try{
+  server=await createServer({root:web,configFile:path.join(web,'vite.config.ts'),cacheDir:path.resolve(web,'../.local/vite-qa-crops'),server:{host:'127.0.0.1',port:5184,strictPort:true,open:false},plugins:[{name:'qa-crops',configureServer(s){s.middlewares.use('/__crops_qa',async(_req,res,next)=>{try{const html=await s.transformIndexHtml('/__crops_qa','<!doctype html><html lang="es"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div><script type="module" src="/tests/crops-fixture.tsx"></script></body></html>');res.setHeader('Content-Type','text/html');res.end(html);}catch(e){next(e);}});}}]});await server.listen();
+  browser=await chromium.launch({executablePath:chrome,headless:true});
+  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  // Ningun servicio remoto: todos los datos pasan por el fetch ficticio del SDK.
+  await page.route('https://**/*',r=>r.abort());
+  await page.goto('http://127.0.0.1:5184/__crops_qa');
+  await page.getByText('agv-prueba-01',{exact:true}).waitFor();
+  await page.screenshot({path:path.join(images,'panel-movil.png'),fullPage:true});
+  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:'Cultivos',exact:true}).click();
+  await page.getByRole('heading',{name:'Lote QA',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Editar',exact:true}).click();
+  await page.locator('#cult-nombre').fill('Lote editado');await page.getByRole('button',{name:'Guardar cultivo',exact:true}).click();
+  await page.getByRole('heading',{name:'Lote editado',exact:true}).waitFor();
+  await page.getByRole('button',{name:'+ Registrar cultivo',exact:true}).click();
+  await page.locator('#cult-nombre').fill('Nuevo lote');await page.locator('#cult-tipo').fill('Plátano');await page.locator('#cult-area').fill('0,5');
+  assert.equal(await page.getByRole('checkbox').count(),1);
+  await page.getByRole('checkbox',{name:'agv-prueba-02'}).check();
+  await page.evaluate(()=>{window.qaCropError=true;});
+  await page.getByRole('button',{name:'Guardar cultivo',exact:true}).click();await page.getByRole('alert').waitFor();
+  await page.getByRole('button',{name:'Guardar cultivo',exact:true}).click();
+  await page.getByRole('heading',{name:'Nuevo lote',exact:true}).waitFor();
+  const calls=await page.evaluate(()=>window.qaCropsRequests.filter(x=>x.name==='crear_cultivo'));
+  assert.equal(calls.length,2);assert.deepEqual(calls[0].args,calls[1].args);assert.ok(!('agricultor_id' in calls[0].args));
+  await page.getByRole('button',{name:'+ Registrar cultivo',exact:true}).click();
+  await page.getByText('No tienes nodos disponibles.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Guardar cultivo',exact:true}).isDisabled(),true);
+  await page.getByRole('button',{name:'Cancelar',exact:true}).click();
+  const card=page.locator('.tarjeta-cultivo').filter({has:page.getByRole('heading',{name:'Nuevo lote',exact:true})});
+  await card.getByRole('button',{name:'Archivar',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Confirmar archivado',exact:true}).isDisabled(),true);
+  await page.getByRole('button',{name:'Cancelar',exact:true}).click();
+  assert.equal((await page.evaluate(()=>window.qaCropsRequests.filter(x=>x.name==='archivar_cultivo'))).length,0);
+  await card.getByRole('button',{name:'Archivar',exact:true}).click();await page.getByRole('checkbox').check();await page.getByRole('button',{name:'Confirmar archivado',exact:true}).click();
+  await page.getByRole('button',{name:'Archivados',exact:true}).click();await page.getByRole('heading',{name:'Nuevo lote',exact:true}).waitFor();
+  await page.screenshot({path:path.join(images,'cultivos-movil.png'),fullPage:true});
+  await page.getByRole('button',{name:'Ver historial',exact:true}).click();
+  await page.getByText('Cultivo archivado. Se conserva su historial; no recibe nuevas mediciones.',{exact:true}).waitFor();
+  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:'Inicio',exact:true}).click();
+  assert.equal(await page.locator('#cultivo option').count(),1);assert.equal(await page.locator('#cultivo').inputValue(),'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  await page.getByRole('button',{name:'Abrir menú',exact:true}).click();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).waitFor({state:'visible'});await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('button',{name:'Abrir menú',exact:true}).getAttribute('aria-expanded'),'false');
+  for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:844});await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);}
+  await page.screenshot({path:path.join(images,'panel-escritorio.png'),fullPage:true});assert.deepEqual(errors,[]);
+  console.log('QA cultivos OK: navegacion movil, editar, crear/reintentar misma solicitud, sin nodos, cancelar/confirmar archivado, historico accesible, monitor sin archivados y anchos 360/390/768/1280. Solo fixtures.');
+}finally{if(browser)await browser.close();if(server)await server.close();}

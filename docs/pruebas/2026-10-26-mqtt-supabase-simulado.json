@@ -1,0 +1,42 @@
+{
+  "tipo": "prueba_integracion_simulada",
+  "fuente": "Salida aportada por Juan y ejecucion 14 de n8n consultada en modo solo lectura",
+  "recorrido_confirmado": "Publicador simulado -> Mosquitto -> n8n -> respuesta de RPC Supabase",
+  "origen": "simulado",
+  "nodo_codigo": "agv-dht22-01",
+  "mediciones": [
+    {
+      "variable_codigo": "temperatura_aire",
+      "valor": 28.5,
+      "unidad": "°C"
+    },
+    {
+      "variable_codigo": "humedad_aire",
+      "valor": 72,
+      "unidad": "% HR"
+    }
+  ],
+  "respuesta_rpc": {
+    "codigo": "LOTE_DHT22_GUARDADO",
+    "estado": "insertado",
+    "tomada_en": "2026-10-27T00:31:25+00:00",
+    "cultivo_id": "52ea4628-c470-48f4-a09a-0f9a697d22b4",
+    "mensaje_id": "1b827f89-7d31-456f-bd74-52c819167549",
+    "recibida_en": "2026-10-27T00:31:26.43+00:00",
+    "advertencias": [
+      "RETAIN_CONTROLADO_POR_POLITICA_BROKER"
+    ],
+    "medicion_ids": [
+      "621c9785-adca-4729-8dc3-1169bfa10a36",
+      "f394e104-c4a8-48fa-b62d-4221d171ad10"
+    ],
+    "persistido": true,
+    "nuevo_lote": true
+  },
+  "fuente_recibida_en": "inicio_validacion_mqtt_aproximado",
+  "limites": [
+    "No es una captura fisica del ESP32.",
+    "Consulta directa de las dos filas en SQL pendiente.",
+    "No prueba concurrencia ni recuperacion ante caidas."
+  ]
+}
