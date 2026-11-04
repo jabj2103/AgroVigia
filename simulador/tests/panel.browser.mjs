@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { createPanelServer } from '../server.mjs';
+import { filas } from './fixtures.mjs';
 const require=createRequire(new URL('../../web/package.json',import.meta.url));
 const {chromium}=require('playwright-core');
 const dir=path.dirname(fileURLToPath(import.meta.url)),images=path.resolve(dir,'../../.local/qa-simulador');mkdirSync(images,{recursive:true});
@@ -58,5 +59,33 @@ try{
   const boundedPromise=page.waitForEvent('download');await page.locator('#export').click();const boundedDownload=await boundedPromise;
   const bounded=JSON.parse(await readFile(await boundedDownload.path(),'utf8'));assert.equal(bounded.capturas_conservadas,300);assert.equal(bounded.capturas_descartadas,1);
   assert.deepEqual(errors,[]);assert.deepEqual(remote,[]);
-  console.log('QA simulador OK: etiquetas, diez variables, zonas independientes, validación, escenarios de doce pasos, automático uno/todos, pausa editar/ocultar, JSON completo, límite300, preferencias y 360/390/768/1280/1440px. Sin red externa.');
+  const envios = []; let fallo = true;
+  const connected = createPanelServer({ publicar: async p => {
+    envios.push(p); if (fallo) { fallo = false; throw new Error('MQTT de prueba sin confirmación.'); }
+    return { estado: 'mqtt_confirmado', persistido: null, nodo_codigo: p.payload.nodo_codigo };
+  } });
+  await new Promise(resolve => connected.listen(0, '127.0.0.1', resolve));
+  try {
+    const connectedBase = `http://127.0.0.1:${connected.address().port}`, c2 = await browser.newContext({ acceptDownloads: true, viewport: { width: 390, height: 1000 } });
+    const p2 = await c2.newPage(); p2.on('pageerror', e => errors.push(e.message));
+    await p2.goto(connectedBase); await p2.locator('#mqtt-status').filter({ hasText: 'Pega las cuatro filas' }).waitFor();
+    assert.equal(await p2.locator('#mqtt-send').isDisabled(), true);
+    await p2.locator('#capture').click(); assert.equal(envios.length, 0);
+    await p2.getByText('Configurar los nodos virtuales', { exact: true }).click();
+    await p2.locator('#mqtt-mapping').fill(JSON.stringify(filas())); await p2.locator('#mqtt-bind').click();
+    await p2.locator('#mqtt-status').filter({ hasText: 'Cuatro nodos configurados' }).waitFor();
+    await p2.locator('#mqtt-send').click(); await p2.locator('#mqtt-status').filter({ hasText: 'sin confirmación' }).waitFor();
+    await p2.locator('#mqtt-send').click(); await p2.locator('#mqtt-status').filter({ hasText: 'MQTT confirmó' }).waitFor();
+    assert.deepEqual(envios[0], envios[1]); assert.equal(envios[0].payload.mediciones.length, 10);
+    assert.equal(await p2.locator('#mqtt-bind').isDisabled(), true);
+    const d = p2.waitForEvent('download'); await p2.locator('#export').click();
+    const result = JSON.parse(await readFile(await (await d).path(), 'utf8'));
+    assert.equal(result.enviado_mqtt, true); assert.equal(result.persistido_supabase, null);
+    assert.equal(result.transporte.resultados[0].estado, 'mqtt_confirmado');
+    assert.equal(await p2.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await p2.screenshot({ path: path.join(images, 'panel-mqtt-390.png'), fullPage: true });
+    await c2.close();
+  } finally { connected.closeAllConnections(); await new Promise(resolve => connected.close(resolve)); }
+  assert.deepEqual(errors, []);
+  console.log('QA simulador OK: panel local, diez variables, escenarios/pausas, exportación/límite300 y 360/390/768/1280/1440px; mapeo, fallo/reintento con mismo UUID, ACK y exportación sin afirmar Supabase. Publicador ficticio, sin red externa.');
 }finally{if(browser)await browser.close();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}}

@@ -7,7 +7,7 @@ before(async()=>{server=createPanelServer();await new Promise(resolve=>server.li
 after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));});
 test('panel UTF-8 y recursos locales con CSP sin conexiones externas',async()=>{
   const r=await fetch(base);assert.equal(r.status,200);assert.match(r.headers.get('content-type'),/utf-8/);
-  assert.match(r.headers.get('content-security-policy'),/connect-src 'none'/);assert.equal(r.headers.get('cache-control'),'no-store');
+  assert.match(r.headers.get('content-security-policy'),/connect-src 'self'/);assert.equal(r.headers.get('cache-control'),'no-store');
   assert.match(await r.text(),/todos los datos son simulados/);
   for(const file of ['/app.mjs','/motor.mjs','/styles.css','/favicon.svg']){const res=await fetch(base+file);assert.equal(res.status,200);await res.arrayBuffer();}
   assert.equal((await fetch(base,{method:'HEAD'})).status,200);

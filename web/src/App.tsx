@@ -6,10 +6,12 @@ import { useAvisosAlertas } from './useAvisosAlertas.ts';
 import { cargarContexto, cargarUltimoLote } from './data.ts';
 import { antiguedad, esDht22, esAmbiental, estadoDatos, fechaBogota } from './domain.ts';
 import type { Capacidad, Contexto, LecturaNodo, Nodo } from './types.ts';
+import './zonas.css';
 
 const Alertas = lazy(() => import('./Alertas.tsx'));
 const Dispositivos = lazy(() => import('./Dispositivos.tsx'));
 const Cultivos = lazy(() => import('./Cultivos.tsx'));
+const Zonas = lazy(() => import('./Zonas.tsx'));
 
 const Historial = lazy(() => import('./Historial.tsx'));
 
@@ -154,7 +156,7 @@ function Lecturas({ client, cultivoId, nodos, capacidades, revision }: {
       </article>;
     })}
     {nodos.filter(n => !esDht22(n.id, capacidades) && !esAmbiental(n.id, capacidades)).map(n => <div className="aviso neutral" key={n.id}>
-      <strong>{n.codigo}</strong><p>Las variables de este nodo todavía no están integradas en esta pantalla.</p>
+      <strong>{n.codigo}</strong><p>{n.tipo_nodo === 'virtual' ? 'Nodo virtual · Simulada. Selecciona Zonas y nodos para consultar sus variables.' : 'Las variables de este nodo todavía no están integradas en esta pantalla.'}</p>
     </div>)}
     <p className="pie-consulta" aria-live="polite">{cargando ? 'Actualizando lecturas…' : consulta
       ? 'Última consulta correcta: ' + fechaBogota(consulta) : 'Sin una consulta completa todavía.'}</p>
@@ -175,6 +177,7 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
   const [cultivoId, setCultivoId] = useState('');
   const [revision, setRevision] = useState(0);
   const [vista, setVista] = useState<Vista>('monitoreo');
+  const [vistaMonitor, setVistaMonitor] = useState<'real' | 'zonas'>('real');
   const [menu, setMenu] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [revisionAvisos,setRevisionAvisos]=useState(0);
@@ -243,8 +246,9 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
         <div><span className="sobre-titulo">AGROVIGÍA</span><h1>{titulos[vista]}</h1></div></div>
       <div className="acciones-encabezado"><button className="campana-alertas" aria-label="Ver alertas pendientes" aria-describedby="estado-contador-alertas" title="Alertas reales activas sin revisar de todos tus cultivos" onClick={verPendientes}><Icono tipo="alertas"/><span className={'contador-alertas'+(avisos.error?' incierto':'')} aria-hidden="true">{textoContador}</span></button><button className="btn boton-secundario" onClick={() => setRevision(v => v + 1)}>{vista === 'monitoreo' ? 'Actualizar' : 'Actualizar cuenta'}</button></div>
     </header>
-    <p className="descripcion-vista">{vista === 'monitoreo' ? 'Las condiciones del aire y la iluminación de tu cultivo.' : vista === 'historial' ? 'Explora tus mediciones reales guardadas.' : vista === 'cultivos' ? 'Organiza tus lotes y los dispositivos asignados.' : vista === 'alertas' ? 'Configura tus límites y consulta las condiciones detectadas.' : 'Consulta tus sensores y su asignación a los cultivos.'}</p>
-    {(vista === 'monitoreo' || vista === 'historial') && <div className="linea-contexto"><span className="etiqueta-origen">Datos reales</span><span>{vista === 'monitoreo' ? 'Consulta automática cada 30 s' : 'Historial bajo consulta'}</span></div>}
+    <p className="descripcion-vista">{vista === 'monitoreo' ? 'Consulta las lecturas reales o explora los puntos del cultivo por zona.' : vista === 'historial' ? 'Explora tus mediciones reales guardadas.' : vista === 'cultivos' ? 'Organiza tus lotes y los dispositivos asignados.' : vista === 'alertas' ? 'Configura tus límites y consulta las condiciones detectadas.' : 'Consulta tus sensores y su asignación a los cultivos.'}</p>
+    {vista === 'monitoreo' && <div className="vistas-monitoreo" role="group" aria-label="Vista del monitoreo"><button aria-pressed={vistaMonitor === 'real'} onClick={() => setVistaMonitor('real')}>Lecturas reales</button><button aria-pressed={vistaMonitor === 'zonas'} onClick={() => setVistaMonitor('zonas')}>Zonas y nodos</button></div>}
+    {(vista === 'historial' || (vista === 'monitoreo' && vistaMonitor === 'real')) && <div className="linea-contexto"><span className="etiqueta-origen">Datos reales</span><span>{vista === 'monitoreo' ? 'Consulta automática cada 30 s' : 'Historial bajo consulta'}</span></div>}
     <p id="estado-contador-alertas" className="visually-hidden" role="status">{avisos.error?'Contador de alertas sin actualizar.':avisos.resumen?`${numeroAvisos} alertas reales activas sin revisar en tus cultivos.`:'Consultando alertas pendientes.'}</p>
     {avisos.error&&<p className="contador-sin-actualizar" role="status">No pudimos actualizar el contador de alertas. Reintenta con Actualizar cuenta.</p>}
     {avisos.aviso&&!avisos.error&&<aside className="notificacion-alertas" aria-label="Aviso de alertas pendientes"><div role="status"><strong>{avisos.aviso.cantidad===1?'Tienes una alerta pendiente':`Tienes ${avisos.aviso.cantidad} alertas pendientes`}</strong><p>Activas y sin revisar en tus cultivos.</p></div><button className="btn boton-principal" onClick={verPendientes}>Ver alertas</button><button className="cerrar-aviso" aria-label="Ocultar aviso" onClick={avisos.ocultar}>×</button></aside>}
@@ -257,7 +261,7 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
           <select id="cultivo" className="form-select" value={idActual} onChange={e => setCultivoId(e.target.value)}>{seleccionables.map(c => <option key={c.id} value={c.id}>{c.nombre}{c.archivado_en ? ' (archivado)' : ''}</option>)}</select>
         </div><p>{seleccionado.tipo} · {Number(seleccionado.area).toLocaleString('es-CO')} {seleccionado.unidad_area === 'm2' ? 'm²' : seleccionado.unidad_area}</p></section>
         {seleccionado.archivado_en && <p className="aviso neutral">Cultivo archivado. Se conserva su historial; no recibe nuevas mediciones.</p>}
-        {vista === 'alertas' ? <Suspense fallback={<p role="status">Cargando alertas…</p>}><Alertas key={'alertas:' + sesion.user.id + ':' + idActual + ':' + aperturaAlertas} client={client} cultivo={seleccionado} nodos={contexto.nodos} revision={revision} onCambio={() => setRevisionAvisos(v=>v+1)}/></Suspense> : vista === 'monitoreo' ? <Lecturas key={'monitor:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} nodos={nodos} capacidades={contexto.capacidades} revision={revision}/>
+        {vista === 'alertas' ? <Suspense fallback={<p role="status">Cargando alertas…</p>}><Alertas key={'alertas:' + sesion.user.id + ':' + idActual + ':' + aperturaAlertas} client={client} cultivo={seleccionado} nodos={contexto.nodos} revision={revision} onCambio={() => setRevisionAvisos(v=>v+1)}/></Suspense> : vista === 'monitoreo' ? vistaMonitor === 'zonas' ? <Suspense fallback={<p role="status">Cargando zonas.</p>}><Zonas key={'zonas:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} usuarioId={sesion.user.id} revision={revision}/></Suspense> : <Lecturas key={'monitor:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} nodos={nodos} capacidades={contexto.capacidades} revision={revision}/>
           : <Suspense fallback={<p role="status">Cargando el historial…</p>}><Historial key={'historial:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} nodos={contexto.nodos} capacidades={contexto.capacidades}/></Suspense>}
       </>}
     </>)}

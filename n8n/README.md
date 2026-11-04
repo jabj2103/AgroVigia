@@ -1,5 +1,7 @@
 # Recepcion MQTT: etapa 3a
 
+Simulación por zonas: disponible [03f v3 y su guía de conexión](SIMULACION_ZONAS.md), independiente del flujo real 03e. Diez variables simuladas por captura, origen explícito, reintentos idempotentes y confirmación de persistencia separada del ACK MQTT. Export inactivo sin credenciales; pendiente importación y prueba remota por Juan. Sin alertas/IA en esa ruta por ahora.
+
 Actualizacion: disponible 03c-ingesta-ambiental.json para DHT22 + LDR v2, inactivo y sin credenciales. Conserva 03b para DHT22 v1. Guia completa en ../docs/integrar-nodo-ambiental.md; aplicar0003 antes de usar RPC ambiental. LDR es indice ADC, no lux.
 
 Siguiente flujo preparado: [03b MQTT a Supabase](INGESTA_SUPABASE.md). Sus 61 pruebas locales pasan; pendiente importacion y primera llamada HTTP real. El 03b asigna recepcion de aplicacion aproximada al inicio de validacion automatica, con limites documentados. El 03a conserva su alcance de inspeccion sin persistencia.

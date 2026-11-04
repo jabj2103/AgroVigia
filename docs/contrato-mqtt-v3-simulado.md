@@ -1,13 +1,13 @@
 # Telemetría simulada v3 por zonas
 
-Preparación en la rama `juan/simulacion-zonas`, 3 de noviembre de 2026. Contrato y backend probados localmente; **sin despliegue ni publicación MQTT**. Se conserva v1/v2 para los ESP32 actuales.
+Preparación en la rama `juan/simulacion-zonas`, 3 de noviembre de 2026. Juan verificó las migraciones y reportó correcto el provisionamiento remoto. Emisor manual, ACL/límite del broker y flujo 03f preparados y probados de forma aislada; **sin captura enviada al Supabase remoto desde esta sesión**. Seguir la [guía de conexión](../n8n/SIMULACION_ZONAS.md). Se conserva v1/v2 para los ESP32 actuales.
 
 ## Identidad y transporte
 
 - Tópico: `agrovigia/v3/simulado/nodos/{nodo_codigo}/telemetria`.
 - Solo nodos `tipo_nodo = virtual`, previamente autorizados y vinculados a un cultivo y una zona. Origen obligatorio `simulado` en el lote y sus diez mediciones.
 - QoS 1, sin retain; la procedencia se contrasta con ACL del broker. La RPC no observa por sí misma la red ni el paquete: esos controles se declaran desde el servidor autorizado.
-- JSON UTF-8 sin BOM ni claves duplicadas, máximo **8192 bytes**. El ejemplo compacto mide más de 2048 bytes: la configuración actual del broker limita a 2048 y **deberá ajustarse coordinadamente** antes del transporte v3, conservando los límites específicos de los validadores reales v1/v2.
+- JSON UTF-8 sin BOM ni claves duplicadas, máximo **8192 bytes**. El ejemplo compacto mide más de 2048 bytes: la plantilla del broker ya admite 8192 y la copia LAN anterior se actualiza al iniciar con `IniciarRed`; reiniciar el broker para aplicarlo. Los validadores reales v1/v2 conservan sus límites específicos de 2048.
 - UUID v4 por captura, conservado en reintentos. Fecha UTC canónica con milisegundos: `YYYY-MM-DDTHH:mm:ss.sssZ`. No cambiar UUID, fecha ni contenido para reintentar.
 - La recepción se fija en el receptor y se conserva durante sus reintentos. Para lote nuevo debe ser reciente y la captura debe estar en `[recepción − 300 s, recepción + 120 s]`. No reproducir ejemplos antiguos como capturas nuevas.
 

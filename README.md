@@ -8,13 +8,13 @@ El primer ESP32 con DHT22 y LDR publica mediciones reales de temperatura, humeda
 
 La web incluye inicio y cierre de sesión, monitoreo, gestión de cultivos y dispositivos, históricos con gráficas y estadísticas, reglas y episodios de alertas. También están implementados un contador de alertas activas sin revisar y avisos internos con la web abierta; su comprobación real se registra por separado de las pruebas locales.
 
-Las comprobaciones locales más recientes registran 30 pruebas de web, 75 de n8n y 29 de SQL, además de compilación y pruebas de navegador con datos ficticios. Estas pruebas no sustituyen la validación física ni las pruebas de sesión/API en los servicios. El detalle de evidencia y pendientes está en [docs/estado.md](docs/estado.md).
+Las comprobaciones locales registran 37 pruebas de web, 79 de n8n, 29 de SQL y 18 del simulador, además de navegador con datos ficticios y MQTT en broker aislado. Estas pruebas no sustituyen la validación física ni las pruebas de sesión/API en los servicios. El detalle de evidencia y pendientes está en [docs/estado.md](docs/estado.md).
 
 El segundo nodo equivalente sigue pendiente del DHT22. La iluminación es un índice relativo del ADC, no lux ni una calibración entre sensores. Gemini y la predicción numérica de temperatura todavía no están implementados.
 
-El [panel externo de simulación](simulador/README.md) permite ajustar diez variables en cuatro zonas ficticias y reproducir escenarios de doce pasos. Todos sus datos se identifican como simulados. Esta primera etapa registra y exporta capturas localmente; su conexión con MQTT, Supabase, reglas e IA está pendiente.
+El [panel externo de simulación](simulador/README.md) permite ajustar diez variables en cuatro zonas y reproducir escenarios de doce pasos. Todos sus datos se identifican como simulados. Registra/exporta capturas localmente y permite envío manual MQTT v3 con `-ConMqtt`. Juan aportó confirmación de persistencia de diez mediciones en 03f. La web incorpora [Inicio → Zonas y nodos](web/ZONAS.md), con croquis seleccionable y consulta de capturas por nodo/procedencia, probado con fixtures y pendiente de revisión en la cuenta real. Reglas ampliadas e IA para esta ruta siguen pendientes.
 
-En la rama de simulación están preparados el [contrato MQTT v3](docs/contrato-mqtt-v3-simulado.md) y el [backend de zonas y nodos virtuales](supabase/APLICAR_ZONAS_SIMULADAS.md), probados en una base aislada. Las nuevas migraciones no se han aplicado al Supabase compartido. El plano seleccionable de zonas/nodos de la web queda previsto con posiciones normalizadas.
+El [contrato MQTT v3](docs/contrato-mqtt-v3-simulado.md) y el [backend de zonas y nodos virtuales](supabase/APLICAR_ZONAS_SIMULADAS.md) se probaron en una base aislada. Juan aportó la verificación remota de las nuevas migraciones y reportó correcta la de cuatro zonas/nodos virtuales con diez capacidades cada uno. El croquis web utiliza sus posiciones normalizadas, muestra los físicos sin zona como Sin ubicar y conserva la ubicación histórica de las capturas con aviso cuando difiere de la asignación actual.
 
 ## Arquitectura
 

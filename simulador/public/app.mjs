@@ -1,4 +1,5 @@
 import { VARIABLES, ZONAS, CULTIVOS, ESCENARIOS, PASOS, MAX_CAPTURAS, crearZonas, prepararEscenario, avanzar, editarValor, crearCaptura, crearExportacion, validarSemilla, validarValor } from './motor.mjs';
+import { iniciarTransporte } from './transporte.mjs';
 
 const $ = id => document.getElementById(id);
 const preferenciasKey = 'agrovigia.simulador.preferencias.v1';
@@ -13,6 +14,7 @@ const prefs = preferencias();
 let nodes = crearZonas(prefs.semilla), selected = 0, ejecucion = crypto.randomUUID();
 let records = [], discarded = 0, timer = null, autoTargets = [];
 const fields = new Map(), invalidFields = new Set();
+const transporte = iniciarTransporte({ ultimaCaptura: todas => todas ? records : records[0], pausar: () => detener() });
 $('seed').value = String(prefs.semilla); $('crop').value = prefs.cultivo;
 
 function element(tag, className, text) {
@@ -205,6 +207,7 @@ function renderHistory() {
   }
   $('last-json').textContent = records[0] ? JSON.stringify(records[0], null, 2) : '';
   renderZones();
+  transporte.actualizar();
 }
 function iniciarAuto() {
   if (timer !== null) { detener('Secuencia pausada. Las capturas permanecen en la bitácora local.'); return; }
@@ -260,11 +263,11 @@ $('copy').addEventListener('click', async () => {
 $('export').addEventListener('click', () => {
   if (!records.length) return;
   try {
-    const data = crearExportacion(records, discarded);
+    const data = transporte.exportar(crearExportacion(records, discarded));
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' }));
     const anchor = element('a'); anchor.href = url; anchor.download = `agrovigia-simulacion-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     document.body.append(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
-    status(`Archivo generado con ${records.length} capturas simuladas. No se envió a ningún servicio.`);
+    status(`Archivo generado con ${records.length} capturas simuladas y el registro de los envíos manuales, si los hubo. El archivo no confirma guardado remoto.`);
   } catch (error) { status(error.message, true); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && timer !== null) detener('Secuencia pausada al ocultar la pestaña. No se inventaron capturas durante la pausa.'); });

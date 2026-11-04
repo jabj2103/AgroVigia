@@ -154,6 +154,11 @@ try {
             Confirmar-Preparacion
             $rutaRed = Join-Path $privado 'agrovigia-lan.conf'
             if (-not (Test-Path -LiteralPath $rutaRed)) { throw 'Ejecutar PrepararFirmware con la IPv4 Wi-Fi antes de IniciarRed.' }
+            # Mantener el limite actualizado en la copia LAN privada, conservando IP y claves.
+            # No transformar otras configuraciones personalizadas silenciosamente.
+            $configRedActual = [System.IO.File]::ReadAllText($rutaRed)
+            $configRedNueva = [regex]::Replace($configRedActual, '(?m)^message_size_limit 2048\r?$', 'message_size_limit 8192')
+            if ($configRedNueva -cne $configRedActual) { Escribir-Utf8 $rutaRed $configRedNueva }
             & $binario -c $rutaRed --test-config
             if ($LASTEXITCODE -ne 0) { throw 'La configuracion LAN no paso la comprobacion.' }
             Write-Host 'Broker LAN de prueba sin TLS. Solo red privada de confianza; no redirigir puertos a Internet.'
@@ -167,7 +172,7 @@ try {
             # decodificarlo con una pagina OEM y mostrar caracteres como el grado mal.
             [Console]::OutputEncoding = $utf8SinBom
             Write-Host 'Esperando telemetria autorizada. Ctrl+C para terminar.'
-            & $binario -o (Join-Path $privado 'receptor.conf') -i agv-monitor-local -t 'agrovigia/v1/+/nodos/+/telemetria' -t 'agrovigia/v2/+/nodos/+/telemetria' -v
+            & $binario -o (Join-Path $privado 'receptor.conf') -i agv-monitor-local -t 'agrovigia/v1/+/nodos/+/telemetria' -t 'agrovigia/v2/+/nodos/+/telemetria' -t 'agrovigia/v3/simulado/nodos/+/telemetria' -v
             if ($LASTEXITCODE -ne 0) { throw 'No se pudo mantener la suscripcion. Comprobar que el broker siga abierto.' }
         }
         'Publicar' {

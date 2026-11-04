@@ -26,14 +26,14 @@
       <div class="hero-stats"><div><strong>04</strong><span>Puntos virtuales</span></div><div><strong>10</strong><span>Variables por punto</span></div><div><strong id="capture-count">00</strong><span>Capturas locales</span></div></div>
     </section>
 
-    <div class="local-notice"><span class="notice-dot" aria-hidden="true"></span><div><strong>Vista previa local · todos los datos son simulados</strong><p>Las capturas se registran en esta pestaña y se pueden exportar. El envío a AgroVigía y las sugerencias de IA se conectarán en la siguiente etapa.</p></div><span class="local-label">Sin envío</span></div>
+    <div class="local-notice"><span class="notice-dot" aria-hidden="true"></span><div><strong>Laboratorio · todos los datos son simulados</strong><p>Captura y exporta en esta pestaña. Puedes enviar una captura manualmente si habilitas la conexión MQTT. Las sugerencias de IA están pendientes.</p></div><span class="local-label">Simulada</span></div>
 
     <div class="workspace">
       <aside class="zones panel" aria-labelledby="zones-title">
         <div class="section-top"><p class="eyebrow">01 / UBICACIÓN</p><h2 id="zones-title">Puntos virtuales</h2><p>Selecciona una zona para trabajar.</p></div>
         <nav id="zone-list" aria-label="Zonas simuladas"></nav>
         <div class="zone-key"><span aria-hidden="true"></span> Cada zona tiene valores propios.</div>
-        <div class="zone-foot"><strong>Un espacio de prueba</strong><p>Estas zonas son ejemplos locales. Todavía no están vinculadas a una cuenta o cultivo de Supabase.</p></div>
+        <div class="zone-foot"><strong>Un espacio de prueba</strong><p>Estos nombres son referencias locales. El mapeo MQTT identifica los nodos virtuales registrados en el cultivo.</p></div>
       </aside>
 
       <section class="controls panel" id="variables" aria-labelledby="variables-title">
@@ -42,7 +42,7 @@
         <div id="variable-groups"></div>
         <div id="field-error" class="field-error" role="alert" hidden></div>
         <div class="capture-actions"><button id="capture" class="button primary" type="button"><span aria-hidden="true">＋</span> Capturar valores actuales</button><button id="step" class="button secondary" type="button" disabled>Avanzar y capturar <span aria-hidden="true">→</span></button></div>
-        <p class="fineprint">Una captura nueva recibe su propia fecha UTC e identificador. No guarda datos en Supabase.</p>
+        <p class="fineprint">Capturar registra valores localmente con fecha UTC e identificador nuevos. El envío a MQTT se realiza por separado.</p>
       </section>
 
       <aside class="scenarios panel" aria-labelledby="scenarios-title">
@@ -58,7 +58,16 @@
     <section class="history panel" aria-labelledby="history-title"><div class="history-head"><div><p class="eyebrow">04 / REGISTRO</p><h2 id="history-title">Bitácora local</h2><p id="history-summary">Aún no hay capturas. Registra un punto para empezar.</p></div><div class="export-actions"><button id="copy" class="button secondary" type="button" disabled>Copiar última captura</button><button id="export" class="button dark" type="button" disabled>Exportar sesión JSON <span aria-hidden="true">↓</span></button></div></div>
       <div class="history-empty" id="history-empty"><div class="empty-icon" aria-hidden="true">↗</div><strong>Tu primera captura empieza aquí</strong><p>Ajusta las variables y pulsa «Capturar valores actuales».</p></div>
       <div id="history-content" hidden><div class="table-scroll"><table><caption class="sr-only">Últimas doce capturas simuladas de todos los puntos</caption><thead><tr><th>Hora · Bogotá</th><th>Punto</th><th>Escenario</th><th>Paso</th><th>T. aire</th><th>H. suelo</th><th>Procedencia</th></tr></thead><tbody id="history-body"></tbody></table></div><details class="json-details"><summary>Inspeccionar la última captura JSON</summary><pre id="last-json" tabindex="0" aria-label="Última captura simulada en formato JSON"></pre></details></div>
-      <p class="history-foot">Se conservan hasta 300 capturas en memoria. Exporta antes de cerrar o recargar la pestaña. No hay almacenamiento en la plataforma.</p>
+      <p class="history-foot">Se conservan hasta 300 capturas en memoria. Exporta antes de cerrar o recargar. El guardado remoto de los envíos se comprueba en n8n y Supabase.</p>
+    </section>
+    <section class="mqtt-panel panel" aria-labelledby="mqtt-title">
+      <p class="eyebrow">05 / CONEXIÓN</p><h2 id="mqtt-title">Enviar una captura simulada</h2>
+      <p>Configura las cuatro filas de <code>verificar-provision-simulacion.sql</code> copiadas como JSON desde Supabase. El mapeo vive en este servidor hasta reiniciarlo. El cultivo de ejemplo del panel no cambia el cultivo de destino.</p>
+      <details><summary>Configurar los nodos virtuales</summary><label for="mqtt-mapping">Cuatro filas en formato JSON, sin claves ni contraseñas</label><textarea id="mqtt-mapping" rows="5" spellcheck="false" placeholder='[{"nodo_local":"sim-zona-01", ...}, ...]'></textarea><button type="button" class="button secondary" id="mqtt-bind" disabled>Configurar nodos</button></details>
+      <p class="mono" id="mqtt-target">Genera una captura para elegir el envío.</p>
+      <button type="button" class="button primary" id="mqtt-send" disabled>Enviar última captura a MQTT</button>
+      <p id="mqtt-status" role="status" aria-live="polite">Comprobando conexión local…</p>
+      <p class="fineprint">El envío pausa la secuencia. Capturas y escenarios no se envían automáticamente. Reenviar conserva el UUID y la fecha; utiliza capturas de menos de cinco minutos. La confirmación MQTT no acredita guardado en Supabase ni evaluación de alertas.</p>
     </section>
     <p id="app-status" class="app-status" role="status" aria-live="polite">Listo para preparar tu primer escenario.</p>
     <footer><span>AgroVigía <span aria-hidden="true">/</span> Simulador local</span><span>Datos sintéticos · sin evaluación agronómica ni IA</span></footer>

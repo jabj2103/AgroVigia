@@ -1,5 +1,7 @@
 # Primera prueba MQTT local
 
+Actualización simulación v3: ACL separada para el usuario simulador/receptor y límite del broker 8192 bytes; los validadores v1/v2 siguen limitados a 2048. `Escuchar` incluye también v3 simulado. `IniciarRed` actualiza el antiguo límite 2048 en su copia LAN conservando IP/credenciales. Reiniciar el broker del proyecto para cargar los cambios. [Guía panel → MQTT → n8n → Supabase](../n8n/SIMULACION_ZONAS.md). La prueba `node mqtt/probar-simulacion-v3.mjs` usa exclusivamente un broker efímero y credenciales de prueba; no modifica los servicios habituales ni escribe datos remotos.
+
 Actualizacion ambiental v2: ACL incluye primer nodo v2 y reserva separada para segunda placa; Escuchar se suscribe a v1 y v2. Reiniciar broker para cargar ACL. Guia ../docs/integrar-nodo-ambiental.md. Una ACL futura no crea un nodo ni acredita sensores.
 
 Esta configuracion usa la instalacion existente en `C:\Users\juann\Documents\Mosquitto`. No instala programas, registra servicios, cambia el firewall ni modifica esa instalacion. Ejecuta un broker de AgroVigia en primer plano, solo en **127.0.0.1:18883**. El ESP32 todavia no puede entrar: el acceso desde la red local se preparara despues de esta comprobacion.

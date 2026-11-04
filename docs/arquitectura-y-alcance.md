@@ -2,6 +2,8 @@
 
 ## Ampliación acordada: simulación por zonas
 
+Estado vigente: Juan verificó las nuevas migraciones/provisionamiento y aportó persistencia de un lote simulado de diez mediciones. Panel con envío manual y receptor03f implementados; web [Inicio → Zonas y nodos](../web/ZONAS.md) incorpora croquis normalizado, selección de sector/nodo y lecturas separadas por procedencia con etiquetas/fechas/ausencia/error. QA con fixtures aprobado; revisión con datos de cuenta pendiente. Los párrafos siguientes registran el diseño inicial de esta ampliación; el estado de ejecución detallado está en estado.md.
+
 3 de noviembre de 2026: tras la revisión del profesor, Juan solicita preparar primero un panel externo de escenarios y señalar explícitamente cada variable como Simulada. Se amplía el diseño para admitir sectores de un cultivo y varios nodos virtuales con variables ambientales, de suelo, lluvia y viento. Los dos ESP32 previstos conservan sus sensores físicos DHT22 + LDR; el resto de esta etapa son datos sintéticos, sin nuevas mediciones físicas.
 
 La primera implementación está aislada en [simulador/](../simulador/README.md): cuatro puntos ficticios, diez variables, escenarios reproducibles, bitácora y exportación local. Aún no altera catálogo, límite de dos nodos, RPC, ACL, firmware ni consultas de la web. La integración posterior necesita migraciones/contrato versionado y resolver zonas históricas, origen y permisos. Los textos locales de cultivo/zona no autorizan escritura en la base. Las descripciones inferiores conservan el diseño previo y deben leerse junto a esta ampliación y el registro de ejecución.

@@ -7,7 +7,7 @@ export async function cargarContexto(client: SupabaseClient, usuarioId: string):
     client.from('perfiles').select('nombre').eq('id', usuarioId).maybeSingle(),
     client.from('cultivos').select('id,nombre,tipo,area,unidad_area,archivado_en')
       .eq('agricultor_id', usuarioId).order('creado_en', { ascending: true }),
-    client.from('nodos').select('id,codigo,cultivo_id,habilitado')
+    client.from('nodos').select('id,codigo,cultivo_id,habilitado,tipo_nodo')
       .eq('agricultor_id', usuarioId).order('codigo'),
   ]);
   for (const respuesta of [perfil, cultivos, nodos]) {

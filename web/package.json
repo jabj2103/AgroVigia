@@ -15,7 +15,8 @@
     "test:browser:cultivos": "node tests/crops.browser.mjs",
     "test:browser:dispositivos": "node tests/devices.browser.mjs",
     "test:browser:alertas": "node tests/alerts.browser.mjs",
-    "test:browser:avisos": "node tests/notifications.browser.mjs"
+    "test:browser:avisos": "node tests/notifications.browser.mjs",
+    "test:browser:zonas": "node tests/zones.browser.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

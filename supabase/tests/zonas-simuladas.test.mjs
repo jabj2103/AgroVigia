@@ -73,6 +73,9 @@ test('ingesta guarda diez filas atómicas con zona histórica, posición, fechas
  assert.equal(rows.length,10);assert.ok(rows.every(m=>m.origen==='simulado'&&m.zona_id===zona.id&&m.zona_contexto.codigo==='zona-norte'&&m.zona_contexto.posicion_nodo_x===0.3));
  assert.ok(rows.every(m=>m.metadatos.version_payload===3&&m.metadatos.unidad&&m.metadatos.detalle.fuente==='generador_sintetico_v1'));
  assert.equal(new Set(rows.map(m=>String(m.recibida_en))).size,1);
+ const checked=(await db.query(sql('verificar-captura-simulada-v3.sql').replaceAll('00000000-0000-4000-8000-000000000000',p.payload.mensaje_id))).rows;
+ assert.equal(checked.length,1);assert.equal(checked[0].cantidad_variables,10);assert.equal(checked[0].variables_distintas,10);assert.equal(checked[0].version_v3,true);
+ assert.equal(Object.keys(checked[0].valores).length,10);assert.equal(checked[0].origen,'simulado');
 });
 test('mismo ID es idempotente incluso con orden diferente; contenido distinto no reescribe',async()=>{
  const p=await packet(),a=await rpc(p);p.payload.mediciones.reverse();const b=await rpc(p);
@@ -155,6 +158,8 @@ test('provisionamiento exige cultivo explícito, es idempotente y no crea medici
  assert.equal(rows.length,4);const ids=rows.map(r=>r.asignacion_version);
  const repeat=await db.exec(script),again=repeat.find(r=>r.rows?.[0]?.nodo_local)?.rows;assert.deepEqual(again.map(r=>r.asignacion_version),ids);
  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.mediciones WHERE cultivo_id=$1',[crop2])).rows[0].n,0);
+ const verification=sql('verificar-provision-simulacion.sql').replaceAll('52ea4628-c470-48f4-a09a-0f9a697d22b4',crop2);
+ const verified=(await db.query(verification)).rows;assert.equal(verified.length,4);assert.ok(verified.every(n=>n.habilitado&&n.variables_simuladas===10));
 });
 test('compatibilidad real v2: asignar zona conserva duplicados y metadatos originales',async()=>{
  await asUser(owner,()=>db.query('SELECT public.asignar_zona_nodo($1,$2)',[physical.id,zona.id]));

@@ -13,7 +13,10 @@ topic write agrovigia/v1/simulado/nodos/agv-dht22-01/telemetria
 topic write agrovigia/v1/simulado/nodos/agv-ldr-01/telemetria
 topic write agrovigia/v2/simulado/nodos/agv-dht22-01/telemetria
 topic write agrovigia/v2/simulado/nodos/agv-ambiente-02/telemetria
+# El catalogo y la RPC v3 restringen identidad, capacidades, cultivo y zona.
+topic write agrovigia/v3/simulado/nodos/+/telemetria
 
 user receptor
 topic read agrovigia/v1/+/nodos/+/telemetria
 topic read agrovigia/v2/+/nodos/+/telemetria
+topic read agrovigia/v3/simulado/nodos/+/telemetria

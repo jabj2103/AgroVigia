@@ -18,7 +18,7 @@ export default function Cultivos({ client, contexto, actualizado, abrir }: {
   const [confirmado, setConfirmado] = useState(false);
   const [solicitud, setSolicitud] = useState('');
   const [datos, setDatos] = useState<DatosCultivo>({ nombre:'',tipo:'',area:'',unidad:'m2',nodos:[] });
-  const disponibles = contexto.nodos.filter(n => n.habilitado && !n.cultivo_id);
+  const disponibles = contexto.nodos.filter(n => n.tipo_nodo !== 'virtual' && n.habilitado && !n.cultivo_id);
   function editar(c: Cultivo | 'nuevo') {
     setEdicion(c); setArchivo(null); setError(''); setAviso(''); setSolicitud(crypto.randomUUID());
     setDatos(c === 'nuevo' ? { nombre:'',tipo:'',area:'',unidad:'m2',nodos:[] }

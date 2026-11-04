@@ -3,6 +3,7 @@ export interface Cultivo {
 }
 export interface Nodo {
   id: string; codigo: string; cultivo_id: string | null; habilitado: boolean;
+  tipo_nodo?: 'fisico' | 'virtual';
 }
 export interface Capacidad { nodo_id: string; variable_codigo: string; sensor_modelo: string }
 export interface Contexto {
