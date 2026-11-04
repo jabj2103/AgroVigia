@@ -8,9 +8,13 @@ El primer ESP32 con DHT22 y LDR publica mediciones reales de temperatura, humeda
 
 La web incluye inicio y cierre de sesión, monitoreo, gestión de cultivos y dispositivos, históricos con gráficas y estadísticas, reglas y episodios de alertas. También están implementados un contador de alertas activas sin revisar y avisos internos con la web abierta; su comprobación real se registra por separado de las pruebas locales.
 
-Las comprobaciones locales más recientes registran 30 pruebas de web, 75 de n8n y 10 de SQL, además de compilación y pruebas de navegador con datos ficticios. Estas pruebas no sustituyen la validación física ni las pruebas de sesión/API en los servicios. El detalle de evidencia y pendientes está en [docs/estado.md](docs/estado.md).
+Las comprobaciones locales más recientes registran 30 pruebas de web, 75 de n8n y 29 de SQL, además de compilación y pruebas de navegador con datos ficticios. Estas pruebas no sustituyen la validación física ni las pruebas de sesión/API en los servicios. El detalle de evidencia y pendientes está en [docs/estado.md](docs/estado.md).
 
 El segundo nodo equivalente sigue pendiente del DHT22. La iluminación es un índice relativo del ADC, no lux ni una calibración entre sensores. Gemini y la predicción numérica de temperatura todavía no están implementados.
+
+El [panel externo de simulación](simulador/README.md) permite ajustar diez variables en cuatro zonas ficticias y reproducir escenarios de doce pasos. Todos sus datos se identifican como simulados. Esta primera etapa registra y exporta capturas localmente; su conexión con MQTT, Supabase, reglas e IA está pendiente.
+
+En la rama de simulación están preparados el [contrato MQTT v3](docs/contrato-mqtt-v3-simulado.md) y el [backend de zonas y nodos virtuales](supabase/APLICAR_ZONAS_SIMULADAS.md), probados en una base aislada. Las nuevas migraciones no se han aplicado al Supabase compartido. El plano seleccionable de zonas/nodos de la web queda previsto con posiciones normalizadas.
 
 ## Arquitectura
 
@@ -56,17 +60,20 @@ La configuración privada de Wi-Fi/MQTT, el entorno de la web y los datos/creden
 | `n8n/` | Flujos exportados sin credenciales, generadores, validadores y pruebas |
 | `supabase/` | Migraciones, funciones, verificaciones y pruebas transitorias |
 | `web/` | Aplicación React para teléfono y computador |
+| `simulador/` | Panel local separado con puntos virtuales, escenarios y exportación JSON |
 | `docs/` | Arquitectura, contratos, plan, evidencia y estado |
 | `docs/referencias/` | Copias del diseño propuesto; no acreditan implementación |
 
 ## Guías y contratos
 
+- [Esquema de base de datos por áreas, relaciones y RPC](docs/ESQUEMA_BASE_DATOS.md).
 - [Arquitectura y alcance](docs/arquitectura-y-alcance.md) y [plan de implementación](docs/plan-implementacion.md).
 - [Contrato MQTT v1](docs/contrato-mqtt-v1.md) y [contrato ambiental v2](docs/contrato-mqtt-v2.md).
 - [Broker MQTT](mqtt/README.md) e [integración del nodo ambiental](docs/integrar-nodo-ambiental.md).
 - [Ingesta y alertas en n8n](n8n/ALERTAS_SUPABASE.md).
 - [Gestión de cultivos](supabase/APLICAR_CULTIVOS.md), [nodos](supabase/APLICAR_NODOS.md) y [backend de alertas](supabase/APLICAR_ALERTAS.md).
 - [Pantallas](web/PANTALLAS.md), [históricos](web/HISTORIAL.md) y [alertas y avisos](web/ALERTAS.md).
+- [Iniciar y probar el simulador local](simulador/README.md), en http://127.0.0.1:5190.
 - [Evidencia inicial MQTT](docs/pruebas/2026-10-25-dht22-mqtt.json), conservada como prueba histórica y no como una captura actual.
 
 ## Pendientes

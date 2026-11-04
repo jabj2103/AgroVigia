@@ -1,5 +1,17 @@
 # Arquitectura y alcance vigentes
 
+## Ampliación acordada: simulación por zonas
+
+3 de noviembre de 2026: tras la revisión del profesor, Juan solicita preparar primero un panel externo de escenarios y señalar explícitamente cada variable como Simulada. Se amplía el diseño para admitir sectores de un cultivo y varios nodos virtuales con variables ambientales, de suelo, lluvia y viento. Los dos ESP32 previstos conservan sus sensores físicos DHT22 + LDR; el resto de esta etapa son datos sintéticos, sin nuevas mediciones físicas.
+
+La primera implementación está aislada en [simulador/](../simulador/README.md): cuatro puntos ficticios, diez variables, escenarios reproducibles, bitácora y exportación local. Aún no altera catálogo, límite de dos nodos, RPC, ACL, firmware ni consultas de la web. La integración posterior necesita migraciones/contrato versionado y resolver zonas históricas, origen y permisos. Los textos locales de cultivo/zona no autorizan escritura en la base. Las descripciones inferiores conservan el diseño previo y deben leerse junto a esta ampliación y el registro de ejecución.
+
+Se proponen perfiles de reglas por cultivo con fuente, versión y condiciones de aplicación; no están implementados en esta etapa. El selector de cultivo del simulador es únicamente contexto. Gemini se mantiene previsto para explicar observaciones y producir sugerencias con evidencias; no fija umbrales agronómicos automáticamente.
+
+Juan solicita además un croquis general del cultivo donde se puedan seleccionar zonas y nodos. Se prepara esa base en 0007 con rectángulos normalizados 0–1 y marcadores relativos a su zona, y se guarda la ubicación histórica en cada nueva medición; no es un mapa GPS ni calcula superficies. Los nodos sin posición aparecerán «Sin ubicar». La futura pantalla deberá ofrecer selección equivalente por teclado/lista, distinguir origen y antigüedad y mostrar solo las capacidades reales del nodo seleccionado, sin mezclar estadísticas de orígenes/métodos diferentes ni presentar colores como salud del cultivo.
+
+En `juan/simulacion-zonas` se preparan contrato/adaptador v3 y migraciones 0007/0008 para guardar diez variables de nodos virtuales autorizados, con hasta dos nodos físicos y dieciséis virtuales por cultivo mediante RPC. Solo se probaron en PGlite aislado; no se han aplicado al Supabase compartido ni se habilitó transporte nuevo. La web gráfica y la integración del emisor/receptor son etapas siguientes. La guía de revisión/aplicación está en [APLICAR_ZONAS_SIMULADAS.md](../supabase/APLICAR_ZONAS_SIMULADAS.md).
+
 ## Propósito
 
 Demostrar el monitoreo ambiental de cultivos con equipos disponibles, una plataforma web y sugerencias de IA. El objetivo académico es un prototipo verificable que permita discutir su ampliación; no se afirma que ya exista una solución de producción para fincas sin conectividad.

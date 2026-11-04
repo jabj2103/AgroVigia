@@ -1,0 +1,726 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgroVigia telemetria simulada v3",
+  "description": "Solo nodos virtuales autorizados. Esquema de forma: no acredita ACL, propietario, asignacion, frescura ni semantica de ventanas. Esas comprobaciones son del receptor/RPC.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "nodo_codigo",
+    "mensaje_id",
+    "origen",
+    "tomada_en",
+    "asignacion_version",
+    "simulacion",
+    "mediciones"
+  ],
+  "properties": {
+    "version": {
+      "const": 3
+    },
+    "nodo_codigo": {
+      "type": "string",
+      "minLength": 6,
+      "maxLength": 50,
+      "pattern": "^sim-[a-z0-9][a-z0-9-]{1,45}$"
+    },
+    "mensaje_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "origen": {
+      "const": "simulado"
+    },
+    "tomada_en": {
+      "type": "string",
+      "minLength": 24,
+      "maxLength": 24,
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "asignacion_version": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "simulacion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ejecucion_id",
+        "semilla",
+        "escenario_id",
+        "modo",
+        "paso",
+        "pasos_transicion"
+      ],
+      "properties": {
+        "ejecucion_id": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "semilla": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999999999
+        },
+        "escenario_id": {
+          "enum": [
+            "referencia",
+            "calor-seco",
+            "lluvia",
+            "viento",
+            "ph",
+            "recuperacion"
+          ]
+        },
+        "modo": {
+          "enum": [
+            "manual",
+            "escenario"
+          ]
+        },
+        "paso": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12
+        },
+        "pasos_transicion": {
+          "const": 12
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "modo": {
+                "const": "manual"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "paso": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "mediciones": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "temperatura_aire"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": -40,
+                "maximum": 80,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "°C"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "humedad_aire"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "% HR"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "iluminacion_relativa"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "% relativo"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente",
+                  "metodo"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  },
+                  "metodo": {
+                    "const": "indice_relativo_sintetico_v1"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "radiacion_solar"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1400,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "W/m²"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "humedad_suelo_vwc"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 80,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "% VWC"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente",
+                  "profundidad_cm"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  },
+                  "profundidad_cm": {
+                    "const": 20
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "temperatura_suelo"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": -20,
+                "maximum": 70,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "°C"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente",
+                  "profundidad_cm"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  },
+                  "profundidad_cm": {
+                    "const": 20
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "ph_suelo"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 14,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "sin unidad"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "conductividad_suelo_ece"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 30,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "dS/m"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente",
+                  "metodo",
+                  "temperatura_referencia_c"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  },
+                  "metodo": {
+                    "const": "extracto_pasta_saturada_ECe"
+                  },
+                  "temperatura_referencia_c": {
+                    "const": 25
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "precipitacion_60min"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 200,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "mm"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente",
+                  "ventana",
+                  "periodo_segundos",
+                  "inicio_periodo",
+                  "fin_periodo",
+                  "acumulados_no_sumables"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  },
+                  "ventana": {
+                    "const": "movil"
+                  },
+                  "periodo_segundos": {
+                    "const": 3600
+                  },
+                  "inicio_periodo": {
+                    "type": "string",
+                    "minLength": 24,
+                    "maxLength": 24,
+                    "format": "date-time",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+                  },
+                  "fin_periodo": {
+                    "type": "string",
+                    "minLength": 24,
+                    "maxLength": 24,
+                    "format": "date-time",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+                  },
+                  "acumulados_no_sumables": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "variable_codigo",
+              "valor",
+              "unidad",
+              "origen",
+              "metadatos"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "velocidad_viento"
+              },
+              "valor": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 50,
+                "multipleOf": 0.0001
+              },
+              "unidad": {
+                "const": "m/s"
+              },
+              "origen": {
+                "const": "simulado"
+              },
+              "metadatos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fuente"
+                ],
+                "properties": {
+                  "fuente": {
+                    "const": "generador_sintetico_v1"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "temperatura_aire"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "humedad_aire"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "iluminacion_relativa"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "radiacion_solar"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "humedad_suelo_vwc"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "temperatura_suelo"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "ph_suelo"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "conductividad_suelo_ece"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "precipitacion_60min"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "variable_codigo"
+            ],
+            "properties": {
+              "variable_codigo": {
+                "const": "velocidad_viento"
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      ]
+    }
+  }
+}

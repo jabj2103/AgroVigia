@@ -1,5 +1,9 @@
 # Plan inicial de implementación
 
+Paso vigente en rama `juan/simulacion-zonas`: contrato/adaptador v3 y migraciones 0007/0008 preparados y probados localmente; revisar la [guía de integración de zonas](../supabase/APLICAR_ZONAS_SIMULADAS.md) y coordinar cambios del compañero antes de aplicarlas al proyecto compartido. Luego provisionar las cuatro zonas/nodos virtuales, conectar envío MQTT y receptor n8n v3 y comprobar una captura remota de diez variables. La futura web incluirá un croquis seleccionable por zona/nodo con etiquetas de procedencia y antigüedad. El panel sigue local hasta completar esa integración.
+
+Paso vigente 3/11/2026: Juan confirma correcta la prueba manual del panel externo descrita en [simulador/README.md](../simulador/README.md). Siguiente etapa: contrato y backend de zonas/capacidades/nodos virtuales e ingesta simulada antes de conectar el panel a la plataforma; primer criterio de aceptación: una captura simulada completa de diez variables con UUID, fechas y origen coincidentes entre panel y SQL. Después conectar transporte/n8n y consulta explícita en web; continuar con perfiles agronómicos documentados y sugerencias IA. Los pasos inferiores son historial de la implementación previa, no instrucciones para volver a aplicar migraciones ya ejecutadas.
+
 Paso vigente: recargar web, comprobar Alertas/Episodios/Reglas con cuenta real y probar ciclo completo con limite temporal elegido por Juan; guia web/ALERTAS.md. Frontend y03e ya preparados; no repetir SQL. Despues sugerencias IA contextualizadas, sin afirmar salud ni umbrales agronomicos validados.
 
 Paso vigente: seguir n8n/ALERTAS_SUPABASE.md para configurar03e y verificar evaluacion despues del guardado, sin receptores duplicados. Despues pantalla React de limites y episodios; no activar umbrales de demostracion para cultivo real unilateralmente.

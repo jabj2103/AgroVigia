@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Panel local de AgroVigía para crear escenarios con datos simulados por zona.">
+  <title>Simulador de escenarios · AgroVigía</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#variables">Ir a los controles</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="AgroVigía, inicio del simulador">
+      <svg viewBox="0 0 36 36" aria-hidden="true"><rect width="36" height="36" rx="11" fill="currentColor"/><path d="M10 22c0-10 9-13 17-13 0 9-4 18-14 16m-2 3 11-13" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Agro<span class="brand-light">Vigía</span></span>
+    </a>
+    <div class="topbar-right"><span class="top-label">Herramientas de demostración</span><span class="pill simulated">Simulación</span></div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <div><p class="eyebrow">UN CULTIVO, DISTINTAS CONDICIONES</p><h1 id="page-title">Laboratorio de escenarios<span>.</span></h1><p class="intro">Ajusta las variables de cada zona y reproduce cambios paso a paso.</p></div>
+      <div class="hero-stats"><div><strong>04</strong><span>Puntos virtuales</span></div><div><strong>10</strong><span>Variables por punto</span></div><div><strong id="capture-count">00</strong><span>Capturas locales</span></div></div>
+    </section>
+
+    <div class="local-notice"><span class="notice-dot" aria-hidden="true"></span><div><strong>Vista previa local · todos los datos son simulados</strong><p>Las capturas se registran en esta pestaña y se pueden exportar. El envío a AgroVigía y las sugerencias de IA se conectarán en la siguiente etapa.</p></div><span class="local-label">Sin envío</span></div>
+
+    <div class="workspace">
+      <aside class="zones panel" aria-labelledby="zones-title">
+        <div class="section-top"><p class="eyebrow">01 / UBICACIÓN</p><h2 id="zones-title">Puntos virtuales</h2><p>Selecciona una zona para trabajar.</p></div>
+        <nav id="zone-list" aria-label="Zonas simuladas"></nav>
+        <div class="zone-key"><span aria-hidden="true"></span> Cada zona tiene valores propios.</div>
+        <div class="zone-foot"><strong>Un espacio de prueba</strong><p>Estas zonas son ejemplos locales. Todavía no están vinculadas a una cuenta o cultivo de Supabase.</p></div>
+      </aside>
+
+      <section class="controls panel" id="variables" aria-labelledby="variables-title">
+        <div class="controls-head"><div><p class="eyebrow">02 / VARIABLES</p><h2 id="variables-title">Variables del punto</h2><p><strong id="zone-title">Sector norte</strong> <span class="mono" id="node-code">sim-zona-01</span></p></div><span class="pill simulated">Simulada</span></div>
+        <p class="control-hint">Edita un valor o prepara un escenario. Los rangos de los controles son límites de esta prueba, no valores óptimos para el cultivo.</p>
+        <div id="variable-groups"></div>
+        <div id="field-error" class="field-error" role="alert" hidden></div>
+        <div class="capture-actions"><button id="capture" class="button primary" type="button"><span aria-hidden="true">＋</span> Capturar valores actuales</button><button id="step" class="button secondary" type="button" disabled>Avanzar y capturar <span aria-hidden="true">→</span></button></div>
+        <p class="fineprint">Una captura nueva recibe su propia fecha UTC e identificador. No guarda datos en Supabase.</p>
+      </section>
+
+      <aside class="scenarios panel" aria-labelledby="scenarios-title">
+        <div class="section-top"><p class="eyebrow">03 / ESCENARIOS</p><h2 id="scenarios-title">Prepara un cambio</h2><p>Elige un destino; después avanza o inicia la secuencia.</p></div>
+        <div id="scenario-list" class="scenario-list" role="group" aria-label="Escenarios de demostración"></div>
+        <div class="transition"><div class="transition-top"><strong id="scenario-title">Ajuste manual</strong><span id="scenario-step">0 / 12</span></div><progress id="progress" value="0" max="12" aria-label="Avance del escenario"></progress><p id="scenario-description">Los controles cambian el borrador. Captura cuando quieras registrar sus valores.</p><details id="target-details" hidden><summary>Ver valores de destino</summary><dl id="target-values"></dl></details></div>
+        <div class="automation"><div class="automation-title"><h3>Secuencia automática</h3><span class="run-state" id="run-state">Pausada</span></div><div class="select-pair"><label>Aplicar a<select id="scope"><option value="selected">Este punto</option><option value="all">Todos los puntos</option></select></label><label>Cada<select id="interval"><option value="2">2 segundos</option><option value="5" selected>5 segundos</option><option value="10">10 segundos</option><option value="30">30 segundos</option><option value="60">60 segundos</option></select></label></div><button class="button primary full" type="button" id="auto">Iniciar secuencia</button><p class="fineprint" id="auto-help">Registra 12 pasos y se detiene al llegar al destino. No es un modelo de evolución agronómica.</p></div>
+      </aside>
+    </div>
+
+    <section class="configuration panel" aria-label="Configuración de la simulación"><div><h2>Una prueba que puedes repetir</h2><p>La misma semilla, escenario y pasos generan los mismos valores. Las fechas e identificadores siempre son nuevos.</p></div><div class="config-fields"><label>Cultivo de ejemplo<select id="crop"><option>Maíz</option><option>Yuca</option><option>Papa</option></select><small>Solo contexto; no aplica reglas.</small></label><label>Semilla<input id="seed" type="number" min="1" max="999999999" step="1" value="20261103" inputmode="numeric"></label><button id="reset" class="button secondary" type="button">Aplicar y reiniciar zonas</button></div></section>
+
+    <section class="history panel" aria-labelledby="history-title"><div class="history-head"><div><p class="eyebrow">04 / REGISTRO</p><h2 id="history-title">Bitácora local</h2><p id="history-summary">Aún no hay capturas. Registra un punto para empezar.</p></div><div class="export-actions"><button id="copy" class="button secondary" type="button" disabled>Copiar última captura</button><button id="export" class="button dark" type="button" disabled>Exportar sesión JSON <span aria-hidden="true">↓</span></button></div></div>
+      <div class="history-empty" id="history-empty"><div class="empty-icon" aria-hidden="true">↗</div><strong>Tu primera captura empieza aquí</strong><p>Ajusta las variables y pulsa «Capturar valores actuales».</p></div>
+      <div id="history-content" hidden><div class="table-scroll"><table><caption class="sr-only">Últimas doce capturas simuladas de todos los puntos</caption><thead><tr><th>Hora · Bogotá</th><th>Punto</th><th>Escenario</th><th>Paso</th><th>T. aire</th><th>H. suelo</th><th>Procedencia</th></tr></thead><tbody id="history-body"></tbody></table></div><details class="json-details"><summary>Inspeccionar la última captura JSON</summary><pre id="last-json" tabindex="0" aria-label="Última captura simulada en formato JSON"></pre></details></div>
+      <p class="history-foot">Se conservan hasta 300 capturas en memoria. Exporta antes de cerrar o recargar la pestaña. No hay almacenamiento en la plataforma.</p>
+    </section>
+    <p id="app-status" class="app-status" role="status" aria-live="polite">Listo para preparar tu primer escenario.</p>
+    <footer><span>AgroVigía <span aria-hidden="true">/</span> Simulador local</span><span>Datos sintéticos · sin evaluación agronómica ni IA</span></footer>
+  </main>
+</body>
+</html>
