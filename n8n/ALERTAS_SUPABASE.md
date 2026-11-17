@@ -47,3 +47,15 @@ Los dos HTTP nuevos usan hasta3intentos con2s entre intentos y15s por solicitud,
 Supabase conserva cursor/episodio: repetir evaluacion de una captura ya procesada no duplica episodios ni renueva revision. No existe cola durable de pendientes ni barrido automatico de recuperacion. Fuera de la frescura180s el evaluador omite muestras; un intento posterior puede dar evaluadas0 sin acreditar recuperacion de todo un intervalo. La futura pantalla mostrara fecha de evidencia. La persistencia puede funcionar aunque alertas fallen: revisar ambas salidas.
 
 75 pruebas Node locales aprobadas (69anteriores+6nuevas), incluidos Code incrustados y pairedItem de dos lotes, URL permitida, consulta de nodo vacia/erronea, respuestas malformadas, origenes y conservacion de persistencia ante error. No se modifico el n8n publicado ni Supabase desde Codex. Paso siguiente tras comprobar el flujo real: pantalla de reglas y alertas, limites configurables sin defaults agronomicos inventados. Segundo nodo fisico no acreditado.
+
+## Sugerencias IA en el mismo 03e (noviembre de 2026)
+
+El 03e regenerado agrega, después de `Resultado de alertas`, la rama `Preparar reserva IA` → `Reservar sugerencia IA` → `Preparar Gemini` → `Consultar Gemini` → `Interpretar Gemini` → `Guardar sugerencia IA` → `Resultado IA`. Requiere la migración 0007.
+
+- El receptor escucha `agrovigia/v2/+/nodos/+/telemetria:1`: real y simulado. El origen lo fijan el tópico y la ACL; la base separa ambos y rechaza origen real en un nodo simulado.
+- Solo un lote **nuevo** con alertas **evaluadas** pide reserva. La base (`reservar_sugerencia_ia`) decide si corresponde: una periódica cada 30 min por cultivo y origen, una extra por alerta nueva (separadas al menos 5 min), espera de 10 min tras un fallo, topes de 60 por cultivo y 400 en total cada 24 h. Así el saldo de Gemini no se gasta en cada captura.
+- Gemini recibe el contexto guardado por la base (plantilla, últimas lecturas, estadísticas de 1 h y 24 h, reglas y alertas abiertas, hora local) con esquema JSON obligatorio. La respuesta se valida en n8n y otra vez en SQL; lo inválido queda como `fallida` sin guardar el texto.
+- Credenciales: `Consultar Gemini` usa Header Auth `x-goog-api-key`; `Reservar` y `Guardar sugerencia` usan la misma apikey de Supabase. Modelo en `Proyecto Supabase` > `gemini_modelo`.
+- Un fallo de IA nunca afecta `persistido` ni `alertas`. Revisar `Resultado IA`: `ia.estado` es `generada`, `fallida`, `omitida` (con su código, por ejemplo `NO_CORRESPONDE`) o `pendiente`.
+
+En Linux, `local/agrovigia.sh configurar-n8n` importa todo con las credenciales enlazadas. Pruebas: `node --test n8n/sugerencias.test.cjs`.

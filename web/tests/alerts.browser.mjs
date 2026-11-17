@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { elegir } from './selector-qa.mjs';
 import { existsSync,mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,15 +27,15 @@ try{
   assert.equal(await page.locator('.tarjeta-alerta.activa').count(),20);
   await page.getByRole('button',{name:'Siguiente',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===3);
   await page.getByRole('button',{name:'Anterior',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===20);
-  await page.locator('#alerta-revision').selectOption('revisadas');await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===1);
-  await page.locator('#alerta-estado').selectOption('cerradas');await page.getByRole('heading',{name:'No hay alertas para estos filtros'}).waitFor();
-  await page.locator('#alerta-revision').selectOption('todas');await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===2);
+  await elegir(page, '#alerta-revision', 'revisadas');await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===1);
+  await elegir(page, '#alerta-estado', 'cerradas');await page.getByRole('heading',{name:'No hay alertas para estos filtros'}).waitFor();
+  await elegir(page, '#alerta-revision', 'todas');await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===2);
   await page.getByText('Regla desactivada o sustituida',{exact:false}).first().waitFor();
   await page.getByRole('button',{name:'Reglas',exact:true}).click();
   await page.getByRole('button',{name:'Configurar regla',exact:true}).click();
   assert.equal(await page.locator('#regla-min').inputValue(),'');assert.equal(await page.locator('#regla-max').inputValue(),'');
   assert.equal(await page.getByRole('button',{name:'Guardar límites',exact:true}).isDisabled(),true);
-  await page.locator('#regla-variable').selectOption('humedad_aire');await page.locator('#regla-min').fill('80');await page.locator('#regla-max').fill('20');await page.getByRole('checkbox').check();
+  await elegir(page, '#regla-variable', 'humedad_aire');await page.locator('#regla-min').fill('80');await page.locator('#regla-max').fill('20');await page.getByRole('checkbox').check();
   await page.getByRole('button',{name:'Guardar límites',exact:true}).click();await page.getByText('El mínimo debe ser menor que el máximo.',{exact:true}).waitFor();
   await page.locator('#regla-min').fill('');await page.locator('#regla-max').fill('70');await page.getByRole('checkbox').check();
   await page.evaluate(()=>{window.qaAlertMutationError=true;});await page.getByRole('button',{name:'Guardar límites',exact:true}).click();await page.getByText('No pudimos confirmar el cambio.',{exact:false}).waitFor();
@@ -46,10 +47,10 @@ try{
   await page.getByRole('button',{name:'Episodios',exact:true}).click();
   await page.evaluate(()=>{window.qaAlertsError=true;});await page.getByRole('button',{name:'Actualizar alertas',exact:true}).click();await page.getByText('Se conserva la última consulta correcta, con su fecha indicada.',{exact:false}).waitFor();assert.equal(await page.locator('.tarjeta-alerta').count(),2);
   await page.evaluate(()=>{window.qaAlertsError=false;});await page.getByRole('button',{name:'Actualizar alertas',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('[role="alert"]'));
-  await page.locator('#alerta-estado').selectOption('activas');await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===20);
+  await elegir(page, '#alerta-estado', 'activas');await page.waitForFunction(()=>document.querySelectorAll('.tarjeta-alerta').length===20);
   for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:844});await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);if(width===390){await page.locator('.episodios-alertas').scrollIntoViewIfNeeded();await page.screenshot({path:path.join(images,'alertas-movil.png'),fullPage:false});}}
   await page.screenshot({path:path.join(images,'alertas-escritorio.png'),fullPage:false});
-  await page.locator('#cultivo').selectOption('dddddddd-dddd-4ddd-8ddd-dddddddddddd');await page.getByRole('heading',{name:'No hay alertas para estos filtros'}).waitFor();assert.equal(await page.getByRole('button',{name:'Configurar regla',exact:true}).count(),0);assert.equal(await page.locator('.tarjeta-alerta').count(),0);
+  await elegir(page, '#cultivo', 'dddddddd-dddd-4ddd-8ddd-dddddddddddd');await page.getByRole('heading',{name:'No hay alertas para estos filtros'}).waitFor();assert.equal(await page.getByRole('button',{name:'Configurar regla',exact:true}).count(),0);assert.equal(await page.locator('.tarjeta-alerta').count(),0);
   const queries=await page.evaluate(()=>window.qaAlertQueries);for(const u of queries.map(u=>new URL(u))){assert.equal(u.searchParams.get('origen'),'eq.real');assert.ok(u.searchParams.has('cultivo_id'));}
   await page.getByRole('button',{name:'Cuenta vacía',exact:true}).click();await page.getByRole('heading',{name:'No tienes cultivos activos'}).waitFor();assert.equal(await page.locator('.regla-alerta,.tarjeta-alerta').count(),0);
   assert.deepEqual(errors,[]);console.log('QA alertas OK: filtros, paginacion, revision sin cierre, configuracion sin defaults, validacion, error/reintento, desactivacion, error conservando datos, archivo/cuenta vacia y anchos 360/390/768/1280. Solo fixtures.');

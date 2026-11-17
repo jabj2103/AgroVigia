@@ -1,21 +1,35 @@
 import { randomBytes } from 'node:crypto';
 import { prepararCapturaV3 } from './contrato-v3.mjs';
-import { validarVinculos } from './transporte-mqtt.mjs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { validarVinculos, vinculosDeMapa } from './transporte-mqtt.mjs';
+const mapaPorDefecto = path.join(fileURLToPath(new URL('../', import.meta.url)), '.local', 'simulacion', 'nodos.json');
 
-export function crearApiMqtt(publicar) {
+export function crearApiMqtt(publicar, { archivoMapa = mapaPorDefecto } = {}) {
   const token = randomBytes(32).toString('hex');
   let vinculos = [], ocupado = false, bloqueado = false;
   function json(res, code, data) {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data));
   }
   return async (req, res, route) => {
-    if (!['/api/estado', '/api/vinculos', '/api/publicar'].includes(route)) return false;
+    if (!['/api/estado', '/api/vinculos', '/api/publicar', '/api/mapa'].includes(route)) return false;
     if (req.headers['sec-fetch-site'] === 'cross-site' ||
         (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`)) {
       json(res, 403, { error: 'Origen no autorizado.' }); return true;
     }
     if (route === '/api/estado' && req.method === 'GET') {
       json(res, 200, { token, habilitado: true, configurado: vinculos.length === 4, vinculos, bloqueado }); return true;
+    }
+    // Mapa publico de nodos virtuales (sin claves) exportado desde Supabase; el panel lo usa en vez de pegar JSON.
+    if (route === '/api/mapa' && req.method === 'GET') {
+      try {
+        const cultivo = new URL(req.url, 'http://127.0.0.1').searchParams.get('cultivo') ?? '';
+        let lista;
+        try { lista = JSON.parse(await readFile(archivoMapa, 'utf8')); } catch { throw new Error('Falta el mapa local. Ejecuta local/agrovigia.sh mapa.'); }
+        json(res, 200, { filas: vinculosDeMapa(lista, cultivo) });
+      } catch (error) { json(res, 400, { error: error.message }); }
+      return true;
     }
     if (req.method !== 'POST') { json(res, 405, { error: 'Método no permitido.' }); return true; }
     if (req.headers.origin !== `http://${req.headers.host}` || req.headers['x-agrovigia-token'] !== token ||

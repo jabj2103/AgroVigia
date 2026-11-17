@@ -1,8 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const cargar = nombre => fs.readFileSync(path.join(__dirname, nombre), 'utf8').split('// EXPORTACIONES_LOCALES:')[0];
-const base = ['validar-telemetria.cjs', 'validar-ambiental.cjs', 'preparar-ambiental.cjs'].map(cargar).join('\n');
+const base = require('./codigo-ingesta.cjs').baseAmbiental();
 const flujo = JSON.parse(fs.readFileSync(path.join(__dirname, '03b-ingesta-dht22.json'), 'utf8'));
 flujo.name = 'AgroVigia - 03c DHT22 y LDR v2 a Supabase';
 flujo.active = false;

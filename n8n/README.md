@@ -1,5 +1,7 @@
 # Recepcion MQTT: etapa 3a
 
+Sin puerto MQTT (por ejemplo en Render): [ingesta por HTTP 03g y sugerencias a petición 03h](INGESTA_HTTP.md). El webhook `agrovigia/telemetria` valida, guarda, evalúa alertas y decide la IA igual que 03e y 03f.
+
 Simulación por zonas: disponible [03f v3 y su guía de conexión](SIMULACION_ZONAS.md), independiente del flujo real 03e. Diez variables simuladas por captura, origen explícito, reintentos idempotentes y confirmación de persistencia separada del ACK MQTT. Export inactivo sin credenciales; pendiente importación y prueba remota por Juan. Sin alertas/IA en esa ruta por ahora.
 
 Actualizacion: disponible 03c-ingesta-ambiental.json para DHT22 + LDR v2, inactivo y sin credenciales. Conserva 03b para DHT22 v1. Guia completa en ../docs/integrar-nodo-ambiental.md; aplicar0003 antes de usar RPC ambiental. LDR es indice ADC, no lux.

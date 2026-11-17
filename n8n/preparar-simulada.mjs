@@ -13,7 +13,7 @@ export function prepararIngestaSimulada(entrada, configuracion, recibidaEn) {
   try { payload = validarMensajeV3(leerJsonEstricto(entrada.message)); }
   catch (error) { return rechazo(['CLAVE_REPETIDA', 'PRECISION_NUMERICA'].includes(error.message) ? error.message : 'PAYLOAD_V3_INVALIDO'); }
   if (entrada.topic !== `agrovigia/v3/simulado/nodos/${payload.nodo_codigo}/telemetria`) return rechazo('TOPICO_NO_COINCIDE');
-  if (typeof entrada.supabase_url !== 'string' || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(entrada.supabase_url)) return rechazo('CONFIGURAR_URL_SUPABASE');
+  if (typeof entrada.supabase_url !== 'string' || !/^(?:https:\/\/[a-z0-9-]+\.supabase\.co|http:\/\/(?:127\.0\.0\.1|localhost|host\.docker\.internal):[0-9]{2,5})\/?$/.test(entrada.supabase_url)) return rechazo('CONFIGURAR_URL_SUPABASE');
   return {
     estado: 'prevalidado', codigo: 'FORMA_V3_VALIDA', origen: 'simulado', persistido: false,
     mensaje_id: payload.mensaje_id, nodo_codigo: payload.nodo_codigo, tomada_en: payload.tomada_en,

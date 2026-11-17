@@ -1,0 +1,159 @@
+/* Escenario: clima simulado, nodos en vivo y dialogos. Base de telefono; lo ancho se agrega con min-width.
+   Todos los valores salen de tokens.css. Letras negras; blancas solo sobre verde solido. */
+
+.escenario { display: grid; gap: var(--agv-sp-6); margin-top: var(--agv-sp-4); color: var(--agv-texto); min-width: 0; }
+.escenario svg { width: var(--agv-icono); height: var(--agv-icono); flex: none; }
+.esc-barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--agv-sp-3); }
+.esc-resumen { margin: 0; font-size: var(--agv-t-base); color: var(--agv-texto-2); }
+.esc-resumen strong { color: var(--agv-texto); font-size: var(--agv-t-lg); }
+.esc-acciones { display: flex; flex-wrap: wrap; gap: var(--agv-sp-2); margin-left: auto; }
+.esc-acciones .btn { margin: 0; min-height: var(--agv-toque); }
+.esc-nota, .esc-efecto { margin: 0; font-size: var(--agv-t-sm); line-height: 1.6; color: var(--agv-texto-2); max-width: 70ch; }
+.esc-efecto { color: var(--agv-texto); font-size: var(--agv-t-base); }
+
+/* Estado en tres tonos, siempre con texto: verde solido con letra blanca, naranja solido y gris con letra negra. */
+.pastilla-tono { display: inline-flex; align-items: center; gap: var(--agv-sp-2); padding: var(--agv-sp-1) var(--agv-sp-3); border-radius: var(--agv-r-pastilla);
+  font-size: var(--agv-t-xs); font-weight: 600; line-height: 1.5; white-space: nowrap; background: var(--agv-inactivo); color: var(--agv-texto); }
+.pastilla-tono i { width: var(--agv-punto); height: var(--agv-punto); border-radius: var(--agv-r-pastilla); background: var(--agv-texto-2); flex: none; }
+.pastilla-tono[data-tono=recibe] { background: var(--agv-recibe); color: var(--agv-sobre-verde); }
+/* Recibiendo: el punto titila mientras llegan datos. Es un indicador de estado en vivo y por eso se repite; con movimiento reducido queda fijo. */
+.pastilla-tono[data-tono=recibe] i { background: var(--agv-sobre-verde); animation: agv-latido var(--agv-latido) ease-in-out infinite; }
+@keyframes agv-latido { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--agv-brillo-fuerte); } 50% { opacity: 0.35; box-shadow: 0 0 0 var(--agv-sp-1) var(--agv-brillo); } }
+/* Sin recibir: rojo fijo, con el punto hueco como un bombillo apagado. */
+.pastilla-tono[data-tono=no_recibe] { background: var(--agv-error); color: var(--agv-sobre-verde); }
+.pastilla-tono[data-tono=no_recibe] i { background: transparent; border: var(--agv-linea-fuerte) solid var(--agv-sobre-verde); }
+
+/* Grupos de opciones: radios nativos con aspecto de ficha (teclado y lector de pantalla sin trabajo extra). */
+.grupo-opciones { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--agv-sp-2); }
+.grupo-opciones legend { float: left; width: 100%; margin: 0 0 var(--agv-sp-2); padding: 0; font-size: var(--agv-t-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--agv-texto-2); }
+.opcion-ficha { position: relative; display: inline-flex; margin: 0; cursor: pointer; }
+.opcion-ficha input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.opcion-ficha span { display: inline-flex; align-items: center; gap: var(--agv-sp-2); min-height: var(--agv-toque); padding: var(--agv-sp-2) var(--agv-sp-4);
+  border: var(--agv-linea) solid var(--agv-borde-fuerte); border-radius: var(--agv-r-control); background: var(--agv-superficie); color: var(--agv-texto);
+  font-size: var(--agv-t-base); line-height: 1.3; transition: background-color var(--agv-rapido), color var(--agv-rapido), border-color var(--agv-rapido); }
+.opcion-ficha input:hover + span { border-color: var(--agv-verde); }
+.opcion-ficha input:checked + span { background: var(--agv-verde); border-color: var(--agv-verde); color: var(--agv-sobre-verde); font-weight: 600; }
+.opcion-ficha input:focus-visible + span { box-shadow: var(--agv-foco); }
+.opcion-ficha input:disabled + span { opacity: 0.55; cursor: not-allowed; }
+
+/* Consola de clima. */
+.esc-clima { display: grid; gap: var(--agv-sp-4); padding: var(--agv-sp-4); border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-tarjeta);
+  background: var(--agv-superficie); box-shadow: var(--agv-sombra); min-width: 0; }
+.esc-clima-cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--agv-sp-3); }
+.esc-clima-cabecera h2 { margin: 0; font-size: var(--agv-t-lg); }
+.esc-clima-activo { display: inline-flex; align-items: center; gap: var(--agv-sp-2); margin: 0; padding: var(--agv-sp-1) var(--agv-sp-3); border-radius: var(--agv-r-pastilla);
+  font-size: var(--agv-t-sm); font-weight: 600; background: var(--agv-verde-suave); color: var(--agv-texto); }
+.esc-clima-activo[data-clima=lluvia] { background: var(--agv-lluvia); }
+.esc-clima-activo[data-clima=sol_fuerte] { background: var(--agv-sol); }
+.esc-clima-activo[data-clima=tierra_seca] { background: var(--agv-seca); }
+.esc-clima-activo[data-clima=viento] { background: var(--agv-viento); }
+.esc-eventos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.esc-eventos legend { grid-column: 1 / -1; }
+.esc-eventos .opcion-ficha, .esc-eventos .opcion-ficha span { width: 100%; }
+.esc-clima-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--agv-sp-3); }
+.esc-clima-pie .opcion-nodo { margin: 0; min-height: var(--agv-toque); display: inline-flex; align-items: center; gap: var(--agv-sp-2); }
+.esc-clima-pie .btn { margin: 0; min-height: var(--agv-toque); }
+
+/* Escena 3D: etiquetas. */
+.escena-red { position: relative; height: 24rem; border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-tarjeta); overflow: hidden; background: var(--agv-fondo); }
+.clima-etiqueta { display: inline-flex; align-items: center; gap: var(--agv-sp-1); margin-top: var(--agv-sp-1); padding: 0 var(--agv-sp-2); border-radius: var(--agv-r-pastilla);
+  font-style: normal; font-size: var(--agv-t-xs); font-weight: 600; color: var(--agv-texto); background: var(--agv-verde-suave); }
+.clima-etiqueta svg { width: var(--agv-sp-4); height: var(--agv-sp-4); }
+.etiqueta-cultivo[data-clima=lluvia] .clima-etiqueta { background: var(--agv-lluvia); }
+.etiqueta-cultivo[data-clima=sol_fuerte] .clima-etiqueta { background: var(--agv-sol); }
+.etiqueta-cultivo[data-clima=tierra_seca] .clima-etiqueta { background: var(--agv-seca); }
+.etiqueta-cultivo[data-clima=viento] .clima-etiqueta { background: var(--agv-viento); }
+.etiqueta-nodo[data-tono=recibe] { border-color: var(--agv-recibe-punto); }
+.etiqueta-nodo[data-tono=no_recibe] { border-color: var(--agv-error); }
+.etiqueta-nodo[data-tono=inactivo] { border-color: var(--agv-inactivo-punto); }
+.etiqueta-nodo.compacta { padding: 0 var(--agv-sp-1); font-size: var(--agv-t-xs); }
+.etiqueta-nodo.compacta span { display: none; }
+.etiqueta-sector { padding: 0 var(--agv-sp-1); border-radius: var(--agv-r-sm); background: var(--agv-superficie); color: var(--agv-texto); font-size: var(--agv-t-xs); font-weight: 600; line-height: 1.5; white-space: nowrap; pointer-events: none; }
+.esc-leyenda { display: flex; flex-wrap: wrap; gap: var(--agv-sp-2) var(--agv-sp-3); list-style: none; padding: 0; margin: 0; }
+
+/* Lista de nodos por cultivo. */
+.esc-cultivo-selector { max-width: var(--agv-dialogo-ancho); margin: var(--agv-sp-4) 0; }
+.esc-grupo h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--agv-sp-2) var(--agv-sp-3); margin: 0 0 var(--agv-sp-3); font-size: var(--agv-t-lg); }
+.esc-grupo h3 span { font-size: var(--agv-t-sm); font-weight: 400; color: var(--agv-texto-2); }
+.esc-nodos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--agv-sp-3); list-style: none; padding: 0; margin: 0; }
+.ficha-nodo { display: grid; gap: var(--agv-sp-1); justify-items: start; width: 100%; height: 100%; min-height: var(--agv-toque); padding: var(--agv-sp-3);
+  border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-tarjeta); background: var(--agv-superficie); color: var(--agv-texto);
+  text-align: left; cursor: pointer; transition: border-color var(--agv-rapido), box-shadow var(--agv-rapido); }
+.ficha-nodo:hover { border-color: var(--agv-verde); box-shadow: var(--agv-sombra); }
+.ficha-nodo:focus-visible { outline: 0; box-shadow: var(--agv-foco); border-color: var(--agv-verde); }
+.ficha-nodo > * { min-width: 0; max-width: 100%; }
+.ficha-nodo .pastilla-tono { white-space: normal; text-align: left; }
+.ficha-nodo strong { font-size: var(--agv-t-base); overflow-wrap: anywhere; }
+.ficha-sub, .ficha-valores { font-size: var(--agv-t-xs); color: var(--agv-texto-2); line-height: 1.5; }
+
+/* Dialogos. */
+.dialogo-agv { width: min(100% - var(--agv-sp-6), var(--agv-dialogo-ancho)); max-height: calc(100dvh - var(--agv-sp-12)); padding: 0; border: 0;
+  border-radius: var(--agv-r-dialogo); background: var(--agv-superficie); color: var(--agv-texto); box-shadow: var(--agv-sombra-dialogo); overflow: hidden; }
+/* Fijo arriba: si el contenido crece al cargar, el dialogo se alarga hacia abajo y no se recoloca. */
+.dialogo-agv { position: fixed; inset-block: var(--agv-sp-6) auto; margin-block: 0; }
+.dialogo-agv[open] { display: flex; flex-direction: column; animation: agv-abrir var(--agv-rapido) ease-out; }
+.dialogo-agv[open]::backdrop { animation: agv-velo var(--agv-rapido) ease-out; }
+@keyframes agv-abrir { from { opacity: 0; transform: translateY(var(--agv-sp-2)); } to { opacity: 1; transform: none; } }
+@keyframes agv-velo { from { opacity: 0; } to { opacity: 1; } }
+.dialogo-agv::backdrop { background: var(--agv-velo); }
+.dialogo-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--agv-sp-3); padding: var(--agv-sp-4) var(--agv-sp-4) var(--agv-sp-3); border-bottom: var(--agv-linea) solid var(--agv-borde); }
+.dialogo-cabecera h2 { margin: 0; font-size: var(--agv-t-lg); overflow-wrap: anywhere; }
+.dialogo-cabecera p { margin: var(--agv-sp-1) 0 0; font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+.dialogo-cerrar { display: inline-flex; align-items: center; justify-content: center; width: var(--agv-toque); height: var(--agv-toque); flex: none; border: var(--agv-linea) solid var(--agv-borde);
+  border-radius: var(--agv-r-control); background: var(--agv-superficie); color: var(--agv-texto); cursor: pointer; }
+.dialogo-cerrar svg { width: var(--agv-icono); height: var(--agv-icono); }
+.dialogo-cerrar:hover { border-color: var(--agv-verde); }
+.dialogo-cerrar:focus-visible { outline: 0; box-shadow: var(--agv-foco); }
+.dialogo-cuerpo { display: grid; align-content: start; gap: var(--agv-sp-4); min-height: 14rem; padding: var(--agv-sp-4); overflow-y: auto; overscroll-behavior: contain; }
+.dialogo-cuerpo form { display: grid; gap: var(--agv-sp-4); min-width: 0; }
+.dialogo-cuerpo .aviso { margin: 0; }
+.dlg-estado { display: flex; flex-wrap: wrap; align-items: center; gap: var(--agv-sp-2) var(--agv-sp-3); margin: 0; font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+.dlg-seccion { display: grid; gap: var(--agv-sp-3); padding-top: var(--agv-sp-4); border-top: var(--agv-linea) solid var(--agv-borde); min-width: 0; }
+.dlg-seccion h3 { margin: 0; font-size: var(--agv-t-base); font-weight: 700; }
+.dlg-seccion h4 { margin: 0; font-size: var(--agv-t-sm); font-weight: 700; }
+.dlg-seccion .btn { margin: 0; min-height: var(--agv-toque); justify-self: start; }
+.dlg-nota, .dlg-vacio { margin: 0; font-size: var(--agv-t-sm); line-height: 1.6; color: var(--agv-texto-2); max-width: 70ch; }
+.dlg-datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--agv-sp-2); margin: 0; }
+.dlg-datos > div { padding: var(--agv-sp-2) var(--agv-sp-3); border-radius: var(--agv-r-control); background: var(--agv-fondo); min-width: 0; }
+.dlg-datos dt { font-size: var(--agv-t-xs); font-weight: 500; color: var(--agv-texto-2); line-height: 1.4; }
+.dlg-datos dd { margin: 0; font-size: var(--agv-t-lg); font-weight: 650; }
+.dlg-datos dd span { font-size: var(--agv-t-xs); font-weight: 500; color: var(--agv-texto-2); }
+.dlg-proyeccion { display: grid; gap: var(--agv-sp-2); padding: var(--agv-sp-3); border: var(--agv-linea) dashed var(--agv-borde-fuerte); border-radius: var(--agv-r-control); }
+.dlg-interruptor { display: flex; align-items: flex-start; gap: var(--agv-sp-3); }
+.dlg-interruptor strong { font-size: var(--agv-t-base); }
+.dlg-interruptor p { margin: var(--agv-sp-1) 0 0; font-size: var(--agv-t-sm); line-height: 1.6; color: var(--agv-texto-2); }
+.interruptor { position: relative; flex: none; width: 3.25rem; height: var(--agv-toque); padding: 0; border: 0; background: transparent; cursor: pointer; }
+.interruptor > span:first-child { position: absolute; left: 0; right: 0; top: 50%; height: 1.75rem; transform: translateY(-50%); border-radius: var(--agv-r-pastilla);
+  background: var(--agv-inactivo-punto); transition: background-color var(--agv-rapido); }
+.interruptor > span:first-child::after { content: ""; position: absolute; top: 0.1875rem; left: 0.1875rem; width: 1.375rem; height: 1.375rem; border-radius: var(--agv-r-pastilla);
+  background: var(--agv-superficie); transition: transform var(--agv-rapido); }
+.interruptor[aria-checked=true] > span:first-child { background: var(--agv-recibe-punto); }
+.interruptor[aria-checked=true] > span:first-child::after { transform: translateX(1.5rem); }
+.interruptor:focus-visible { outline: 0; }
+.interruptor:focus-visible > span:first-child { box-shadow: var(--agv-foco); }
+.interruptor:disabled { opacity: 0.5; cursor: not-allowed; }
+.campo-corto { max-width: 10rem; min-height: var(--agv-toque); }
+.dlg-acciones { display: flex; flex-wrap: wrap; gap: var(--agv-sp-2); }
+.dlg-acciones .btn { margin: 0; min-height: var(--agv-toque); }
+.rangos-grupo { border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-control); padding: var(--agv-sp-3); margin: 0; min-width: 0; }
+.rangos-grupo legend { float: none; width: auto; margin: 0; padding: 0 var(--agv-sp-2); font-size: var(--agv-t-base); font-weight: 700; }
+.rangos-grupo legend span { font-weight: 400; color: var(--agv-texto-2); }
+.rangos-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--agv-sp-3); }
+.rangos-campos .form-label { margin-bottom: var(--agv-sp-1); font-size: var(--agv-t-xs); }
+.rangos-campos .form-control { min-height: var(--agv-toque); }
+
+@media (min-width: 40rem) {
+  .esc-clima { padding: var(--agv-sp-6); }
+  .esc-eventos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .dialogo-cabecera { padding: var(--agv-sp-6) var(--agv-sp-6) var(--agv-sp-4); }
+  .dialogo-cuerpo { padding: var(--agv-sp-6); }
+  .dlg-datos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rangos-campos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .esc-nodos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 56rem) { .escena-red { height: 31rem; } }
+@media (prefers-reduced-motion: reduce) {
+  .opcion-ficha span, .ficha-nodo, .interruptor > span:first-child, .interruptor > span:first-child::after { transition: none; }
+  .pastilla-tono[data-tono=recibe] i { animation: none; }
+  .dialogo-agv[open], .dialogo-agv[open]::backdrop { animation: none; }
+}

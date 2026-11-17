@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgroVigía: guía de despliegue en Render</title>
+<style>
+  :root { --verde: #174d3d; --verde-suave: #e6f0dc; --texto: #111111; --texto-2: #474747; --fondo: #f4f6f1; --superficie: #ffffff; --borde: #dfe5dc; --aviso: #fdf0dc; --aviso-borde: #c9730f; --error: #fbe9e6; --error-borde: #b3372b; --blanco: #ffffff; --pozo: #edf1e8; --codigo-fondo: #10261f; --fuente: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --fuente-codigo: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto); font-family: var(--fuente); line-height: 1.65; }
+  main { max-width: 56rem; margin: 0 auto; padding: 2rem 1rem 5rem; }
+  header { padding: 2.5rem 1.5rem; border-radius: 1rem; background: var(--verde); color: var(--blanco); }
+  header h1 { margin: 0 0 0.5rem; font-size: 2.25rem; line-height: 1.15; letter-spacing: -0.02em; }
+  header p { margin: 0; max-width: 42rem; }
+  header code { color: var(--texto); }
+  h2 { margin: 3rem 0 0.75rem; font-size: 1.5rem; letter-spacing: -0.01em; }
+  h3 { margin: 1.75rem 0 0.5rem; font-size: 1.125rem; }
+  p, li { max-width: 46rem; }
+  section.tarjeta, .nota, .cuidado { margin: 1rem 0; padding: 1rem 1.25rem; border: 0.0625rem solid var(--borde); border-radius: 0.75rem; background: var(--superficie); }
+  .nota { background: var(--verde-suave); border-color: var(--verde); }
+  .cuidado { background: var(--aviso); border-color: var(--aviso-borde); }
+  .peligro { margin: 1rem 0; padding: 1rem 1.25rem; border: 0.0625rem solid var(--error-borde); border-radius: 0.75rem; background: var(--error); }
+  code, pre { font-family: var(--fuente-codigo); font-size: 0.875rem; }
+  code { padding: 0.1rem 0.35rem; border-radius: 0.35rem; background: var(--pozo); }
+  pre { margin: 0.75rem 0; padding: 1rem; border-radius: 0.75rem; background: var(--codigo-fondo); color: var(--fondo); overflow-x: auto; line-height: 1.5; }
+  pre code { padding: 0; background: none; color: inherit; }
+  table { width: 100%; margin: 1rem 0; border-collapse: collapse; background: var(--superficie); border: 0.0625rem solid var(--borde); font-size: 0.9375rem; }
+  th, td { padding: 0.6rem 0.75rem; border-bottom: 0.0625rem solid var(--borde); text-align: left; vertical-align: top; }
+  th { background: var(--pozo); font-weight: 600; }
+  .tabla { max-width: 100%; overflow-x: auto; }
+  th, td, code { overflow-wrap: anywhere; }
+  pre code { overflow-wrap: normal; }
+  ol.pasos { padding-left: 1.25rem; }
+  ol.pasos > li { margin-bottom: 0.6rem; }
+  nav ul { columns: 2; padding-left: 1.1rem; }
+  nav a, a { color: var(--verde); font-weight: 600; }
+  .gris { color: var(--texto-2); }
+  @media (max-width: 40rem) { nav ul { columns: 1; } header h1 { font-size: 1.75rem; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Despliegue de AgroVigía en Render</h1>
+  <p>Cómo publicar la web, n8n y la simulación para que funcionen juntos con Supabase y Gemini, usando solo el plan gratuito. Escrita para la rama <code>camilo/integracion-ia-zonas</code>.</p>
+</header>
+
+<div class="cuidado"><strong>Estado de esta guía.</strong> Los archivos de despliegue existen y se probaron en este equipo: la imagen de n8n construye y arranca con la simulación dentro, y las pruebas automáticas pasan. Lo que todavía no se ha hecho es desplegar en Render ni correr el recorrido contra tu proyecto real de Supabase. Donde un paso no se ha comprobado en la nube, lo digo.</div>
+
+<nav aria-label="Contenido">
+<ul>
+  <li><a href="#mapa">1. Qué se despliega y cómo se conecta</a></li>
+  <li><a href="#antes">2. Antes de empezar</a></li>
+  <li><a href="#supabase">3. Preparar Supabase</a></li>
+  <li><a href="#git">4. Subir el código</a></li>
+  <li><a href="#render">5. Crear los servicios en Render</a></li>
+  <li><a href="#comprobar">6. Comprobar que todo responde</a></li>
+  <li><a href="#despierto">7. Mantenerlo despierto</a></li>
+  <li><a href="#fisico">8. El nodo físico</a></li>
+  <li><a href="#fallos">9. Si algo falla</a></li>
+  <li><a href="#mejoras">10. Qué mejorar después</a></li>
+</ul>
+</nav>
+
+<h2 id="mapa">1. Qué se despliega y cómo se conecta</h2>
+<p>Render solo expone HTTP y HTTPS al público. No puede publicar el puerto de MQTT, así que en la nube los datos viajan por HTTPS con el mismo contenido que hoy viaja por MQTT. El mensaje ya era JSON: MQTT era solo el transporte.</p>
+<div class="tabla"><table>
+<thead><tr><th>Pieza</th><th>Dónde corre</th><th>Qué hace</th></tr></thead>
+<tbody>
+<tr><td>Web</td><td>Render, sitio estático <code>agrovigia-web</code></td><td>La aplicación. Habla solo con Supabase, con la sesión del usuario.</td></tr>
+<tr><td>n8n</td><td>Render, servicio web <code>agrovigia-n8n</code></td><td>Recibe lotes por HTTP, los valida, los guarda en Supabase, abre y cierra alertas y pide sugerencias a Gemini.</td></tr>
+<tr><td>Simulación</td><td>Dentro del mismo contenedor de n8n</td><td>Lee de Supabase el clima y el ajuste manual que eliges en la web y envía los lotes de los nodos simulados al webhook local de n8n.</td></tr>
+<tr><td>Supabase</td><td>Tu proyecto actual</td><td>Usuarios, base de datos, permisos por cuenta y tiempo real.</td></tr>
+<tr><td>Gemini</td><td>Servicio de Google</td><td>Redacta las sugerencias. Lo llama n8n, nunca la web.</td></tr>
+</tbody></table></div>
+<p>Recorrido de un cambio hecho en la web:</p>
+<ol class="pasos">
+  <li>En el Escenario activas un clima o mueves una regla. La web llama a <code>establecer_clima</code> o <code>ajustar_simulacion</code> en Supabase. Queda guardado con su hora de inicio.</li>
+  <li>La simulación consulta <code>estado_simulacion</code> cada pocos segundos, calcula los valores de cada nodo y los envía a <code>/webhook/agrovigia/telemetria</code>.</li>
+  <li>El flujo 03g de n8n valida el lote y lo registra con las mismas funciones que usa la ingesta por MQTT. Después evalúa las reglas y abre o cierra alertas.</li>
+  <li>La web ve los valores nuevos en Inicio, Escenario, Historial y Alertas.</li>
+  <li>Si pulsas "Analizar ahora", la web registra una solicitud. El flujo 03h la toma en menos de un minuto, llama a Gemini con el clima y el ajuste activos y guarda la sugerencia.</li>
+</ol>
+<div class="nota"><strong>Por qué la simulación va dentro del contenedor de n8n.</strong> El plan gratuito da 750 horas de servicio web al mes para toda la cuenta. Un servicio encendido todo el mes usa unas 730. Dos servicios separados se quedarían sin horas a mitad de mes.</div>
+
+<h2 id="antes">2. Antes de empezar</h2>
+<div class="peligro"><strong>Renueva primero la clave de Gemini.</strong> La clave que se pegó en el chat debe darse por expuesta. Crea una nueva en Google AI Studio, borra la anterior y usa la nueva en Render.</div>
+<p>Necesitas tener a mano:</p>
+<div class="tabla"><table>
+<thead><tr><th>Dato</th><th>Dónde se obtiene</th><th>Dónde se usa</th></tr></thead>
+<tbody>
+<tr><td>URL del proyecto</td><td>Supabase, Project Settings, Data API</td><td>Web y n8n</td></tr>
+<tr><td>Clave publicable <code>sb_publishable_...</code></td><td>Supabase, Project Settings, API Keys</td><td>Solo la web</td></tr>
+<tr><td>Clave secreta <code>sb_secret_...</code></td><td>Supabase, Project Settings, API Keys</td><td>Solo n8n. Nunca en la web ni en Git</td></tr>
+<tr><td>Cadena de conexión a la base</td><td>Supabase, botón Connect, modo Session pooler</td><td>Solo en tu equipo, para aplicar migraciones</td></tr>
+<tr><td>Clave de Gemini nueva</td><td>Google AI Studio</td><td>Solo n8n</td></tr>
+<tr><td>Cuenta de GitHub con el repositorio</td><td>GitHub</td><td>Render lee el código de ahí</td></tr>
+</tbody></table></div>
+
+<h2 id="supabase">3. Preparar Supabase</h2>
+<p>La base ya tiene las migraciones 0001 a 0008. Faltan cuatro: 0009 (cultivos, clima y dispositivos), 0010 (IA y estado en vivo), 0011 (ajuste manual, sugerencias a petición, nodos simulados, mover y eliminar) y 0012 (medidas del terreno, sectores libres y nodos físicos con clave propia).</p>
+<ol class="pasos">
+  <li>En tu equipo, abre <code>.local/secretos.env</code> y completa <code>SUPABASE_DB_URL</code> y <code>SUPABASE_SECRET_KEY</code>. Ese archivo no entra a Git.</li>
+  <li>Aplica las migraciones y los datos de ejemplo:
+<pre><code>cd ~/Escritorio/AgroVIgia/AgroVigia-integracion
+local/agrovigia.sh migrar</code></pre>
+  El guion aplica solo lo que falte, crea los tres hexágonos de ejemplo y termina mostrando una fila de comprobaciones. Todas deben decir <code>true</code>.</li>
+  <li>En Supabase, Authentication, Users: confirma que existe el usuario con el que vas a entrar a la web.</li>
+  <li>En Supabase, Database, Publications: la publicación <code>supabase_realtime</code> debe incluir <code>mediciones</code>, <code>nodos</code>, <code>clima_cultivo</code>, <code>alertas</code>, <code>ajustes_simulacion</code>, <code>solicitudes_ia</code> y <code>sugerencias_ia</code>. La migración las agrega sola si la publicación existe.</li>
+</ol>
+<div class="cuidado">Las migraciones 0009 a 0012 se probaron en una base local de pruebas (70 pruebas). No se han aplicado todavía a tu proyecto real. Si <code>migrar</code> muestra un error, no sigas: copia el mensaje y lo revisamos.</div>
+
+<h2 id="git">4. Subir el código</h2>
+<p>Render despliega lo que esté en GitHub. Hoy el trabajo está sin confirmar en la carpeta de integración. El orden es: revisar, confirmar y subir. La subida la haces tú.</p>
+<pre><code>cd ~/Escritorio/AgroVIgia/AgroVigia-integracion
+git status
+git add -A
+git commit -m "Escenario unico, simulacion manual, ingesta HTTP y despliegue en Render"
+git push -u origin camilo/integracion-ia-zonas</code></pre>
+<p>Antes de confirmar, comprueba que <code>git status</code> no lista <code>.local</code>, <code>.env.local</code> ni <code>node_modules</code>. Están ignorados, pero conviene mirarlo.</p>
+
+<h2 id="render">5. Crear los servicios en Render</h2>
+<p>El archivo <code>render.yaml</code> de la raíz describe los dos servicios. Render lo llama Blueprint.</p>
+<ol class="pasos">
+  <li>Entra a <a href="https://dashboard.render.com">dashboard.render.com</a>, elige New y después Blueprint.</li>
+  <li>Conecta tu cuenta de GitHub y elige el repositorio y la rama <code>camilo/integracion-ia-zonas</code>.</li>
+  <li>Render lee <code>render.yaml</code> y te pide los valores marcados como secretos. Escríbelos así:</li>
+</ol>
+<div class="tabla"><table>
+<thead><tr><th>Servicio</th><th>Variable</th><th>Valor</th></tr></thead>
+<tbody>
+<tr><td rowspan="2">agrovigia-web</td><td><code>VITE_SUPABASE_URL</code></td><td>La URL del proyecto, por ejemplo <code>https://xxxx.supabase.co</code></td></tr>
+<tr><td><code>VITE_SUPABASE_PUBLISHABLE_KEY</code></td><td>La clave publicable</td></tr>
+<tr><td rowspan="3">agrovigia-n8n</td><td><code>SUPABASE_URL</code></td><td>La misma URL</td></tr>
+<tr><td><code>SUPABASE_SECRET_KEY</code></td><td>La clave secreta</td></tr>
+<tr><td><code>GEMINI_API_KEY</code></td><td>La clave nueva de Gemini</td></tr>
+</tbody></table></div>
+<p>Estas otras las pone el plano y no tienes que escribirlas:</p>
+<div class="tabla"><table>
+<thead><tr><th>Variable</th><th>Para qué</th></tr></thead>
+<tbody>
+<tr><td><code>AGROVIGIA_INGESTA_CLAVE</code></td><td>Clave del webhook. Render la genera. La simulación la usa sola porque vive en el mismo contenedor.</td></tr>
+<tr><td><code>N8N_ENCRYPTION_KEY</code></td><td>Con ella n8n cifra sus credenciales. Render la genera.</td></tr>
+<tr><td><code>AGROVIGIA_SIMULADOR=si</code></td><td>Enciende la simulación dentro del contenedor.</td></tr>
+<tr><td><code>GENERIC_TIMEZONE</code></td><td>Hora de Colombia para los disparadores.</td></tr>
+</tbody></table></div>
+<p>El puerto y la dirección pública no se configuran: el arranque los toma de las variables que Render inyecta (<code>PORT</code>, <code>RENDER_EXTERNAL_URL</code>).</p>
+<ol class="pasos" start="4">
+  <li>Pulsa Apply. La web tarda uno o dos minutos. n8n tarda más la primera vez porque descarga la imagen y prepara su base interna.</li>
+  <li>En el registro de <code>agrovigia-n8n</code> deben aparecer, en este orden: la importación de credenciales, la publicación de los flujos, la frase <code>AgroVigia: credenciales y flujos importados y publicados. Iniciando n8n.</code> y, cuando n8n ya responde, <code>AgroVigia: iniciando el servicio de simulacion contra el webhook local.</code></li>
+</ol>
+<div class="nota"><strong>n8n no guarda nada entre reinicios, y está pensado así.</strong> El plan gratuito no tiene disco. En cada arranque el contenedor vuelve a crear las credenciales desde las variables de entorno e importa los flujos del repositorio. Si entras a la pantalla de n8n te pedirá crear el usuario dueño otra vez: es normal, y los flujos trabajan igual aunque no entres. Para cambiar un flujo se cambia en el repositorio y se vuelve a desplegar.</div>
+
+<h2 id="comprobar">6. Comprobar que todo responde</h2>
+<h3>n8n está arriba</h3>
+<pre><code>curl -s https://agrovigia-n8n.onrender.com/healthz</code></pre>
+<p>Debe responder <code>{"status":"ok"}</code>. Cambia el nombre por el que Render le haya dado al servicio.</p>
+<h3>El webhook está protegido</h3>
+<pre><code>curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+  https://agrovigia-n8n.onrender.com/webhook/agrovigia/telemetria \
+  -H "Content-Type: application/json" -d '{}'</code></pre>
+<p>Sin la clave debe responder <code>403</code>. Con la clave y un cuerpo vacío responde <code>400</code> con el código del problema. Un lote válido responde <code>200</code>. Si Supabase no confirma, responde <code>503</code> y quien envía debe reintentar.</p>
+<h3>La simulación llega a la web</h3>
+<ol class="pasos">
+  <li>Abre la web (<code>https://agrovigia-web.onrender.com</code>) e inicia sesión.</li>
+  <li>En Escenario, los nodos simulados deben pasar a "Recibiendo" con el punto titilando en menos de un minuto.</li>
+  <li>Activa "Lluvia fuerte". En unos segundos cambian los valores y en unos dos minutos llegan al efecto completo. Deben verse las gotas en el hexágono.</li>
+  <li>Mueve la regla de humedad del suelo hacia la izquierda y aplica. En Alertas, con "Datos simulados", debe abrirse la alerta cuando el valor baje del mínimo.</li>
+  <li>En IA pulsa "Analizar ahora". En menos de un minuto debe aparecer la sugerencia con la etiqueta "A petición".</li>
+  <li>En Historial, al final, el registro de la simulación debe listar el clima y el ajuste con su hora.</li>
+</ol>
+
+<h2 id="despierto">7. Mantenerlo despierto</h2>
+<p>Un servicio web gratuito de Render se duerme a los 15 minutos sin visitas desde fuera y tarda cerca de un minuto en despertar. La simulación no cuenta como visita porque llama desde dentro del contenedor. Mientras n8n duerme no hay simulación, ni alertas, ni sugerencias.</p>
+<p>Solución sin costo: un monitor externo que visite <code>/healthz</code> cada 10 minutos. Sirve UptimeRobot o cron-job.org, ambos con plan gratuito. Con un solo servicio despierto todo el mes se usan unas 730 de las 750 horas.</p>
+<div class="cuidado">Si creas un segundo servicio web gratuito y lo mantienes despierto, las horas se agotan antes de fin de mes y Render suspende ambos hasta el mes siguiente. Por eso la web va como sitio estático, que no consume horas ni se duerme.</div>
+
+<h2 id="fisico">8. El nodo físico</h2>
+<p>El ESP32 lee tres cosas: temperatura del aire y humedad del aire con el DHT22, y un índice de luz de 0 a 100 con el LDR (no son lux). Envía un lote por minuto.</p>
+<p>Hay dos firmware en el repositorio:</p>
+<div class="tabla"><table>
+<thead><tr><th>Firmware</th><th>Cómo envía</th><th>Sirve con Render</th><th>Estado</th></tr></thead>
+<tbody>
+<tr><td><code>nodo-dht22-mqtt</code></td><td>MQTT sin cifrar a un computador de la misma red. El Wi-Fi y el servidor van fijos al compilar.</td><td>No. Render no abre puertos de MQTT.</td><td>Es el que usa hoy <code>agv-dht22-01</code>.</td></tr>
+<tr><td><code>nodo-agrovigia-http</code></td><td>HTTPS a <code>/webhook/agrovigia/nodo</code> con el código y la clave propia del nodo. El Wi-Fi, el servidor y la clave se configuran por USB desde la web.</td><td>Sí.</td><td>Compila y pasa sus pruebas en el computador. No se ha probado en una placa.</td></tr>
+</tbody></table></div>
+<h3>Poner en marcha una placa nueva desde la web</h3>
+<ol class="pasos">
+  <li>Abre la web en Chrome o Edge, en un computador. Otros navegadores y los teléfonos no permiten hablar con la placa por USB.</li>
+  <li>En Dispositivos pulsa "Registrar nodo físico". Se crea el nodo con su código y una clave propia. La clave no se muestra: pasa directo a la placa en el paso 4.</li>
+  <li>Conecta la placa por USB y pulsa "Instalar firmware en la placa". El navegador pide elegir el puerto. Instalar borra la configuración que tuviera la placa.</li>
+  <li>Pulsa "Conectar placa", escribe la red Wi-Fi, su contraseña y la dirección del servidor, y pulsa "Enviar configuración a la placa". La dirección es la de tu n8n seguida de <code>/webhook/agrovigia/nodo</code>.</li>
+  <li>Con "Leer sensores" compruebas el DHT22 y el LDR. Con "Enviar un lote ahora" compruebas el recorrido completo hasta el servidor.</li>
+  <li>Cierra el asistente, vincula el nodo a un cultivo y ubícalo en su sector desde Cultivos, Terreno y sectores.</li>
+</ol>
+<div class="nota">Para no escribir la dirección cada vez, define <code>VITE_AGROVIGIA_NODO_URL</code> en el sitio estático con la dirección completa del webhook. No es un secreto.</div>
+<p>Cómo se protege: cada placa envía su código y su clave en dos cabeceras. El servidor guarda solo la huella de la clave y nunca puede volver a mostrarla. Si una placa se pierde, "Generar clave nueva" deja sin efecto la anterior. La contraseña del Wi-Fi y la clave viajan solo por el cable USB: no pasan por Supabase.</p>
+<div class="cuidado"><strong>Límites conocidos del firmware nuevo.</strong> Las claves quedan guardadas en la placa sin cifrar. El firmware verifica el certificado del servidor, pero no rechaza uno vencido por su fecha. Y todo esto está sin probar en una placa real: la primera carga hay que hacerla con el monitor serie a la vista.</div>
+<p>El webhook compartido <code>/webhook/agrovigia/telemetria</code> sigue rechazando datos reales: lo usa solo la simulación.</p>
+
+<h2 id="fallos">9. Si algo falla</h2>
+<div class="tabla"><table>
+<thead><tr><th>Síntoma</th><th>Qué revisar</th></tr></thead>
+<tbody>
+<tr><td>La web abre en blanco o no deja entrar</td><td>Las dos variables <code>VITE_</code> del sitio estático. Si las cambias hay que volver a construir el sitio.</td></tr>
+<tr><td>Todos los nodos simulados en rojo, sin recibir</td><td>¿n8n está dormido? Visita <code>/healthz</code>. Luego mira el registro: debe haber líneas de la simulación con <code>PUBACK</code> o confirmaciones HTTP.</td></tr>
+<tr><td>El registro dice que Supabase respondió 401 o 403</td><td><code>SUPABASE_SECRET_KEY</code> mal copiada o no es la clave secreta.</td></tr>
+<tr><td>El registro dice que falta <code>estado_simulacion</code></td><td>No se aplicaron las migraciones 0010 y 0011.</td></tr>
+<tr><td>El webhook responde 503 siempre</td><td>n8n no logra confirmar con Supabase: URL o clave, o el proyecto de Supabase está en pausa por inactividad.</td></tr>
+<tr><td>La placa responde "clave inválida" (401)</td><td>La clave de la placa no es la vigente. Genera una nueva en el asistente y vuelve a enviar la configuración.</td></tr>
+<tr><td>El asistente no encuentra la placa</td><td>Usa Chrome o Edge en un computador, cierra el monitor serie de otros programas y revisa el cable: algunos solo cargan y no transmiten datos.</td></tr>
+<tr><td>"Analizar ahora" termina en "sin lecturas recientes"</td><td>No hay lotes de ese origen en los últimos tres minutos. Comprueba primero que la simulación esté enviando.</td></tr>
+<tr><td>Las sugerencias fallan con un código que empieza por <code>GEMINI</code></td><td>Clave de Gemini inválida o cupo gratuito agotado.</td></tr>
+<tr><td>El contenedor se reinicia en bucle</td><td>Falta una variable obligatoria. El arranque se detiene y dice cuál.</td></tr>
+</tbody></table></div>
+
+<h2 id="mejoras">10. Qué mejorar después</h2>
+<ol class="pasos">
+  <li><strong>Probar el firmware nuevo en una placa</strong> y, después, cifrar la configuración guardada en ella.</li>
+  <li><strong>Guardar n8n en la base de Supabase.</strong> Configurando n8n con PostgreSQL conserva usuarios, flujos e historial de ejecuciones entre reinicios.</li>
+  <li><strong>Plan de pago para n8n.</strong> Desde el plan más básico el servicio no se duerme y deja de hacer falta el monitor externo.</li>
+  <li><strong>Actualización remota del firmware</strong>, para no tener que conectar la placa por USB en cada versión.</li>
+  <li><strong>Dominio propio</strong> para la web y para n8n, y restringir en Supabase las direcciones permitidas para iniciar sesión.</li>
+  <li><strong>Avisos al agricultor fuera de la web</strong> (correo o mensajería) cuando se abre una alerta. n8n ya tiene el punto donde engancharlo.</li>
+  <li><strong>Validar en campo</strong> los rangos del catálogo de cultivos y los efectos de cada evento de clima. Hoy son valores de prueba.</li>
+</ol>
+<p class="gris">Documento generado para el equipo de AgroVigía. Los nombres de servicio de Render pueden cambiar si ya están tomados: usa los que te muestre el panel.</p>
+</main>
+</body>
+</html>

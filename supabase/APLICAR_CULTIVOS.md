@@ -15,6 +15,8 @@ Si hay errores, conservar el texto completo. No repetir la migracion ante un err
 
 ## Comportamiento
 
+Desde la migracion 0011, crear_cultivo tambien admite un arreglo de nodos vacio o NULL (cultivo sin nodos, para agregarle despues nodos simulados con crear_nodo_virtual); lo descrito aqui sigue valiendo cuando se pasan nodos.
+
 crear_cultivo recibe nombre, tipo, area (maximo cuatro decimales positivos), unidad m2/ha, uno o dos UUID de nodos propios habilitados y sin cultivo, y UUID de solicitud. Toma el propietario de auth.uid(), nunca de un campo del formulario. La solicitud evita crear dos cultivos por un reintento identico mientras su configuracion no cambie. Cambiar el contenido de una solicitud ya usada produce conflicto. Creacion y asignacion ocurren juntas.
 
 editar_cultivo cambia solo nombre, tipo, area y unidad de un cultivo propio activo. Las mediciones confirmadas no se modifican.

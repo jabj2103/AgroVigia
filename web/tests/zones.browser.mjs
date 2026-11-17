@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { elegir, opcionesDe } from './selector-qa.mjs';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,12 +38,12 @@ try {
   const central = page.getByRole('button', { name: 'Seleccionar zona Sector central', exact: true });
   await central.focus(); await central.press('Enter');
   await page.getByRole('heading', { name: 'sim-bbbbbbbbbbbb-03', exact: true }).waitFor();
-  await page.getByLabel('Tipo de nodo', { exact: true }).selectOption('fisico');
-  await page.getByLabel('Zona', { exact: true }).selectOption('sin-ubicar');
+  await elegir(page, '#origen-zonas', 'fisico');
+  await elegir(page, '#zona-cultivo', 'sin-ubicar');
   await page.getByRole('heading', { name: 'agv-fisico-01', exact: true }).waitFor();
   await page.waitForFunction(() => document.querySelectorAll('.variable-zona').length === 3);
   assert.equal(await page.locator('.variable-zona .procedencia-zona.real').count(), 3); assert.equal(await page.locator('.nodo-croquis').count(), 0);
-  await page.getByLabel('Tipo de nodo', { exact: true }).selectOption('virtual'); await page.getByLabel('Zona', { exact: true }).selectOption('todas');
+  await elegir(page, '#origen-zonas', 'virtual'); await elegir(page, '#zona-cultivo', 'todas');
   await page.waitForFunction(() => document.querySelectorAll('.variable-zona').length === 10);
   await page.evaluate(() => { window.qaZonas.errorLectura = true; }); await page.getByRole('button', { name: 'Actualizar zonas', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'No pudimos consultar' }).waitFor(); assert.equal(await page.locator('.variable-zona').count(), 10);
@@ -55,7 +56,7 @@ try {
   await page.evaluate(() => { window.qaZonas.vacio = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3'; });
   await page.getByRole('button', { name: 'Seleccionar nodo sim-bbbbbbbbbbbb-04, simulado', exact: true }).click();
   await page.getByText('Sin datos simulados', { exact: true }).waitFor(); assert.equal(await page.locator('.variable-zona').count(), 0);
-  await page.getByLabel('CULTIVO SELECCIONADO', { exact: true }).selectOption('ffffffff-ffff-4fff-8fff-ffffffffffff');
+  await elegir(page, '#cultivo', 'ffffffff-ffff-4fff-8fff-ffffffffffff');
   await page.getByText('Este cultivo todavía no tiene zonas configuradas.', { exact: false }).waitFor(); assert.equal(await page.locator('.nodo-croquis').count(), 0); assert.equal(await page.locator('.variable-zona').count(), 0);
   await page.getByRole('navigation', { name: 'Secciones', exact: true }).getByRole('button', { name: 'Dispositivos', exact: true }).click();
   const cardVirtual = page.locator('.tarjeta-cultivo').filter({ has: page.getByRole('heading', { name: 'sim-bbbbbbbbbbbb-01', exact: true }) });
@@ -63,7 +64,7 @@ try {
   await cardVirtual.getByText('Nodo virtual · Simulada.', { exact: false }).waitFor();
   const libre = page.locator('.tarjeta-cultivo').filter({ has: page.getByRole('heading', { name: 'agv-fisico-02', exact: true }) });
   await libre.getByRole('button', { name: 'Vincular a cultivo', exact: true }).click();
-  assert.equal(await page.getByLabel('Cultivo de destino', { exact: true }).locator('option').count(), 2, 'Los cuatro virtuales no consumen el límite de dos físicos.');
+  assert.equal((await opcionesDe(page, '#destino-nodo')).opciones.length, 2, 'Los cuatro virtuales no consumen el límite de dos físicos.');
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await page.getByRole('navigation', { name: 'Secciones', exact: true }).getByRole('button', { name: 'Inicio', exact: true }).click();
   await page.evaluate(() => window.qaZonas.cambiarCuenta()); await page.getByRole('heading', { name: 'No tienes cultivos activos', exact: true }).waitFor();

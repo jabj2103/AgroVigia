@@ -1,0 +1,1088 @@
+{
+  "name": "AgroVigia - 03i ingesta REAL por HTTPS con clave de nodo, alertas y sugerencias IA",
+  "active": false,
+  "nodes": [
+    {
+      "id": "agv-ingesta-mqtt-nodo",
+      "name": "Webhook nodo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agrovigia/nodo",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "a9000191-7e1e-4e7a-8a11-03906e5ca001"
+    },
+    {
+      "id": "agv-destino-nodo",
+      "name": "Proyecto Supabase",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "agv-url",
+              "name": "supabase_url",
+              "value": "https://TU_PROYECTO.supabase.co",
+              "type": "string"
+            },
+            {
+              "id": "agv-modelo-ia",
+              "name": "gemini_modelo",
+              "value": "gemini-3.5-flash-lite",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-preparar-rpc-nodo",
+      "name": "Preparar ingesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const V2 = (() => {\n'use strict';\n\n// Logica reutilizable en el nodo Code de n8n. No abre servidor ni escribe datos.\nfunction rechazar(codigo) { return { estado: 'rechazar', codigo }; }\nfunction objeto(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }\nfunction clavesExactas(value, keys) {\n  return objeto(value) && Object.keys(value).length === keys.length && keys.every(k => Object.hasOwn(value, k));\n}\nfunction fechaUtc(value) {\n  if (typeof value !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/.test(value)) return null;\n  const epoch = Date.parse(value);\n  return Number.isFinite(epoch) && new Date(epoch).toISOString() === value.replace('Z', '.000Z') ? epoch : null;\n}\n\nfunction leerJsonEstricto(texto) {\n  // JSON.parse comprueba gramatica; este recorrido adicional detecta claves\n  // duplicadas incluso si usan escapes y numeros con precision no representable.\n  const value = JSON.parse(texto);\n  let pos = 0;\n  function espacio() { while (/\\s/.test(texto[pos] ?? '') && pos < texto.length) pos++; }\n  function cadena() {\n    const inicio = pos++;\n    while (pos < texto.length) {\n      if (texto[pos] === '\\\\') pos += 2;\n      else if (texto[pos++] === '\"') return JSON.parse(texto.slice(inicio, pos));\n    }\n    throw new Error('JSON_INVALIDO');\n  }\n  function valor() {\n    espacio();\n    if (texto[pos] === '{') {\n      pos++; espacio(); const vistas = new Set();\n      if (texto[pos] === '}') { pos++; return; }\n      while (true) {\n        espacio(); const key = cadena();\n        if (vistas.has(key)) throw new Error('CLAVE_REPETIDA');\n        vistas.add(key); espacio(); pos++; valor(); espacio();\n        if (texto[pos++] === '}') return;\n      }\n    }\n    if (texto[pos] === '[') {\n      pos++; espacio();\n      if (texto[pos] === ']') { pos++; return; }\n      while (true) { valor(); espacio(); if (texto[pos++] === ']') return; }\n    }\n    if (texto[pos] === '\"') { cadena(); return; }\n    const inicio = pos;\n    while (pos < texto.length && !/[\\s,\\]}]/.test(texto[pos])) pos++;\n    const token = texto.slice(inicio, pos);\n    if (/^-?\\d/.test(token)) {\n      const [mantisa, exponente = '0'] = token.toLowerCase().split('e');\n      const decimales = (mantisa.split('.')[1] ?? '').replace(/0+$/, '').length;\n      if (decimales - Number(exponente) > 4) throw new Error('PRECISION_NUMERICA');\n    }\n  }\n  valor();\n  return value;\n}\n\nfunction prevalidarTelemetria(entrada) {\n  if (!objeto(entrada) || typeof entrada.message !== 'string') return rechazar('MENSAJE_DEBE_SER_TEXTO');\n  if (entrada.message.charCodeAt(0) === 0xfeff || Buffer.byteLength(entrada.message, 'utf8') > 2048) return rechazar('CODIFICACION_O_TAMANO');\n  if (entrada.retained === true) return rechazar('RETAIN_NO_ADMITIDO');\n  let p;\n  try { p = leerJsonEstricto(entrada.message); }\n  catch (error) { return rechazar(['CLAVE_REPETIDA', 'PRECISION_NUMERICA'].includes(error.message) ? error.message : 'JSON_INVALIDO'); }\n  if (!clavesExactas(p, ['version', 'nodo_codigo', 'mensaje_id', 'origen', 'tomada_en', 'mediciones'])) return rechazar('CAMPOS_PAYLOAD');\n  if (p.version !== 1) return rechazar('VERSION');\n  if (typeof p.nodo_codigo !== 'string' || /[\\r\\n]/.test(p.nodo_codigo) || !/^agv-[a-z0-9]+-[0-9]{2}$/.test(p.nodo_codigo)) return rechazar('NODO_CODIGO');\n  if (typeof p.mensaje_id !== 'string' || p.mensaje_id.length !== 36 || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p.mensaje_id)) return rechazar('MENSAJE_ID');\n  if (!['real', 'simulado'].includes(p.origen)) return rechazar('ORIGEN');\n  if (fechaUtc(p.tomada_en) === null) return rechazar('FECHA_CAPTURA');\n  if (entrada.topic !== `agrovigia/v1/${p.origen}/nodos/${p.nodo_codigo}/telemetria`) return rechazar('TOPICO_NO_COINCIDE');\n  if (!Array.isArray(p.mediciones) || p.mediciones.length < 1 || p.mediciones.length > 2) return rechazar('CANTIDAD_VARIABLES');\n  const catalogo = {\n    temperatura_aire: { unidad: '\\u00b0C', min: -40, max: 80 },\n    humedad_aire: { unidad: '% HR', min: 0, max: 100 },\n    iluminacion_relativa: { unidad: '% relativo', min: 0, max: 100 },\n  };\n  const variables = new Set();\n  for (const m of p.mediciones) {\n    if (!clavesExactas(m, ['variable_codigo', 'valor', 'unidad']) || typeof m.variable_codigo !== 'string' || !Object.hasOwn(catalogo, m.variable_codigo)) return rechazar('CAMPOS_MEDICION');\n    const regla = catalogo[m.variable_codigo];\n    if (variables.has(m.variable_codigo)) return rechazar('VARIABLE_REPETIDA');\n    variables.add(m.variable_codigo);\n    if (m.unidad !== regla.unidad) return rechazar('UNIDAD');\n    if (typeof m.valor !== 'number' || !Number.isFinite(m.valor) || m.valor < regla.min || m.valor > regla.max) return rechazar('VALOR');\n  }\n  const esDht = variables.size === 2 && variables.has('temperatura_aire') && variables.has('humedad_aire');\n  const esLdr = variables.size === 1 && variables.has('iluminacion_relativa');\n  if (!esDht && !esLdr) return rechazar('LOTE_INCOMPLETO_O_MIXTO');\n  const advertencias = [];\n  if (esDht && p.mediciones.every(m => m.valor === 0)) advertencias.push('PAR_CERO_REQUIERE_REVISION');\n  if (typeof entrada.retained !== 'boolean') advertencias.push('BANDERA_RETAIN_NO_DISPONIBLE');\n  return {\n    estado: 'prevalidado', codigo: 'FORMA_Y_TOPICO_VALIDOS', payload: p,\n    perfil_payload: esDht ? 'DHT22' : 'LDR',\n    recibida_en: entrada.recibida_en ?? null,\n    retain_verificado: entrada.retained === false,\n    advertencias,\n    controles_pendientes: ['origen_por_acl', 'nodo_y_cultivo_autorizados', 'duplicados_transaccionales', 'ventana_temporal', 'persistencia'],\n  };\n}\n\nfunction contenidoCanonico(p) {\n  return JSON.stringify({\n    version: p.version, nodo_codigo: p.nodo_codigo, mensaje_id: p.mensaje_id,\n    origen: p.origen, tomada_en: p.tomada_en,\n    mediciones: [...p.mediciones].sort((a, b) => a.variable_codigo.localeCompare(b.variable_codigo)),\n  }, (key, value) => objeto(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value);\n}\n\n// Evaluacion pura para preparar la futura operacion transaccional. El contexto\n// debe provenir del servidor/catalogo, nunca del payload ni del navegador.\n// No realiza consultas, bloqueos, RLS, inserciones ni reserva IDs contra carreras.\nfunction evaluarContexto(prevalidado, contexto) {\n  if (prevalidado.estado !== 'prevalidado') return prevalidado;\n  if (!objeto(contexto) || contexto.acl_verificada !== true) return rechazar('ORIGEN_NO_VERIFICADO');\n  if (!prevalidado.retain_verificado && contexto.retencion_broker_desactivada !== true) return rechazar('RETAIN_NO_VERIFICADO');\n  const nodo = contexto.nodo;\n  if (!objeto(nodo) || nodo.codigo !== prevalidado.payload.nodo_codigo) return rechazar('NODO_DESCONOCIDO');\n  if (nodo.habilitado !== true) return rechazar('NODO_DESHABILITADO');\n  if (nodo.perfil !== prevalidado.perfil_payload) return rechazar('CAPACIDAD_NODO');\n  const p = prevalidado.payload;\n  if (contexto.lote_previo !== null && contexto.lote_previo !== undefined) {\n    const previo = contexto.lote_previo;\n    if (!objeto(previo) || !Array.isArray(previo.mediciones)) return { estado: 'conflicto_id', codigo: 'LOTE_PREVIO_INCONSISTENTE' };\n    try {\n      const controlPrevio = prevalidarTelemetria({ topic: `agrovigia/v1/${previo.origen}/nodos/${previo.nodo_codigo}/telemetria`, message: JSON.stringify(previo) });\n      if (controlPrevio.estado !== 'prevalidado') return { estado: 'conflicto_id', codigo: 'LOTE_PREVIO_INCONSISTENTE' };\n    } catch { return { estado: 'conflicto_id', codigo: 'LOTE_PREVIO_INCONSISTENTE' }; }\n    return contenidoCanonico(previo) === contenidoCanonico(p)\n      ? { estado: 'duplicado', codigo: 'LOTE_IDENTICO_NO_REINSERTAR' }\n      : { estado: 'conflicto_id', codigo: 'MISMO_ID_OTRO_CONTENIDO' };\n  }\n  if (!nodo.cultivo_id || !nodo.agricultor_id || nodo.agricultor_id !== nodo.cultivo_agricultor_id) return rechazar('CULTIVO_NO_AUTORIZADO');\n  if (p.origen === 'real' && nodo.perfil === 'LDR' && contexto.conversion_ldr_real_aprobada !== true) return rechazar('ESCALA_LDR_PENDIENTE');\n  const recepcionTexto = prevalidado.recibida_en;\n  const recibida = typeof recepcionTexto === 'string' ? Date.parse(recepcionTexto) : NaN;\n  const tomada = fechaUtc(p.tomada_en);\n  const recepcionNormalizada = typeof recepcionTexto === 'string' ? recepcionTexto.replace(/Z$/, '.000Z') : null;\n  if (!Number.isFinite(recibida) ||\n      !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$/.test(recepcionTexto) ||\n      ![recepcionTexto, recepcionNormalizada].includes(new Date(recibida).toISOString())) return rechazar('FECHA_RECEPCION');\n  if (tomada < recibida - 300000 || tomada > recibida + 120000) return rechazar('VENTANA_TEMPORAL');\n  return { estado: 'aceptar', codigo: 'CONTEXTO_VALIDO_PENDIENTE_TRANSACCION', advertencias: prevalidado.advertencias };\n}\n\n\n'use strict';\n\n// V2 ambiental: tres mediciones y trazabilidad del indice ADC. No certifica lux.\nfunction indiceLdr(adc) { return Math.round(adc * 1000 / 4095) / 10; }\nfunction prevalidarAmbiental(entrada) {\n  const no = codigo => ({ estado: 'rechazar', codigo });\n  if (!objeto(entrada) || typeof entrada.message !== 'string') return no('MENSAJE_DEBE_SER_TEXTO');\n  if (entrada.message.charCodeAt(0) === 0xfeff || Buffer.byteLength(entrada.message, 'utf8') > 2048) return no('CODIFICACION_O_TAMANO');\n  if (entrada.retained === true) return no('RETAIN_NO_ADMITIDO');\n  let p;\n  try { p = leerJsonEstricto(entrada.message); }\n  catch (e) { return no(['CLAVE_REPETIDA', 'PRECISION_NUMERICA'].includes(e.message) ? e.message : 'JSON_INVALIDO'); }\n  if (!clavesExactas(p, ['version', 'nodo_codigo', 'mensaje_id', 'origen', 'tomada_en', 'mediciones', 'ldr'])) return no('CAMPOS_PAYLOAD');\n  if (p.version !== 2) return no('VERSION');\n  if (typeof p.nodo_codigo !== 'string' || /[\\r\\n]/.test(p.nodo_codigo) || !/^agv-[a-z0-9]+-[0-9]{2}$/.test(p.nodo_codigo)) return no('NODO_CODIGO');\n  if (typeof p.mensaje_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p.mensaje_id) || p.mensaje_id.length !== 36) return no('MENSAJE_ID');\n  if (!['real', 'simulado'].includes(p.origen)) return no('ORIGEN');\n  if (fechaUtc(p.tomada_en) === null) return no('FECHA_CAPTURA');\n  if (entrada.topic !== `agrovigia/v2/${p.origen}/nodos/${p.nodo_codigo}/telemetria`) return no('TOPICO_NO_COINCIDE');\n  if (!clavesExactas(p.ldr, ['metodo', 'adc_promedio']) || p.ldr.metodo !== 'adc12_10k_11db_v1' ||\n      !Number.isInteger(p.ldr.adc_promedio) || p.ldr.adc_promedio < 0 || p.ldr.adc_promedio > 4095) return no('METODO_O_ADC_LDR');\n  if (!Array.isArray(p.mediciones) || p.mediciones.length !== 3) return no('LOTE_AMBIENTAL_INCOMPLETO');\n  const catalogo = {\n    temperatura_aire: { unidad: '\\u00b0C', min: -40, max: 80 },\n    humedad_aire: { unidad: '% HR', min: 0, max: 100 },\n    iluminacion_relativa: { unidad: '% relativo', min: 0, max: 100 },\n  };\n  const vistas = new Set();\n  for (const m of p.mediciones) {\n    if (!clavesExactas(m, ['variable_codigo', 'valor', 'unidad']) || typeof m.variable_codigo !== 'string' || !Object.hasOwn(catalogo, m.variable_codigo)) return no('CAMPOS_MEDICION');\n    if (vistas.has(m.variable_codigo)) return no('VARIABLE_REPETIDA');\n    vistas.add(m.variable_codigo);\n    const r = catalogo[m.variable_codigo];\n    if (m.unidad !== r.unidad) return no('UNIDAD');\n    if (typeof m.valor !== 'number' || !Number.isFinite(m.valor) || m.valor < r.min || m.valor > r.max) return no('VALOR');\n  }\n  if (p.mediciones.find(m => m.variable_codigo === 'iluminacion_relativa').valor !== indiceLdr(p.ldr.adc_promedio)) return no('CONVERSION_LDR_NO_COINCIDE');\n  const advertencias = ['INDICE_ADC_NO_CALIBRADO_EN_LUX'];\n  if (p.mediciones.filter(m => m.variable_codigo !== 'iluminacion_relativa').every(m => m.valor === 0)) advertencias.push('PAR_CERO_REQUIERE_REVISION');\n  if ([0, 4095].includes(p.ldr.adc_promedio)) advertencias.push('LDR_EN_EXTREMO_ADC');\n  if (typeof entrada.retained !== 'boolean') advertencias.push('BANDERA_RETAIN_NO_DISPONIBLE');\n  return {\n    estado: 'prevalidado', codigo: 'FORMA_Y_TOPICO_VALIDOS', payload: p,\n    perfil_payload: 'DHT22_LDR', recibida_en: entrada.recibida_en ?? null,\n    retain_verificado: entrada.retained === false, advertencias,\n    controles_pendientes: ['origen_por_acl', 'nodo_y_cultivo_autorizados', 'duplicados_transaccionales', 'ventana_temporal', 'persistencia'],\n  };\n}\n\n\n'use strict';\n\n// Preparacion pura. Configuracion del servidor: no tomar flags del payload.\nfunction prepararIngestaAmbiental(entrada, configuracion, recibidaEn) {\n  const rechazo = codigo => ({ estado: 'rechazado', codigo, persistido: false });\n  if (configuracion?.acl_verificada !== true ||\n      configuracion?.retencion_broker_desactivada !== true) {\n    return rechazo('CANAL_LOCAL_NO_VERIFICADO');\n  }\n  const fecha = typeof recibidaEn === 'string' ? new Date(recibidaEn) : null;\n  if (!fecha || !Number.isFinite(fecha.getTime()) ||\n      fecha.toISOString() !== recibidaEn) return rechazo('FECHA_RECEPCION');\n  const previo = prevalidarAmbiental({\n    topic: entrada?.topic, message: entrada?.message, recibida_en: recibidaEn,\n  });\n  const base = {\n    ...previo, persistido: false,\n    recibida_en: recibidaEn,\n    fuente_recibida_en: 'inicio_validacion_mqtt_aproximado',\n  };\n  if (previo.estado !== 'prevalidado') return { ...base, estado: 'rechazado' };\n  if (previo.perfil_payload !== 'DHT22_LDR') {\n    return { ...base, estado: 'rechazado', codigo: 'PERFIL_NO_ADMITIDO_EN_ESTA_RPC' };\n  }\n  const url = entrada.supabase_url;\n  if (typeof url !== 'string' || !/^(?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5})\\/?$/.test(url)) {\n    return { ...base, estado: 'rechazado', codigo: 'CONFIGURAR_URL_SUPABASE' };\n  }\n  return {\n    ...base,\n    destino_rpc: url.replace(/\\/$/, '') + '/rest/v1/rpc/registrar_lote_ambiental',\n    solicitud_rpc: {\n      p_topico: entrada.topic,\n      p_mensaje: entrada.message,\n      p_recibida_en: recibidaEn,\n      p_acl_verificada: true,\n      p_retenido: null,\n      p_retencion_broker_desactivada: true,\n    },\n  };\n}\n\nfunction resumirPersistenciaAmbiental(resultado) {\n  const estados = ['insertado', 'duplicado', 'rechazado', 'conflicto_id'];\n  if (!resultado || typeof resultado !== 'object' || Array.isArray(resultado) ||\n      !estados.includes(resultado.estado)) throw new Error('RESPUESTA_RPC_NO_RECONOCIDA');\n  const confirmado = ['insertado', 'duplicado'].includes(resultado.estado);\n  if (confirmado && (\n    !Array.isArray(resultado.medicion_ids) || resultado.medicion_ids.length !== 3 ||\n    resultado.medicion_ids.some(id => typeof id !== 'string' || id.length !== 36) ||\n    new Set(resultado.medicion_ids).size !== 3 ||\n    typeof resultado.mensaje_id !== 'string' ||\n    typeof resultado.recibida_en !== 'string'\n  )) throw new Error('RESPUESTA_RPC_INCOMPLETA');\n  return {\n    ...resultado,\n    persistido: confirmado,\n    nuevo_lote: resultado.estado === 'insertado',\n  };\n}\n\n\nreturn { prepararIngestaAmbiental, resumirPersistenciaAmbiental };\n})();\n'use strict';\n// Logica pura del flujo 03g (ingesta por HTTP, para desplegar sin puerto MQTT). El webhook recibe\n// {\"topico\", \"payload\"} y aqui se convierte en lo mismo que entrega el disparador MQTT ({topic, message}),\n// de modo que la validacion, el guardado, las alertas y la IA son los de 03e (v2) y 03f (v3).\n// Nunca incluye claves: la cabecera X-AgroVigia-Clave la comprueba el nodo Webhook con su credencial.\nconst TOPICO_HTTP_V2 = /^agrovigia\\/v2\\/(real|simulado)\\/nodos\\/[a-z0-9-]{1,64}\\/telemetria$/;\nconst TOPICO_HTTP_V3 = /^agrovigia\\/v3\\/simulado\\/nodos\\/[a-z0-9-]{1,64}\\/telemetria$/;\n\n// Codigo HTTP y cuerpo {estado, codigo} que recibe quien envio el lote:\n//   200 guardado o duplicado confirmado; 400 lote rechazado (no reintentar);\n//   503 guardado sin confirmar (reintentar el mismo lote: el guardado es idempotente).\nfunction respuestaHttp(resultado) {\n  const estado = typeof resultado?.estado === 'string' ? resultado.estado : 'pendiente';\n  const codigo = typeof resultado?.codigo === 'string' ? resultado.codigo.slice(0, 80) : 'SIN_CODIGO';\n  if (resultado?.persistido === true && ['insertado', 'duplicado'].includes(estado)) return { codigo_http: 200, cuerpo: { estado, codigo } };\n  if (['rechazado', 'conflicto_id'].includes(estado)) return { codigo_http: 400, cuerpo: { estado, codigo } };\n  return { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo } };\n}\n\n// 'json' es el item del webhook mas la configuracion del nodo Proyecto Supabase.\n// Por HTTP no hay ACL del broker que separe origenes: la clave es compartida. Por eso un topico de origen\n// real solo se admite si el flujo lo habilita de forma expresa (http_admite_real = \"si\").\nfunction prepararIngestaHttp(json, canal, recibidaEn, prepararV2, prepararV3) {\n  const rechazo = codigo => { const r = { estado: 'rechazado', codigo, persistido: false, canal_entrada: 'http' }; return { ...r, respuesta_http: respuestaHttp(r) }; };\n  const cuerpo = json?.body;\n  if (!cuerpo || typeof cuerpo !== 'object' || Array.isArray(cuerpo) || Object.keys(cuerpo).sort().join() !== 'payload,topico') return rechazo('CUERPO_HTTP_INVALIDO');\n  if (typeof cuerpo.topico !== 'string') return rechazo('TOPICO_NO_ADMITIDO');\n  const v2 = TOPICO_HTTP_V2.exec(cuerpo.topico), v3 = TOPICO_HTTP_V3.test(cuerpo.topico);\n  if (!v2 && !v3) return rechazo('TOPICO_NO_ADMITIDO');\n  if (v2 && v2[1] === 'real' && json.http_admite_real !== 'si') return rechazo('ORIGEN_REAL_NO_ADMITIDO_POR_HTTP');\n  // El lote llega como objeto JSON (o como su texto exacto); los validadores trabajan sobre el texto.\n  let mensaje;\n  if (typeof cuerpo.payload === 'string') mensaje = cuerpo.payload;\n  else if (cuerpo.payload && typeof cuerpo.payload === 'object' && !Array.isArray(cuerpo.payload)) mensaje = JSON.stringify(cuerpo.payload);\n  else return rechazo('PAYLOAD_DEBE_SER_OBJETO');\n  const entrada = { topic: cuerpo.topico, message: mensaje, supabase_url: json.supabase_url };\n  const r = v3 ? prepararV3(entrada, canal, recibidaEn) : prepararV2(entrada, canal, recibidaEn);\n  const salida = { ...r, canal_entrada: 'http' };\n  if (salida.fuente_recibida_en) salida.fuente_recibida_en = 'inicio_validacion_http_aproximado';\n  if (salida.estado === 'prevalidado') return salida;\n  salida.estado = 'rechazado'; salida.persistido = false;\n  return { ...salida, respuesta_http: respuestaHttp(salida) };\n}\n\n// Resume la respuesta de la RPC con la funcion del contrato que corresponde y agrega la respuesta HTTP.\n// Si Supabase no confirma, el resultado queda pendiente (503) en lugar de detener la ejecucion.\nfunction resumirPersistenciaHttp(resultado, preparado, resumirV2, resumirV3) {\n  let r;\n  if (typeof preparado?.destino_rpc === 'string' && preparado.destino_rpc.endsWith('/rest/v1/rpc/registrar_lote_simulado_v3')) r = resumirV3(resultado, preparado);\n  else {\n    try { r = resumirV2(resultado); }\n    catch { r = { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION', mensaje_id: preparado?.payload?.mensaje_id, persistido: null, nuevo_lote: false }; }\n  }\n  return { ...r, respuesta_http: respuestaHttp(r) };\n}\n\n\n'use strict';\n// Logica pura del flujo 03i: ingesta REAL por HTTPS con clave propia de cada nodo fisico (migracion 0012).\n// El webhook no usa la clave compartida de 03g: cada placa envia su codigo y su clave en cabeceras, y el\n// cuerpo es el mismo JSON v2 que el firmware publica por MQTT. Aqui se arma el topico real del nodo y se\n// sigue con la preparacion de 03e, de modo que validacion, guardado, alertas e IA son los mismos.\n// Una clave de nodo solo sirve para escribir datos reales de ese nodo. Nunca se devuelve ni se registra.\n// En el Code de n8n este archivo va despues de preparar-http.cjs, del que usa respuestaHttp.\nconst CODIGO_NODO_HTTPS = /^agv-[a-z0-9]+-[0-9]{2}$/;\nconst CLAVE_INVALIDA = { codigo_http: 401, cuerpo: { estado: 'rechazado', codigo: 'CLAVE_INVALIDA' } };\n\n// 1. Cabeceras X-AgroVigia-Nodo y X-AgroVigia-Clave. Sin ellas no se consulta la base.\nfunction prepararAutenticacionNodo(json) {\n  const rechazo = { lista: false, estado: 'rechazado', codigo: 'CLAVE_INVALIDA', persistido: false, respuesta_http: CLAVE_INVALIDA };\n  const cabeceras = json?.headers && typeof json.headers === 'object' ? json.headers : {};\n  const codigo = cabeceras['x-agrovigia-nodo'], clave = cabeceras['x-agrovigia-clave'];\n  if (typeof codigo !== 'string' || !CODIGO_NODO_HTTPS.test(codigo) || codigo.length > 64) return rechazo;\n  if (typeof clave !== 'string' || clave.length < 20 || clave.length > 200 || /\\s/.test(clave)) return rechazo;\n  const m = typeof json.supabase_url === 'string' && json.supabase_url.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/?$/);\n  if (!m) return { lista: false, estado: 'pendiente', codigo: 'CONFIGURAR_URL_SUPABASE', persistido: false,\n    respuesta_http: { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo: 'CONFIGURAR_URL_SUPABASE' } } };\n  return { lista: true, nodo_codigo: codigo, supabase_url: m[1], cuerpo: json.body,\n    destino_autenticar: m[1] + '/rest/v1/rpc/autenticar_nodo', solicitud_autenticar: { p_codigo: codigo, p_clave: clave } };\n}\n\n// Respuesta al nodo: la de 03g mas su intervalo y su pausa, para que el firmware se adapte.\nfunction respuestaNodo(resultado, nodo) {\n  const r = respuestaHttp(resultado);\n  return { codigo_http: r.codigo_http, cuerpo: { ...r.cuerpo, intervalo_segundos: nodo.intervalo_segundos, pausado: nodo.pausado } };\n}\n\n// 2. Con la respuesta de autenticar_nodo: clave rechazada 401, sin confirmacion 503; autenticado, el cuerpo\n// pasa por la misma preparacion v2 de 03e con el topico real de ESE nodo.\nfunction prepararIngestaNodo(previo, respuesta, canal, recibidaEn, prepararV2) {\n  const a = respuesta?.statusCode === 200 && respuesta.body && typeof respuesta.body === 'object' && !Array.isArray(respuesta.body) ? respuesta.body : null;\n  if (!a || !['NODO_AUTENTICADO', 'CLAVE_INVALIDA'].includes(a.codigo)) {\n    const r = { estado: 'pendiente', codigo: 'AUTENTICACION_NO_CONFIRMADA', persistido: false, canal_entrada: 'https_nodo' };\n    return { ...r, respuesta_http: { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo: r.codigo } } };\n  }\n  if (a.codigo !== 'NODO_AUTENTICADO' || a.nodo_codigo !== previo.nodo_codigo)\n    return { estado: 'rechazado', codigo: 'CLAVE_INVALIDA', persistido: false, canal_entrada: 'https_nodo', respuesta_http: CLAVE_INVALIDA };\n  const nodo = { intervalo_segundos: Number.isInteger(a.intervalo_segundos) ? a.intervalo_segundos : null, pausado: a.pausado === true };\n  const rechazo = codigo => { const r = { estado: 'rechazado', codigo, persistido: false, canal_entrada: 'https_nodo', nodo_http: nodo }; return { ...r, respuesta_http: respuestaNodo(r, nodo) }; };\n  const cuerpo = previo.cuerpo;\n  let mensaje;\n  if (typeof cuerpo === 'string') mensaje = cuerpo;\n  else if (cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {\n    // La clave autentica a un nodo: no puede enviar lotes de otro ni datos de origen simulado.\n    if (cuerpo.nodo_codigo !== previo.nodo_codigo) return rechazo('NODO_NO_COINCIDE');\n    if (cuerpo.origen !== 'real') return rechazo('SOLO_ORIGEN_REAL');\n    mensaje = JSON.stringify(cuerpo);\n  } else return rechazo('CUERPO_HTTP_INVALIDO');\n  const entrada = { topic: 'agrovigia/v2/real/nodos/' + previo.nodo_codigo + '/telemetria', message: mensaje, supabase_url: previo.supabase_url };\n  const salida = { ...prepararV2(entrada, canal, recibidaEn), canal_entrada: 'https_nodo', nodo_http: nodo };\n  if (salida.fuente_recibida_en) salida.fuente_recibida_en = 'inicio_validacion_http_aproximado';\n  if (salida.estado === 'prevalidado') return salida;\n  salida.estado = 'rechazado'; salida.persistido = false;\n  return { ...salida, respuesta_http: respuestaNodo(salida, nodo) };\n}\n\n// 3. Resume la respuesta de la RPC de guardado y arma la respuesta para el nodo.\nfunction resumirPersistenciaNodo(resultado, preparado, resumirV2) {\n  let r;\n  try { r = resumirV2(resultado); }\n  catch { r = { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION', mensaje_id: preparado?.payload?.mensaje_id, persistido: null, nuevo_lote: false }; }\n  return { ...r, respuesta_http: respuestaNodo(r, preparado?.nodo_http ?? { intervalo_segundos: null, pausado: false }) };\n}\n\n\nreturn (function entradaCode() {\n  const recibida = new Date().toISOString();\n  // El origen queda acreditado por la clave propia del nodo. Por HTTP no existe retain.\n  const canal = { acl_verificada: true, retencion_broker_desactivada: true };\n  return $input.all().map((item, i) => ({ json: prepararIngestaNodo($('Preparar autenticacion').itemMatching(i).json, item.json, canal, recibida, V2.prepararIngestaAmbiental), pairedItem: { item: i } }));\n})();\n"
+      }
+    },
+    {
+      "id": "agv-solo-validos-nodo",
+      "name": "Forma valida",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        750,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "agv-condicion",
+              "leftValue": "={{ $json.estado }}",
+              "rightValue": "prevalidado",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-http-rpc-nodo",
+      "name": "Guardar lote en Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1010,
+        -90
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.destino_rpc }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.solicitud_rpc }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "agv-resultado-rpc-nodo",
+      "name": "Resultado de persistencia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1290,
+        -90
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const V2 = (() => {\n'use strict';\n\n// Logica reutilizable en el nodo Code de n8n. No abre servidor ni escribe datos.\nfunction rechazar(codigo) { return { estado: 'rechazar', codigo }; }\nfunction objeto(value) { return value !== null && typeof value === 'object' && !Array.isArray(value); }\nfunction clavesExactas(value, keys) {\n  return objeto(value) && Object.keys(value).length === keys.length && keys.every(k => Object.hasOwn(value, k));\n}\nfunction fechaUtc(value) {\n  if (typeof value !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/.test(value)) return null;\n  const epoch = Date.parse(value);\n  return Number.isFinite(epoch) && new Date(epoch).toISOString() === value.replace('Z', '.000Z') ? epoch : null;\n}\n\nfunction leerJsonEstricto(texto) {\n  // JSON.parse comprueba gramatica; este recorrido adicional detecta claves\n  // duplicadas incluso si usan escapes y numeros con precision no representable.\n  const value = JSON.parse(texto);\n  let pos = 0;\n  function espacio() { while (/\\s/.test(texto[pos] ?? '') && pos < texto.length) pos++; }\n  function cadena() {\n    const inicio = pos++;\n    while (pos < texto.length) {\n      if (texto[pos] === '\\\\') pos += 2;\n      else if (texto[pos++] === '\"') return JSON.parse(texto.slice(inicio, pos));\n    }\n    throw new Error('JSON_INVALIDO');\n  }\n  function valor() {\n    espacio();\n    if (texto[pos] === '{') {\n      pos++; espacio(); const vistas = new Set();\n      if (texto[pos] === '}') { pos++; return; }\n      while (true) {\n        espacio(); const key = cadena();\n        if (vistas.has(key)) throw new Error('CLAVE_REPETIDA');\n        vistas.add(key); espacio(); pos++; valor(); espacio();\n        if (texto[pos++] === '}') return;\n      }\n    }\n    if (texto[pos] === '[') {\n      pos++; espacio();\n      if (texto[pos] === ']') { pos++; return; }\n      while (true) { valor(); espacio(); if (texto[pos++] === ']') return; }\n    }\n    if (texto[pos] === '\"') { cadena(); return; }\n    const inicio = pos;\n    while (pos < texto.length && !/[\\s,\\]}]/.test(texto[pos])) pos++;\n    const token = texto.slice(inicio, pos);\n    if (/^-?\\d/.test(token)) {\n      const [mantisa, exponente = '0'] = token.toLowerCase().split('e');\n      const decimales = (mantisa.split('.')[1] ?? '').replace(/0+$/, '').length;\n      if (decimales - Number(exponente) > 4) throw new Error('PRECISION_NUMERICA');\n    }\n  }\n  valor();\n  return value;\n}\n\nfunction prevalidarTelemetria(entrada) {\n  if (!objeto(entrada) || typeof entrada.message !== 'string') return rechazar('MENSAJE_DEBE_SER_TEXTO');\n  if (entrada.message.charCodeAt(0) === 0xfeff || Buffer.byteLength(entrada.message, 'utf8') > 2048) return rechazar('CODIFICACION_O_TAMANO');\n  if (entrada.retained === true) return rechazar('RETAIN_NO_ADMITIDO');\n  let p;\n  try { p = leerJsonEstricto(entrada.message); }\n  catch (error) { return rechazar(['CLAVE_REPETIDA', 'PRECISION_NUMERICA'].includes(error.message) ? error.message : 'JSON_INVALIDO'); }\n  if (!clavesExactas(p, ['version', 'nodo_codigo', 'mensaje_id', 'origen', 'tomada_en', 'mediciones'])) return rechazar('CAMPOS_PAYLOAD');\n  if (p.version !== 1) return rechazar('VERSION');\n  if (typeof p.nodo_codigo !== 'string' || /[\\r\\n]/.test(p.nodo_codigo) || !/^agv-[a-z0-9]+-[0-9]{2}$/.test(p.nodo_codigo)) return rechazar('NODO_CODIGO');\n  if (typeof p.mensaje_id !== 'string' || p.mensaje_id.length !== 36 || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p.mensaje_id)) return rechazar('MENSAJE_ID');\n  if (!['real', 'simulado'].includes(p.origen)) return rechazar('ORIGEN');\n  if (fechaUtc(p.tomada_en) === null) return rechazar('FECHA_CAPTURA');\n  if (entrada.topic !== `agrovigia/v1/${p.origen}/nodos/${p.nodo_codigo}/telemetria`) return rechazar('TOPICO_NO_COINCIDE');\n  if (!Array.isArray(p.mediciones) || p.mediciones.length < 1 || p.mediciones.length > 2) return rechazar('CANTIDAD_VARIABLES');\n  const catalogo = {\n    temperatura_aire: { unidad: '\\u00b0C', min: -40, max: 80 },\n    humedad_aire: { unidad: '% HR', min: 0, max: 100 },\n    iluminacion_relativa: { unidad: '% relativo', min: 0, max: 100 },\n  };\n  const variables = new Set();\n  for (const m of p.mediciones) {\n    if (!clavesExactas(m, ['variable_codigo', 'valor', 'unidad']) || typeof m.variable_codigo !== 'string' || !Object.hasOwn(catalogo, m.variable_codigo)) return rechazar('CAMPOS_MEDICION');\n    const regla = catalogo[m.variable_codigo];\n    if (variables.has(m.variable_codigo)) return rechazar('VARIABLE_REPETIDA');\n    variables.add(m.variable_codigo);\n    if (m.unidad !== regla.unidad) return rechazar('UNIDAD');\n    if (typeof m.valor !== 'number' || !Number.isFinite(m.valor) || m.valor < regla.min || m.valor > regla.max) return rechazar('VALOR');\n  }\n  const esDht = variables.size === 2 && variables.has('temperatura_aire') && variables.has('humedad_aire');\n  const esLdr = variables.size === 1 && variables.has('iluminacion_relativa');\n  if (!esDht && !esLdr) return rechazar('LOTE_INCOMPLETO_O_MIXTO');\n  const advertencias = [];\n  if (esDht && p.mediciones.every(m => m.valor === 0)) advertencias.push('PAR_CERO_REQUIERE_REVISION');\n  if (typeof entrada.retained !== 'boolean') advertencias.push('BANDERA_RETAIN_NO_DISPONIBLE');\n  return {\n    estado: 'prevalidado', codigo: 'FORMA_Y_TOPICO_VALIDOS', payload: p,\n    perfil_payload: esDht ? 'DHT22' : 'LDR',\n    recibida_en: entrada.recibida_en ?? null,\n    retain_verificado: entrada.retained === false,\n    advertencias,\n    controles_pendientes: ['origen_por_acl', 'nodo_y_cultivo_autorizados', 'duplicados_transaccionales', 'ventana_temporal', 'persistencia'],\n  };\n}\n\nfunction contenidoCanonico(p) {\n  return JSON.stringify({\n    version: p.version, nodo_codigo: p.nodo_codigo, mensaje_id: p.mensaje_id,\n    origen: p.origen, tomada_en: p.tomada_en,\n    mediciones: [...p.mediciones].sort((a, b) => a.variable_codigo.localeCompare(b.variable_codigo)),\n  }, (key, value) => objeto(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value);\n}\n\n// Evaluacion pura para preparar la futura operacion transaccional. El contexto\n// debe provenir del servidor/catalogo, nunca del payload ni del navegador.\n// No realiza consultas, bloqueos, RLS, inserciones ni reserva IDs contra carreras.\nfunction evaluarContexto(prevalidado, contexto) {\n  if (prevalidado.estado !== 'prevalidado') return prevalidado;\n  if (!objeto(contexto) || contexto.acl_verificada !== true) return rechazar('ORIGEN_NO_VERIFICADO');\n  if (!prevalidado.retain_verificado && contexto.retencion_broker_desactivada !== true) return rechazar('RETAIN_NO_VERIFICADO');\n  const nodo = contexto.nodo;\n  if (!objeto(nodo) || nodo.codigo !== prevalidado.payload.nodo_codigo) return rechazar('NODO_DESCONOCIDO');\n  if (nodo.habilitado !== true) return rechazar('NODO_DESHABILITADO');\n  if (nodo.perfil !== prevalidado.perfil_payload) return rechazar('CAPACIDAD_NODO');\n  const p = prevalidado.payload;\n  if (contexto.lote_previo !== null && contexto.lote_previo !== undefined) {\n    const previo = contexto.lote_previo;\n    if (!objeto(previo) || !Array.isArray(previo.mediciones)) return { estado: 'conflicto_id', codigo: 'LOTE_PREVIO_INCONSISTENTE' };\n    try {\n      const controlPrevio = prevalidarTelemetria({ topic: `agrovigia/v1/${previo.origen}/nodos/${previo.nodo_codigo}/telemetria`, message: JSON.stringify(previo) });\n      if (controlPrevio.estado !== 'prevalidado') return { estado: 'conflicto_id', codigo: 'LOTE_PREVIO_INCONSISTENTE' };\n    } catch { return { estado: 'conflicto_id', codigo: 'LOTE_PREVIO_INCONSISTENTE' }; }\n    return contenidoCanonico(previo) === contenidoCanonico(p)\n      ? { estado: 'duplicado', codigo: 'LOTE_IDENTICO_NO_REINSERTAR' }\n      : { estado: 'conflicto_id', codigo: 'MISMO_ID_OTRO_CONTENIDO' };\n  }\n  if (!nodo.cultivo_id || !nodo.agricultor_id || nodo.agricultor_id !== nodo.cultivo_agricultor_id) return rechazar('CULTIVO_NO_AUTORIZADO');\n  if (p.origen === 'real' && nodo.perfil === 'LDR' && contexto.conversion_ldr_real_aprobada !== true) return rechazar('ESCALA_LDR_PENDIENTE');\n  const recepcionTexto = prevalidado.recibida_en;\n  const recibida = typeof recepcionTexto === 'string' ? Date.parse(recepcionTexto) : NaN;\n  const tomada = fechaUtc(p.tomada_en);\n  const recepcionNormalizada = typeof recepcionTexto === 'string' ? recepcionTexto.replace(/Z$/, '.000Z') : null;\n  if (!Number.isFinite(recibida) ||\n      !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$/.test(recepcionTexto) ||\n      ![recepcionTexto, recepcionNormalizada].includes(new Date(recibida).toISOString())) return rechazar('FECHA_RECEPCION');\n  if (tomada < recibida - 300000 || tomada > recibida + 120000) return rechazar('VENTANA_TEMPORAL');\n  return { estado: 'aceptar', codigo: 'CONTEXTO_VALIDO_PENDIENTE_TRANSACCION', advertencias: prevalidado.advertencias };\n}\n\n\n'use strict';\n\n// V2 ambiental: tres mediciones y trazabilidad del indice ADC. No certifica lux.\nfunction indiceLdr(adc) { return Math.round(adc * 1000 / 4095) / 10; }\nfunction prevalidarAmbiental(entrada) {\n  const no = codigo => ({ estado: 'rechazar', codigo });\n  if (!objeto(entrada) || typeof entrada.message !== 'string') return no('MENSAJE_DEBE_SER_TEXTO');\n  if (entrada.message.charCodeAt(0) === 0xfeff || Buffer.byteLength(entrada.message, 'utf8') > 2048) return no('CODIFICACION_O_TAMANO');\n  if (entrada.retained === true) return no('RETAIN_NO_ADMITIDO');\n  let p;\n  try { p = leerJsonEstricto(entrada.message); }\n  catch (e) { return no(['CLAVE_REPETIDA', 'PRECISION_NUMERICA'].includes(e.message) ? e.message : 'JSON_INVALIDO'); }\n  if (!clavesExactas(p, ['version', 'nodo_codigo', 'mensaje_id', 'origen', 'tomada_en', 'mediciones', 'ldr'])) return no('CAMPOS_PAYLOAD');\n  if (p.version !== 2) return no('VERSION');\n  if (typeof p.nodo_codigo !== 'string' || /[\\r\\n]/.test(p.nodo_codigo) || !/^agv-[a-z0-9]+-[0-9]{2}$/.test(p.nodo_codigo)) return no('NODO_CODIGO');\n  if (typeof p.mensaje_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p.mensaje_id) || p.mensaje_id.length !== 36) return no('MENSAJE_ID');\n  if (!['real', 'simulado'].includes(p.origen)) return no('ORIGEN');\n  if (fechaUtc(p.tomada_en) === null) return no('FECHA_CAPTURA');\n  if (entrada.topic !== `agrovigia/v2/${p.origen}/nodos/${p.nodo_codigo}/telemetria`) return no('TOPICO_NO_COINCIDE');\n  if (!clavesExactas(p.ldr, ['metodo', 'adc_promedio']) || p.ldr.metodo !== 'adc12_10k_11db_v1' ||\n      !Number.isInteger(p.ldr.adc_promedio) || p.ldr.adc_promedio < 0 || p.ldr.adc_promedio > 4095) return no('METODO_O_ADC_LDR');\n  if (!Array.isArray(p.mediciones) || p.mediciones.length !== 3) return no('LOTE_AMBIENTAL_INCOMPLETO');\n  const catalogo = {\n    temperatura_aire: { unidad: '\\u00b0C', min: -40, max: 80 },\n    humedad_aire: { unidad: '% HR', min: 0, max: 100 },\n    iluminacion_relativa: { unidad: '% relativo', min: 0, max: 100 },\n  };\n  const vistas = new Set();\n  for (const m of p.mediciones) {\n    if (!clavesExactas(m, ['variable_codigo', 'valor', 'unidad']) || typeof m.variable_codigo !== 'string' || !Object.hasOwn(catalogo, m.variable_codigo)) return no('CAMPOS_MEDICION');\n    if (vistas.has(m.variable_codigo)) return no('VARIABLE_REPETIDA');\n    vistas.add(m.variable_codigo);\n    const r = catalogo[m.variable_codigo];\n    if (m.unidad !== r.unidad) return no('UNIDAD');\n    if (typeof m.valor !== 'number' || !Number.isFinite(m.valor) || m.valor < r.min || m.valor > r.max) return no('VALOR');\n  }\n  if (p.mediciones.find(m => m.variable_codigo === 'iluminacion_relativa').valor !== indiceLdr(p.ldr.adc_promedio)) return no('CONVERSION_LDR_NO_COINCIDE');\n  const advertencias = ['INDICE_ADC_NO_CALIBRADO_EN_LUX'];\n  if (p.mediciones.filter(m => m.variable_codigo !== 'iluminacion_relativa').every(m => m.valor === 0)) advertencias.push('PAR_CERO_REQUIERE_REVISION');\n  if ([0, 4095].includes(p.ldr.adc_promedio)) advertencias.push('LDR_EN_EXTREMO_ADC');\n  if (typeof entrada.retained !== 'boolean') advertencias.push('BANDERA_RETAIN_NO_DISPONIBLE');\n  return {\n    estado: 'prevalidado', codigo: 'FORMA_Y_TOPICO_VALIDOS', payload: p,\n    perfil_payload: 'DHT22_LDR', recibida_en: entrada.recibida_en ?? null,\n    retain_verificado: entrada.retained === false, advertencias,\n    controles_pendientes: ['origen_por_acl', 'nodo_y_cultivo_autorizados', 'duplicados_transaccionales', 'ventana_temporal', 'persistencia'],\n  };\n}\n\n\n'use strict';\n\n// Preparacion pura. Configuracion del servidor: no tomar flags del payload.\nfunction prepararIngestaAmbiental(entrada, configuracion, recibidaEn) {\n  const rechazo = codigo => ({ estado: 'rechazado', codigo, persistido: false });\n  if (configuracion?.acl_verificada !== true ||\n      configuracion?.retencion_broker_desactivada !== true) {\n    return rechazo('CANAL_LOCAL_NO_VERIFICADO');\n  }\n  const fecha = typeof recibidaEn === 'string' ? new Date(recibidaEn) : null;\n  if (!fecha || !Number.isFinite(fecha.getTime()) ||\n      fecha.toISOString() !== recibidaEn) return rechazo('FECHA_RECEPCION');\n  const previo = prevalidarAmbiental({\n    topic: entrada?.topic, message: entrada?.message, recibida_en: recibidaEn,\n  });\n  const base = {\n    ...previo, persistido: false,\n    recibida_en: recibidaEn,\n    fuente_recibida_en: 'inicio_validacion_mqtt_aproximado',\n  };\n  if (previo.estado !== 'prevalidado') return { ...base, estado: 'rechazado' };\n  if (previo.perfil_payload !== 'DHT22_LDR') {\n    return { ...base, estado: 'rechazado', codigo: 'PERFIL_NO_ADMITIDO_EN_ESTA_RPC' };\n  }\n  const url = entrada.supabase_url;\n  if (typeof url !== 'string' || !/^(?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5})\\/?$/.test(url)) {\n    return { ...base, estado: 'rechazado', codigo: 'CONFIGURAR_URL_SUPABASE' };\n  }\n  return {\n    ...base,\n    destino_rpc: url.replace(/\\/$/, '') + '/rest/v1/rpc/registrar_lote_ambiental',\n    solicitud_rpc: {\n      p_topico: entrada.topic,\n      p_mensaje: entrada.message,\n      p_recibida_en: recibidaEn,\n      p_acl_verificada: true,\n      p_retenido: null,\n      p_retencion_broker_desactivada: true,\n    },\n  };\n}\n\nfunction resumirPersistenciaAmbiental(resultado) {\n  const estados = ['insertado', 'duplicado', 'rechazado', 'conflicto_id'];\n  if (!resultado || typeof resultado !== 'object' || Array.isArray(resultado) ||\n      !estados.includes(resultado.estado)) throw new Error('RESPUESTA_RPC_NO_RECONOCIDA');\n  const confirmado = ['insertado', 'duplicado'].includes(resultado.estado);\n  if (confirmado && (\n    !Array.isArray(resultado.medicion_ids) || resultado.medicion_ids.length !== 3 ||\n    resultado.medicion_ids.some(id => typeof id !== 'string' || id.length !== 36) ||\n    new Set(resultado.medicion_ids).size !== 3 ||\n    typeof resultado.mensaje_id !== 'string' ||\n    typeof resultado.recibida_en !== 'string'\n  )) throw new Error('RESPUESTA_RPC_INCOMPLETA');\n  return {\n    ...resultado,\n    persistido: confirmado,\n    nuevo_lote: resultado.estado === 'insertado',\n  };\n}\n\n\nreturn { prepararIngestaAmbiental, resumirPersistenciaAmbiental };\n})();\n'use strict';\n// Logica pura del flujo 03g (ingesta por HTTP, para desplegar sin puerto MQTT). El webhook recibe\n// {\"topico\", \"payload\"} y aqui se convierte en lo mismo que entrega el disparador MQTT ({topic, message}),\n// de modo que la validacion, el guardado, las alertas y la IA son los de 03e (v2) y 03f (v3).\n// Nunca incluye claves: la cabecera X-AgroVigia-Clave la comprueba el nodo Webhook con su credencial.\nconst TOPICO_HTTP_V2 = /^agrovigia\\/v2\\/(real|simulado)\\/nodos\\/[a-z0-9-]{1,64}\\/telemetria$/;\nconst TOPICO_HTTP_V3 = /^agrovigia\\/v3\\/simulado\\/nodos\\/[a-z0-9-]{1,64}\\/telemetria$/;\n\n// Codigo HTTP y cuerpo {estado, codigo} que recibe quien envio el lote:\n//   200 guardado o duplicado confirmado; 400 lote rechazado (no reintentar);\n//   503 guardado sin confirmar (reintentar el mismo lote: el guardado es idempotente).\nfunction respuestaHttp(resultado) {\n  const estado = typeof resultado?.estado === 'string' ? resultado.estado : 'pendiente';\n  const codigo = typeof resultado?.codigo === 'string' ? resultado.codigo.slice(0, 80) : 'SIN_CODIGO';\n  if (resultado?.persistido === true && ['insertado', 'duplicado'].includes(estado)) return { codigo_http: 200, cuerpo: { estado, codigo } };\n  if (['rechazado', 'conflicto_id'].includes(estado)) return { codigo_http: 400, cuerpo: { estado, codigo } };\n  return { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo } };\n}\n\n// 'json' es el item del webhook mas la configuracion del nodo Proyecto Supabase.\n// Por HTTP no hay ACL del broker que separe origenes: la clave es compartida. Por eso un topico de origen\n// real solo se admite si el flujo lo habilita de forma expresa (http_admite_real = \"si\").\nfunction prepararIngestaHttp(json, canal, recibidaEn, prepararV2, prepararV3) {\n  const rechazo = codigo => { const r = { estado: 'rechazado', codigo, persistido: false, canal_entrada: 'http' }; return { ...r, respuesta_http: respuestaHttp(r) }; };\n  const cuerpo = json?.body;\n  if (!cuerpo || typeof cuerpo !== 'object' || Array.isArray(cuerpo) || Object.keys(cuerpo).sort().join() !== 'payload,topico') return rechazo('CUERPO_HTTP_INVALIDO');\n  if (typeof cuerpo.topico !== 'string') return rechazo('TOPICO_NO_ADMITIDO');\n  const v2 = TOPICO_HTTP_V2.exec(cuerpo.topico), v3 = TOPICO_HTTP_V3.test(cuerpo.topico);\n  if (!v2 && !v3) return rechazo('TOPICO_NO_ADMITIDO');\n  if (v2 && v2[1] === 'real' && json.http_admite_real !== 'si') return rechazo('ORIGEN_REAL_NO_ADMITIDO_POR_HTTP');\n  // El lote llega como objeto JSON (o como su texto exacto); los validadores trabajan sobre el texto.\n  let mensaje;\n  if (typeof cuerpo.payload === 'string') mensaje = cuerpo.payload;\n  else if (cuerpo.payload && typeof cuerpo.payload === 'object' && !Array.isArray(cuerpo.payload)) mensaje = JSON.stringify(cuerpo.payload);\n  else return rechazo('PAYLOAD_DEBE_SER_OBJETO');\n  const entrada = { topic: cuerpo.topico, message: mensaje, supabase_url: json.supabase_url };\n  const r = v3 ? prepararV3(entrada, canal, recibidaEn) : prepararV2(entrada, canal, recibidaEn);\n  const salida = { ...r, canal_entrada: 'http' };\n  if (salida.fuente_recibida_en) salida.fuente_recibida_en = 'inicio_validacion_http_aproximado';\n  if (salida.estado === 'prevalidado') return salida;\n  salida.estado = 'rechazado'; salida.persistido = false;\n  return { ...salida, respuesta_http: respuestaHttp(salida) };\n}\n\n// Resume la respuesta de la RPC con la funcion del contrato que corresponde y agrega la respuesta HTTP.\n// Si Supabase no confirma, el resultado queda pendiente (503) en lugar de detener la ejecucion.\nfunction resumirPersistenciaHttp(resultado, preparado, resumirV2, resumirV3) {\n  let r;\n  if (typeof preparado?.destino_rpc === 'string' && preparado.destino_rpc.endsWith('/rest/v1/rpc/registrar_lote_simulado_v3')) r = resumirV3(resultado, preparado);\n  else {\n    try { r = resumirV2(resultado); }\n    catch { r = { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION', mensaje_id: preparado?.payload?.mensaje_id, persistido: null, nuevo_lote: false }; }\n  }\n  return { ...r, respuesta_http: respuestaHttp(r) };\n}\n\n\n'use strict';\n// Logica pura del flujo 03i: ingesta REAL por HTTPS con clave propia de cada nodo fisico (migracion 0012).\n// El webhook no usa la clave compartida de 03g: cada placa envia su codigo y su clave en cabeceras, y el\n// cuerpo es el mismo JSON v2 que el firmware publica por MQTT. Aqui se arma el topico real del nodo y se\n// sigue con la preparacion de 03e, de modo que validacion, guardado, alertas e IA son los mismos.\n// Una clave de nodo solo sirve para escribir datos reales de ese nodo. Nunca se devuelve ni se registra.\n// En el Code de n8n este archivo va despues de preparar-http.cjs, del que usa respuestaHttp.\nconst CODIGO_NODO_HTTPS = /^agv-[a-z0-9]+-[0-9]{2}$/;\nconst CLAVE_INVALIDA = { codigo_http: 401, cuerpo: { estado: 'rechazado', codigo: 'CLAVE_INVALIDA' } };\n\n// 1. Cabeceras X-AgroVigia-Nodo y X-AgroVigia-Clave. Sin ellas no se consulta la base.\nfunction prepararAutenticacionNodo(json) {\n  const rechazo = { lista: false, estado: 'rechazado', codigo: 'CLAVE_INVALIDA', persistido: false, respuesta_http: CLAVE_INVALIDA };\n  const cabeceras = json?.headers && typeof json.headers === 'object' ? json.headers : {};\n  const codigo = cabeceras['x-agrovigia-nodo'], clave = cabeceras['x-agrovigia-clave'];\n  if (typeof codigo !== 'string' || !CODIGO_NODO_HTTPS.test(codigo) || codigo.length > 64) return rechazo;\n  if (typeof clave !== 'string' || clave.length < 20 || clave.length > 200 || /\\s/.test(clave)) return rechazo;\n  const m = typeof json.supabase_url === 'string' && json.supabase_url.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/?$/);\n  if (!m) return { lista: false, estado: 'pendiente', codigo: 'CONFIGURAR_URL_SUPABASE', persistido: false,\n    respuesta_http: { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo: 'CONFIGURAR_URL_SUPABASE' } } };\n  return { lista: true, nodo_codigo: codigo, supabase_url: m[1], cuerpo: json.body,\n    destino_autenticar: m[1] + '/rest/v1/rpc/autenticar_nodo', solicitud_autenticar: { p_codigo: codigo, p_clave: clave } };\n}\n\n// Respuesta al nodo: la de 03g mas su intervalo y su pausa, para que el firmware se adapte.\nfunction respuestaNodo(resultado, nodo) {\n  const r = respuestaHttp(resultado);\n  return { codigo_http: r.codigo_http, cuerpo: { ...r.cuerpo, intervalo_segundos: nodo.intervalo_segundos, pausado: nodo.pausado } };\n}\n\n// 2. Con la respuesta de autenticar_nodo: clave rechazada 401, sin confirmacion 503; autenticado, el cuerpo\n// pasa por la misma preparacion v2 de 03e con el topico real de ESE nodo.\nfunction prepararIngestaNodo(previo, respuesta, canal, recibidaEn, prepararV2) {\n  const a = respuesta?.statusCode === 200 && respuesta.body && typeof respuesta.body === 'object' && !Array.isArray(respuesta.body) ? respuesta.body : null;\n  if (!a || !['NODO_AUTENTICADO', 'CLAVE_INVALIDA'].includes(a.codigo)) {\n    const r = { estado: 'pendiente', codigo: 'AUTENTICACION_NO_CONFIRMADA', persistido: false, canal_entrada: 'https_nodo' };\n    return { ...r, respuesta_http: { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo: r.codigo } } };\n  }\n  if (a.codigo !== 'NODO_AUTENTICADO' || a.nodo_codigo !== previo.nodo_codigo)\n    return { estado: 'rechazado', codigo: 'CLAVE_INVALIDA', persistido: false, canal_entrada: 'https_nodo', respuesta_http: CLAVE_INVALIDA };\n  const nodo = { intervalo_segundos: Number.isInteger(a.intervalo_segundos) ? a.intervalo_segundos : null, pausado: a.pausado === true };\n  const rechazo = codigo => { const r = { estado: 'rechazado', codigo, persistido: false, canal_entrada: 'https_nodo', nodo_http: nodo }; return { ...r, respuesta_http: respuestaNodo(r, nodo) }; };\n  const cuerpo = previo.cuerpo;\n  let mensaje;\n  if (typeof cuerpo === 'string') mensaje = cuerpo;\n  else if (cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {\n    // La clave autentica a un nodo: no puede enviar lotes de otro ni datos de origen simulado.\n    if (cuerpo.nodo_codigo !== previo.nodo_codigo) return rechazo('NODO_NO_COINCIDE');\n    if (cuerpo.origen !== 'real') return rechazo('SOLO_ORIGEN_REAL');\n    mensaje = JSON.stringify(cuerpo);\n  } else return rechazo('CUERPO_HTTP_INVALIDO');\n  const entrada = { topic: 'agrovigia/v2/real/nodos/' + previo.nodo_codigo + '/telemetria', message: mensaje, supabase_url: previo.supabase_url };\n  const salida = { ...prepararV2(entrada, canal, recibidaEn), canal_entrada: 'https_nodo', nodo_http: nodo };\n  if (salida.fuente_recibida_en) salida.fuente_recibida_en = 'inicio_validacion_http_aproximado';\n  if (salida.estado === 'prevalidado') return salida;\n  salida.estado = 'rechazado'; salida.persistido = false;\n  return { ...salida, respuesta_http: respuestaNodo(salida, nodo) };\n}\n\n// 3. Resume la respuesta de la RPC de guardado y arma la respuesta para el nodo.\nfunction resumirPersistenciaNodo(resultado, preparado, resumirV2) {\n  let r;\n  try { r = resumirV2(resultado); }\n  catch { r = { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION', mensaje_id: preparado?.payload?.mensaje_id, persistido: null, nuevo_lote: false }; }\n  return { ...r, respuesta_http: respuestaNodo(r, preparado?.nodo_http ?? { intervalo_segundos: null, pausado: false }) };\n}\n\n\nreturn (function resultadoCode() {\n  return $input.all().map((item, i) => ({ json: resumirPersistenciaNodo(item.json, $('Preparar ingesta').itemMatching(i).json, V2.resumirPersistenciaAmbiental), pairedItem: { item: i } }));\n})();\n"
+      }
+    },
+    {
+      "id": "agv-rechazo-forma-nodo",
+      "name": "Rechazado antes de RPC",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1010,
+        150
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "agv-nota-03b-nodo",
+      "name": "Guia de prueba",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -380
+      ],
+      "parameters": {
+        "width": 850,
+        "height": 280,
+        "content": "## Ingesta REAL por HTTPS con clave de nodo\nPOST /webhook/agrovigia/nodo con las cabeceras X-AgroVigia-Nodo (codigo) y X-AgroVigia-Clave (clave propia del nodo, la que entrega registrar_nodo_fisico). El cuerpo es el mismo JSON v2 que el firmware publica por MQTT.\nLa base valida la clave (autenticar_nodo) y el flujo sigue la ruta de 03e: validar, guardar, alertas e IA, con el topico real de ese nodo.\nRespuesta {estado, codigo, intervalo_segundos, pausado}: 200 guardado o duplicado, 400 lote rechazado, 401 {estado: rechazado, codigo: CLAVE_INVALIDA}, 503 sin confirmacion (reintentar el mismo lote).\nSin credencial en el webhook. Apikey privada de Supabase en Autenticar nodo y en los demas HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nUna clave de nodo solo escribe datos reales de su propio nodo.\nLas ejecuciones correctas no se guardan (cabecera con la clave). Requiere 0001 a 0012."
+      }
+    },
+    {
+      "id": "agv-preparar-autenticacion-nodo",
+      "name": "Preparar autenticacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        -260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "'use strict';\n// Logica pura del flujo 03g (ingesta por HTTP, para desplegar sin puerto MQTT). El webhook recibe\n// {\"topico\", \"payload\"} y aqui se convierte en lo mismo que entrega el disparador MQTT ({topic, message}),\n// de modo que la validacion, el guardado, las alertas y la IA son los de 03e (v2) y 03f (v3).\n// Nunca incluye claves: la cabecera X-AgroVigia-Clave la comprueba el nodo Webhook con su credencial.\nconst TOPICO_HTTP_V2 = /^agrovigia\\/v2\\/(real|simulado)\\/nodos\\/[a-z0-9-]{1,64}\\/telemetria$/;\nconst TOPICO_HTTP_V3 = /^agrovigia\\/v3\\/simulado\\/nodos\\/[a-z0-9-]{1,64}\\/telemetria$/;\n\n// Codigo HTTP y cuerpo {estado, codigo} que recibe quien envio el lote:\n//   200 guardado o duplicado confirmado; 400 lote rechazado (no reintentar);\n//   503 guardado sin confirmar (reintentar el mismo lote: el guardado es idempotente).\nfunction respuestaHttp(resultado) {\n  const estado = typeof resultado?.estado === 'string' ? resultado.estado : 'pendiente';\n  const codigo = typeof resultado?.codigo === 'string' ? resultado.codigo.slice(0, 80) : 'SIN_CODIGO';\n  if (resultado?.persistido === true && ['insertado', 'duplicado'].includes(estado)) return { codigo_http: 200, cuerpo: { estado, codigo } };\n  if (['rechazado', 'conflicto_id'].includes(estado)) return { codigo_http: 400, cuerpo: { estado, codigo } };\n  return { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo } };\n}\n\n// 'json' es el item del webhook mas la configuracion del nodo Proyecto Supabase.\n// Por HTTP no hay ACL del broker que separe origenes: la clave es compartida. Por eso un topico de origen\n// real solo se admite si el flujo lo habilita de forma expresa (http_admite_real = \"si\").\nfunction prepararIngestaHttp(json, canal, recibidaEn, prepararV2, prepararV3) {\n  const rechazo = codigo => { const r = { estado: 'rechazado', codigo, persistido: false, canal_entrada: 'http' }; return { ...r, respuesta_http: respuestaHttp(r) }; };\n  const cuerpo = json?.body;\n  if (!cuerpo || typeof cuerpo !== 'object' || Array.isArray(cuerpo) || Object.keys(cuerpo).sort().join() !== 'payload,topico') return rechazo('CUERPO_HTTP_INVALIDO');\n  if (typeof cuerpo.topico !== 'string') return rechazo('TOPICO_NO_ADMITIDO');\n  const v2 = TOPICO_HTTP_V2.exec(cuerpo.topico), v3 = TOPICO_HTTP_V3.test(cuerpo.topico);\n  if (!v2 && !v3) return rechazo('TOPICO_NO_ADMITIDO');\n  if (v2 && v2[1] === 'real' && json.http_admite_real !== 'si') return rechazo('ORIGEN_REAL_NO_ADMITIDO_POR_HTTP');\n  // El lote llega como objeto JSON (o como su texto exacto); los validadores trabajan sobre el texto.\n  let mensaje;\n  if (typeof cuerpo.payload === 'string') mensaje = cuerpo.payload;\n  else if (cuerpo.payload && typeof cuerpo.payload === 'object' && !Array.isArray(cuerpo.payload)) mensaje = JSON.stringify(cuerpo.payload);\n  else return rechazo('PAYLOAD_DEBE_SER_OBJETO');\n  const entrada = { topic: cuerpo.topico, message: mensaje, supabase_url: json.supabase_url };\n  const r = v3 ? prepararV3(entrada, canal, recibidaEn) : prepararV2(entrada, canal, recibidaEn);\n  const salida = { ...r, canal_entrada: 'http' };\n  if (salida.fuente_recibida_en) salida.fuente_recibida_en = 'inicio_validacion_http_aproximado';\n  if (salida.estado === 'prevalidado') return salida;\n  salida.estado = 'rechazado'; salida.persistido = false;\n  return { ...salida, respuesta_http: respuestaHttp(salida) };\n}\n\n// Resume la respuesta de la RPC con la funcion del contrato que corresponde y agrega la respuesta HTTP.\n// Si Supabase no confirma, el resultado queda pendiente (503) en lugar de detener la ejecucion.\nfunction resumirPersistenciaHttp(resultado, preparado, resumirV2, resumirV3) {\n  let r;\n  if (typeof preparado?.destino_rpc === 'string' && preparado.destino_rpc.endsWith('/rest/v1/rpc/registrar_lote_simulado_v3')) r = resumirV3(resultado, preparado);\n  else {\n    try { r = resumirV2(resultado); }\n    catch { r = { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION', mensaje_id: preparado?.payload?.mensaje_id, persistido: null, nuevo_lote: false }; }\n  }\n  return { ...r, respuesta_http: respuestaHttp(r) };\n}\n\n\n'use strict';\n// Logica pura del flujo 03i: ingesta REAL por HTTPS con clave propia de cada nodo fisico (migracion 0012).\n// El webhook no usa la clave compartida de 03g: cada placa envia su codigo y su clave en cabeceras, y el\n// cuerpo es el mismo JSON v2 que el firmware publica por MQTT. Aqui se arma el topico real del nodo y se\n// sigue con la preparacion de 03e, de modo que validacion, guardado, alertas e IA son los mismos.\n// Una clave de nodo solo sirve para escribir datos reales de ese nodo. Nunca se devuelve ni se registra.\n// En el Code de n8n este archivo va despues de preparar-http.cjs, del que usa respuestaHttp.\nconst CODIGO_NODO_HTTPS = /^agv-[a-z0-9]+-[0-9]{2}$/;\nconst CLAVE_INVALIDA = { codigo_http: 401, cuerpo: { estado: 'rechazado', codigo: 'CLAVE_INVALIDA' } };\n\n// 1. Cabeceras X-AgroVigia-Nodo y X-AgroVigia-Clave. Sin ellas no se consulta la base.\nfunction prepararAutenticacionNodo(json) {\n  const rechazo = { lista: false, estado: 'rechazado', codigo: 'CLAVE_INVALIDA', persistido: false, respuesta_http: CLAVE_INVALIDA };\n  const cabeceras = json?.headers && typeof json.headers === 'object' ? json.headers : {};\n  const codigo = cabeceras['x-agrovigia-nodo'], clave = cabeceras['x-agrovigia-clave'];\n  if (typeof codigo !== 'string' || !CODIGO_NODO_HTTPS.test(codigo) || codigo.length > 64) return rechazo;\n  if (typeof clave !== 'string' || clave.length < 20 || clave.length > 200 || /\\s/.test(clave)) return rechazo;\n  const m = typeof json.supabase_url === 'string' && json.supabase_url.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/?$/);\n  if (!m) return { lista: false, estado: 'pendiente', codigo: 'CONFIGURAR_URL_SUPABASE', persistido: false,\n    respuesta_http: { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo: 'CONFIGURAR_URL_SUPABASE' } } };\n  return { lista: true, nodo_codigo: codigo, supabase_url: m[1], cuerpo: json.body,\n    destino_autenticar: m[1] + '/rest/v1/rpc/autenticar_nodo', solicitud_autenticar: { p_codigo: codigo, p_clave: clave } };\n}\n\n// Respuesta al nodo: la de 03g mas su intervalo y su pausa, para que el firmware se adapte.\nfunction respuestaNodo(resultado, nodo) {\n  const r = respuestaHttp(resultado);\n  return { codigo_http: r.codigo_http, cuerpo: { ...r.cuerpo, intervalo_segundos: nodo.intervalo_segundos, pausado: nodo.pausado } };\n}\n\n// 2. Con la respuesta de autenticar_nodo: clave rechazada 401, sin confirmacion 503; autenticado, el cuerpo\n// pasa por la misma preparacion v2 de 03e con el topico real de ESE nodo.\nfunction prepararIngestaNodo(previo, respuesta, canal, recibidaEn, prepararV2) {\n  const a = respuesta?.statusCode === 200 && respuesta.body && typeof respuesta.body === 'object' && !Array.isArray(respuesta.body) ? respuesta.body : null;\n  if (!a || !['NODO_AUTENTICADO', 'CLAVE_INVALIDA'].includes(a.codigo)) {\n    const r = { estado: 'pendiente', codigo: 'AUTENTICACION_NO_CONFIRMADA', persistido: false, canal_entrada: 'https_nodo' };\n    return { ...r, respuesta_http: { codigo_http: 503, cuerpo: { estado: 'pendiente', codigo: r.codigo } } };\n  }\n  if (a.codigo !== 'NODO_AUTENTICADO' || a.nodo_codigo !== previo.nodo_codigo)\n    return { estado: 'rechazado', codigo: 'CLAVE_INVALIDA', persistido: false, canal_entrada: 'https_nodo', respuesta_http: CLAVE_INVALIDA };\n  const nodo = { intervalo_segundos: Number.isInteger(a.intervalo_segundos) ? a.intervalo_segundos : null, pausado: a.pausado === true };\n  const rechazo = codigo => { const r = { estado: 'rechazado', codigo, persistido: false, canal_entrada: 'https_nodo', nodo_http: nodo }; return { ...r, respuesta_http: respuestaNodo(r, nodo) }; };\n  const cuerpo = previo.cuerpo;\n  let mensaje;\n  if (typeof cuerpo === 'string') mensaje = cuerpo;\n  else if (cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {\n    // La clave autentica a un nodo: no puede enviar lotes de otro ni datos de origen simulado.\n    if (cuerpo.nodo_codigo !== previo.nodo_codigo) return rechazo('NODO_NO_COINCIDE');\n    if (cuerpo.origen !== 'real') return rechazo('SOLO_ORIGEN_REAL');\n    mensaje = JSON.stringify(cuerpo);\n  } else return rechazo('CUERPO_HTTP_INVALIDO');\n  const entrada = { topic: 'agrovigia/v2/real/nodos/' + previo.nodo_codigo + '/telemetria', message: mensaje, supabase_url: previo.supabase_url };\n  const salida = { ...prepararV2(entrada, canal, recibidaEn), canal_entrada: 'https_nodo', nodo_http: nodo };\n  if (salida.fuente_recibida_en) salida.fuente_recibida_en = 'inicio_validacion_http_aproximado';\n  if (salida.estado === 'prevalidado') return salida;\n  salida.estado = 'rechazado'; salida.persistido = false;\n  return { ...salida, respuesta_http: respuestaNodo(salida, nodo) };\n}\n\n// 3. Resume la respuesta de la RPC de guardado y arma la respuesta para el nodo.\nfunction resumirPersistenciaNodo(resultado, preparado, resumirV2) {\n  let r;\n  try { r = resumirV2(resultado); }\n  catch { r = { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION', mensaje_id: preparado?.payload?.mensaje_id, persistido: null, nuevo_lote: false }; }\n  return { ...r, respuesta_http: respuestaNodo(r, preparado?.nodo_http ?? { intervalo_segundos: null, pausado: false }) };\n}\n\n\nreturn (function autenticacionCode() {\n  return $input.all().map((item, i) => ({ json: prepararAutenticacionNodo(item.json), pairedItem: { item: i } }));\n})();\n"
+      }
+    },
+    {
+      "id": "agv-cabeceras-validas-nodo",
+      "name": "Cabeceras validas",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        -260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "lista",
+              "leftValue": "={{ $json.lista ? \"si\" : \"no\" }}",
+              "rightValue": "si",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-autenticar-nodo",
+      "name": "Autenticar nodo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        -130
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.destino_autenticar }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.solicitud_autenticar }}",
+        "options": {
+          "timeout": 10000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Preparar evaluacion",
+      "id": "agv-preparar-evaluacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura; nunca incluye claves ni devuelve cuerpos de error HTTP.\nconst esUuidAlerta = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nfunction prepararEvaluacionAlertas(persistencia, ingesta) {\n  const base = { persistencia, alertas: { estado: 'omitida', codigo: 'PERSISTENCIA_NO_CONFIRMADA' }, lista: false };\n  if (!persistencia || persistencia.persistido !== true || !['insertado','duplicado'].includes(persistencia.estado)) return base;\n  // Lote v2 (3 mediciones, 03e) o lote simulado v3 por zonas (10 mediciones, 03f).\n  const ids=persistencia.medicion_ids;\n  const match=typeof ingesta?.destino_rpc==='string' && ingesta.destino_rpc.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/(registrar_lote_ambiental|registrar_lote_simulado_v3)$/);\n  if(!match)return {...base,alertas:{estado:'pendiente',codigo:'DESTINO_ALERTAS_NO_VALIDO'}};\n  const v3=match[2]==='registrar_lote_simulado_v3', esperadas=v3?10:3;\n  const mensaje=v3?ingesta?.mensaje_id:ingesta?.payload?.mensaje_id, origen=v3?ingesta?.origen:ingesta?.payload?.origen;\n  if (!esUuidAlerta(persistencia.mensaje_id) || !esUuidAlerta(persistencia.cultivo_id) || !Array.isArray(ids) || ids.length!==esperadas || !ids.every(esUuidAlerta) || new Set(ids).size!==esperadas ||\n    mensaje!==persistencia.mensaje_id || !['real','simulado'].includes(origen) || (v3 && origen!=='simulado')) {\n    return {...base,alertas:{estado:'pendiente',codigo:'CONTEXTO_PERSISTENCIA_INCONSISTENTE'}};\n  }\n  const consulta=match[1]+'/rest/v1/mediciones?select=id,nodo_id,cultivo_id,mensaje_id,origen&id=eq.'+ids[0]+'&cultivo_id=eq.'+persistencia.cultivo_id+'&mensaje_id=eq.'+persistencia.mensaje_id+'&origen=eq.'+origen+'&limit=2';\n  return {...base,lista:true,alertas:{estado:'pendiente',codigo:'POR_EVALUAR'},consulta_nodo_url:consulta,destino_alertas:match[1]+'/rest/v1/rpc/evaluar_alertas_lote',origen};\n}\nfunction prepararRpcAlertas(contexto,respuesta) {\n  const base={...contexto,lista:false};\n  const filas=respuesta?.statusCode===200 && Array.isArray(respuesta.body) ? respuesta.body : null;\n  const f=filas?.length===1?filas[0]:null;\n  if(!f || f.id!==contexto.persistencia.medicion_ids[0] || f.cultivo_id!==contexto.persistencia.cultivo_id || f.mensaje_id!==contexto.persistencia.mensaje_id || f.origen!==contexto.origen || !esUuidAlerta(f.nodo_id))\n    return {...base,alertas:{estado:'pendiente',codigo:'NO_SE_PUDO_RESOLVER_NODO_GUARDADO'}};\n  return {...base,lista:true,solicitud_alertas:{p_nodo_id:f.nodo_id,p_mensaje_id:f.mensaje_id}};\n}\nfunction resultadoAlertas(contexto,respuesta) {\n  const final={...contexto.persistencia,alertas:{estado:'pendiente',codigo:'EVALUACION_NO_CONFIRMADA',observacion:'Las mediciones siguen guardadas. Revisar esta ejecucion; no se confirma evaluacion de alertas.'}};\n  const r=respuesta?.statusCode===200 ? respuesta.body : null;\n  if(!r || typeof r!=='object' || Array.isArray(r))return final;\n  if(['NODO_NO_ACTIVO','CULTIVO_NO_ACTIVO'].includes(r.codigo) && r.evaluadas===0)\n    return {...final,alertas:{estado:'omitida',codigo:r.codigo,evaluadas:0}};\n  const campos=['evaluadas','abiertas','actualizadas','cerradas'];\n  if(r.codigo!=='LOTE_EVALUADO' || !campos.every(k=>Number.isInteger(r[k]) && r[k]>=0 && r[k]<=10) || r.abiertas+r.actualizadas>r.evaluadas || r.cerradas>r.evaluadas)return final;\n  return {...final,alertas:{estado:'evaluada',codigo:r.codigo,...Object.fromEntries(campos.map(k=>[k,r[k]])),\n    observacion:r.evaluadas===0?'Sin mediciones nuevas aplicables a reglas activas. No indica salud del cultivo ni ausencia de alertas previas.':'Evaluacion confirmada de las mediciones aplicables.'}};\n}\nfunction salidaSinEvaluar(contexto){return {...contexto.persistencia,alertas:contexto.alertas};}\n\nreturn (function preparacion(){return $input.all().map((item,i)=>({json:prepararEvaluacionAlertas(item.json,$('Preparar ingesta').itemMatching(i).json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "id": "agv-Persistencia-confirmada",
+      "name": "Persistencia confirmada",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1740,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "lista",
+              "leftValue": "={{ $json.lista ? \"si\" : \"no\" }}",
+              "rightValue": "si",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-Consultar-nodo-guardado",
+      "name": "Consultar nodo guardado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.consulta_nodo_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Preparar RPC alertas",
+      "id": "agv-preparar-rpc-alertas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura; nunca incluye claves ni devuelve cuerpos de error HTTP.\nconst esUuidAlerta = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nfunction prepararEvaluacionAlertas(persistencia, ingesta) {\n  const base = { persistencia, alertas: { estado: 'omitida', codigo: 'PERSISTENCIA_NO_CONFIRMADA' }, lista: false };\n  if (!persistencia || persistencia.persistido !== true || !['insertado','duplicado'].includes(persistencia.estado)) return base;\n  // Lote v2 (3 mediciones, 03e) o lote simulado v3 por zonas (10 mediciones, 03f).\n  const ids=persistencia.medicion_ids;\n  const match=typeof ingesta?.destino_rpc==='string' && ingesta.destino_rpc.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/(registrar_lote_ambiental|registrar_lote_simulado_v3)$/);\n  if(!match)return {...base,alertas:{estado:'pendiente',codigo:'DESTINO_ALERTAS_NO_VALIDO'}};\n  const v3=match[2]==='registrar_lote_simulado_v3', esperadas=v3?10:3;\n  const mensaje=v3?ingesta?.mensaje_id:ingesta?.payload?.mensaje_id, origen=v3?ingesta?.origen:ingesta?.payload?.origen;\n  if (!esUuidAlerta(persistencia.mensaje_id) || !esUuidAlerta(persistencia.cultivo_id) || !Array.isArray(ids) || ids.length!==esperadas || !ids.every(esUuidAlerta) || new Set(ids).size!==esperadas ||\n    mensaje!==persistencia.mensaje_id || !['real','simulado'].includes(origen) || (v3 && origen!=='simulado')) {\n    return {...base,alertas:{estado:'pendiente',codigo:'CONTEXTO_PERSISTENCIA_INCONSISTENTE'}};\n  }\n  const consulta=match[1]+'/rest/v1/mediciones?select=id,nodo_id,cultivo_id,mensaje_id,origen&id=eq.'+ids[0]+'&cultivo_id=eq.'+persistencia.cultivo_id+'&mensaje_id=eq.'+persistencia.mensaje_id+'&origen=eq.'+origen+'&limit=2';\n  return {...base,lista:true,alertas:{estado:'pendiente',codigo:'POR_EVALUAR'},consulta_nodo_url:consulta,destino_alertas:match[1]+'/rest/v1/rpc/evaluar_alertas_lote',origen};\n}\nfunction prepararRpcAlertas(contexto,respuesta) {\n  const base={...contexto,lista:false};\n  const filas=respuesta?.statusCode===200 && Array.isArray(respuesta.body) ? respuesta.body : null;\n  const f=filas?.length===1?filas[0]:null;\n  if(!f || f.id!==contexto.persistencia.medicion_ids[0] || f.cultivo_id!==contexto.persistencia.cultivo_id || f.mensaje_id!==contexto.persistencia.mensaje_id || f.origen!==contexto.origen || !esUuidAlerta(f.nodo_id))\n    return {...base,alertas:{estado:'pendiente',codigo:'NO_SE_PUDO_RESOLVER_NODO_GUARDADO'}};\n  return {...base,lista:true,solicitud_alertas:{p_nodo_id:f.nodo_id,p_mensaje_id:f.mensaje_id}};\n}\nfunction resultadoAlertas(contexto,respuesta) {\n  const final={...contexto.persistencia,alertas:{estado:'pendiente',codigo:'EVALUACION_NO_CONFIRMADA',observacion:'Las mediciones siguen guardadas. Revisar esta ejecucion; no se confirma evaluacion de alertas.'}};\n  const r=respuesta?.statusCode===200 ? respuesta.body : null;\n  if(!r || typeof r!=='object' || Array.isArray(r))return final;\n  if(['NODO_NO_ACTIVO','CULTIVO_NO_ACTIVO'].includes(r.codigo) && r.evaluadas===0)\n    return {...final,alertas:{estado:'omitida',codigo:r.codigo,evaluadas:0}};\n  const campos=['evaluadas','abiertas','actualizadas','cerradas'];\n  if(r.codigo!=='LOTE_EVALUADO' || !campos.every(k=>Number.isInteger(r[k]) && r[k]>=0 && r[k]<=10) || r.abiertas+r.actualizadas>r.evaluadas || r.cerradas>r.evaluadas)return final;\n  return {...final,alertas:{estado:'evaluada',codigo:r.codigo,...Object.fromEntries(campos.map(k=>[k,r[k]])),\n    observacion:r.evaluadas===0?'Sin mediciones nuevas aplicables a reglas activas. No indica salud del cultivo ni ausencia de alertas previas.':'Evaluacion confirmada de las mediciones aplicables.'}};\n}\nfunction salidaSinEvaluar(contexto){return {...contexto.persistencia,alertas:contexto.alertas};}\n\nreturn (function rpc(){return $input.all().map((item,i)=>({json:prepararRpcAlertas($('Preparar evaluacion').itemMatching(i).json,item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "id": "agv-Nodo-resuelto",
+      "name": "Nodo resuelto",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2460,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "lista",
+              "leftValue": "={{ $json.lista ? \"si\" : \"no\" }}",
+              "rightValue": "si",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-Evaluar-alertas",
+      "name": "Evaluar alertas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2700,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.destino_alertas }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.solicitud_alertas }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Resultado de alertas",
+      "id": "agv-resultado-de-alertas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2940,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura; nunca incluye claves ni devuelve cuerpos de error HTTP.\nconst esUuidAlerta = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nfunction prepararEvaluacionAlertas(persistencia, ingesta) {\n  const base = { persistencia, alertas: { estado: 'omitida', codigo: 'PERSISTENCIA_NO_CONFIRMADA' }, lista: false };\n  if (!persistencia || persistencia.persistido !== true || !['insertado','duplicado'].includes(persistencia.estado)) return base;\n  // Lote v2 (3 mediciones, 03e) o lote simulado v3 por zonas (10 mediciones, 03f).\n  const ids=persistencia.medicion_ids;\n  const match=typeof ingesta?.destino_rpc==='string' && ingesta.destino_rpc.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/(registrar_lote_ambiental|registrar_lote_simulado_v3)$/);\n  if(!match)return {...base,alertas:{estado:'pendiente',codigo:'DESTINO_ALERTAS_NO_VALIDO'}};\n  const v3=match[2]==='registrar_lote_simulado_v3', esperadas=v3?10:3;\n  const mensaje=v3?ingesta?.mensaje_id:ingesta?.payload?.mensaje_id, origen=v3?ingesta?.origen:ingesta?.payload?.origen;\n  if (!esUuidAlerta(persistencia.mensaje_id) || !esUuidAlerta(persistencia.cultivo_id) || !Array.isArray(ids) || ids.length!==esperadas || !ids.every(esUuidAlerta) || new Set(ids).size!==esperadas ||\n    mensaje!==persistencia.mensaje_id || !['real','simulado'].includes(origen) || (v3 && origen!=='simulado')) {\n    return {...base,alertas:{estado:'pendiente',codigo:'CONTEXTO_PERSISTENCIA_INCONSISTENTE'}};\n  }\n  const consulta=match[1]+'/rest/v1/mediciones?select=id,nodo_id,cultivo_id,mensaje_id,origen&id=eq.'+ids[0]+'&cultivo_id=eq.'+persistencia.cultivo_id+'&mensaje_id=eq.'+persistencia.mensaje_id+'&origen=eq.'+origen+'&limit=2';\n  return {...base,lista:true,alertas:{estado:'pendiente',codigo:'POR_EVALUAR'},consulta_nodo_url:consulta,destino_alertas:match[1]+'/rest/v1/rpc/evaluar_alertas_lote',origen};\n}\nfunction prepararRpcAlertas(contexto,respuesta) {\n  const base={...contexto,lista:false};\n  const filas=respuesta?.statusCode===200 && Array.isArray(respuesta.body) ? respuesta.body : null;\n  const f=filas?.length===1?filas[0]:null;\n  if(!f || f.id!==contexto.persistencia.medicion_ids[0] || f.cultivo_id!==contexto.persistencia.cultivo_id || f.mensaje_id!==contexto.persistencia.mensaje_id || f.origen!==contexto.origen || !esUuidAlerta(f.nodo_id))\n    return {...base,alertas:{estado:'pendiente',codigo:'NO_SE_PUDO_RESOLVER_NODO_GUARDADO'}};\n  return {...base,lista:true,solicitud_alertas:{p_nodo_id:f.nodo_id,p_mensaje_id:f.mensaje_id}};\n}\nfunction resultadoAlertas(contexto,respuesta) {\n  const final={...contexto.persistencia,alertas:{estado:'pendiente',codigo:'EVALUACION_NO_CONFIRMADA',observacion:'Las mediciones siguen guardadas. Revisar esta ejecucion; no se confirma evaluacion de alertas.'}};\n  const r=respuesta?.statusCode===200 ? respuesta.body : null;\n  if(!r || typeof r!=='object' || Array.isArray(r))return final;\n  if(['NODO_NO_ACTIVO','CULTIVO_NO_ACTIVO'].includes(r.codigo) && r.evaluadas===0)\n    return {...final,alertas:{estado:'omitida',codigo:r.codigo,evaluadas:0}};\n  const campos=['evaluadas','abiertas','actualizadas','cerradas'];\n  if(r.codigo!=='LOTE_EVALUADO' || !campos.every(k=>Number.isInteger(r[k]) && r[k]>=0 && r[k]<=10) || r.abiertas+r.actualizadas>r.evaluadas || r.cerradas>r.evaluadas)return final;\n  return {...final,alertas:{estado:'evaluada',codigo:r.codigo,...Object.fromEntries(campos.map(k=>[k,r[k]])),\n    observacion:r.evaluadas===0?'Sin mediciones nuevas aplicables a reglas activas. No indica salud del cultivo ni ausencia de alertas previas.':'Evaluacion confirmada de las mediciones aplicables.'}};\n}\nfunction salidaSinEvaluar(contexto){return {...contexto.persistencia,alertas:contexto.alertas};}\n\nreturn (function resultado(){return $input.all().map((item,i)=>({json:resultadoAlertas($('Preparar RPC alertas').itemMatching(i).json,item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "name": "Sin evaluar alertas",
+      "id": "agv-sin-evaluar-alertas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura; nunca incluye claves ni devuelve cuerpos de error HTTP.\nconst esUuidAlerta = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nfunction prepararEvaluacionAlertas(persistencia, ingesta) {\n  const base = { persistencia, alertas: { estado: 'omitida', codigo: 'PERSISTENCIA_NO_CONFIRMADA' }, lista: false };\n  if (!persistencia || persistencia.persistido !== true || !['insertado','duplicado'].includes(persistencia.estado)) return base;\n  // Lote v2 (3 mediciones, 03e) o lote simulado v3 por zonas (10 mediciones, 03f).\n  const ids=persistencia.medicion_ids;\n  const match=typeof ingesta?.destino_rpc==='string' && ingesta.destino_rpc.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/(registrar_lote_ambiental|registrar_lote_simulado_v3)$/);\n  if(!match)return {...base,alertas:{estado:'pendiente',codigo:'DESTINO_ALERTAS_NO_VALIDO'}};\n  const v3=match[2]==='registrar_lote_simulado_v3', esperadas=v3?10:3;\n  const mensaje=v3?ingesta?.mensaje_id:ingesta?.payload?.mensaje_id, origen=v3?ingesta?.origen:ingesta?.payload?.origen;\n  if (!esUuidAlerta(persistencia.mensaje_id) || !esUuidAlerta(persistencia.cultivo_id) || !Array.isArray(ids) || ids.length!==esperadas || !ids.every(esUuidAlerta) || new Set(ids).size!==esperadas ||\n    mensaje!==persistencia.mensaje_id || !['real','simulado'].includes(origen) || (v3 && origen!=='simulado')) {\n    return {...base,alertas:{estado:'pendiente',codigo:'CONTEXTO_PERSISTENCIA_INCONSISTENTE'}};\n  }\n  const consulta=match[1]+'/rest/v1/mediciones?select=id,nodo_id,cultivo_id,mensaje_id,origen&id=eq.'+ids[0]+'&cultivo_id=eq.'+persistencia.cultivo_id+'&mensaje_id=eq.'+persistencia.mensaje_id+'&origen=eq.'+origen+'&limit=2';\n  return {...base,lista:true,alertas:{estado:'pendiente',codigo:'POR_EVALUAR'},consulta_nodo_url:consulta,destino_alertas:match[1]+'/rest/v1/rpc/evaluar_alertas_lote',origen};\n}\nfunction prepararRpcAlertas(contexto,respuesta) {\n  const base={...contexto,lista:false};\n  const filas=respuesta?.statusCode===200 && Array.isArray(respuesta.body) ? respuesta.body : null;\n  const f=filas?.length===1?filas[0]:null;\n  if(!f || f.id!==contexto.persistencia.medicion_ids[0] || f.cultivo_id!==contexto.persistencia.cultivo_id || f.mensaje_id!==contexto.persistencia.mensaje_id || f.origen!==contexto.origen || !esUuidAlerta(f.nodo_id))\n    return {...base,alertas:{estado:'pendiente',codigo:'NO_SE_PUDO_RESOLVER_NODO_GUARDADO'}};\n  return {...base,lista:true,solicitud_alertas:{p_nodo_id:f.nodo_id,p_mensaje_id:f.mensaje_id}};\n}\nfunction resultadoAlertas(contexto,respuesta) {\n  const final={...contexto.persistencia,alertas:{estado:'pendiente',codigo:'EVALUACION_NO_CONFIRMADA',observacion:'Las mediciones siguen guardadas. Revisar esta ejecucion; no se confirma evaluacion de alertas.'}};\n  const r=respuesta?.statusCode===200 ? respuesta.body : null;\n  if(!r || typeof r!=='object' || Array.isArray(r))return final;\n  if(['NODO_NO_ACTIVO','CULTIVO_NO_ACTIVO'].includes(r.codigo) && r.evaluadas===0)\n    return {...final,alertas:{estado:'omitida',codigo:r.codigo,evaluadas:0}};\n  const campos=['evaluadas','abiertas','actualizadas','cerradas'];\n  if(r.codigo!=='LOTE_EVALUADO' || !campos.every(k=>Number.isInteger(r[k]) && r[k]>=0 && r[k]<=10) || r.abiertas+r.actualizadas>r.evaluadas || r.cerradas>r.evaluadas)return final;\n  return {...final,alertas:{estado:'evaluada',codigo:r.codigo,...Object.fromEntries(campos.map(k=>[k,r[k]])),\n    observacion:r.evaluadas===0?'Sin mediciones nuevas aplicables a reglas activas. No indica salud del cultivo ni ausencia de alertas previas.':'Evaluacion confirmada de las mediciones aplicables.'}};\n}\nfunction salidaSinEvaluar(contexto){return {...contexto.persistencia,alertas:contexto.alertas};}\n\nreturn (function sinEvaluar(){return $input.all().map((item,i)=>({json:salidaSinEvaluar(item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "name": "Preparar reserva IA",
+      "id": "agv-preparar-reserva-ia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3180,
+        0
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura de la rama de sugerencias IA de los flujos 03e (real v2), 03f (simulado v3 por zonas), 03g (ambos por HTTP)\n// y del flujo 03h de sugerencias a peticion. Nunca incluye claves ni devuelve\n// cuerpos de error HTTP. La API key de Gemini vive solo en la credencial Header Auth de n8n.\nconst esUuidIA = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nconst MODELO_IA = /^gemini-[a-z0-9.\\-]{1,50}$/;\nconst VARIABLES_IA = ['temperatura_aire', 'humedad_aire', 'iluminacion_relativa', 'radiacion_solar', 'humedad_suelo_vwc', 'temperatura_suelo',\n  'ph_suelo', 'conductividad_suelo_ece', 'precipitacion_60min', 'velocidad_viento', 'general'];\nconst ESTADOS_IA = ['favorable', 'atencion', 'critico', 'datos_insuficientes'];\nconst PRIORIDADES_IA = ['alta', 'media', 'baja'];\n// periodica y alerta nacen de un lote nuevo (03e, 03f, 03g); solicitud, de una peticion del agricultor (03h).\nconst MOTIVOS_IA = ['periodica', 'alerta', 'solicitud'];\nconst LIMITES_IA = { resumen: 600, riego: 500, luz: 500, limitaciones: 500, titulo: 100, accion: 400, evidencia: 300 };\n\nconst INSTRUCCION_IA = [\n  'Eres un asistente agronómico para pequeños productores del Caribe colombiano.',\n  'Recibes un JSON con lecturas de sensores ambientales de UN cultivo. Responde solo con el JSON pedido, en español sencillo y con ortografía correcta: usa siempre tildes y la letra ñ (por ejemplo: puño, iluminación, límite, sombrío). Sin markdown ni HTML.',\n  'Reglas obligatorias:',\n  '1. Basa cada recomendación en datos del contexto y cítalos en \"evidencia\" (valor con unidad, hora o estadística). No inventes valores.',\n  '2. Usa solo las variables de \"sensores.variables\". iluminacion_relativa es un índice de 0 a 100, NO lux ni radiación calibrada; humedad_aire es humedad relativa del aire, no del suelo.',\n  '3. Agua y riego: si el contexto trae humedad_suelo_vwc (% VWC a 20 cm), compárala con suelo_vwc_optima_min/max y suelo_vwc_min/max de la plantilla y úsala como base del riego; considera también precipitacion_60min (lluvia acumulada de la última hora). Si no hay humedad del suelo (está en \"sensores.sin_sensor_de\"), nunca afirmes su estado: usa temperatura y humedad del aire solo como indicio de demanda (evapotranspiración) y pide verificar el suelo (prueba del puño o tensiómetro) antes de regar.',\n  '3b. pH, conductividad (ECe), temperatura del suelo, viento y radiación solo aparecen en nodos virtuales: menciónalos con prudencia (por ejemplo, pH fuera de lo habitual o viento fuerte) y sugiere un análisis o una revisión en campo, sin diagnosticar.',\n  '4. Si periodo_del_dia es \"noche\", la iluminación baja es normal y no es un problema. Si de noche el índice supera 20, no lo des por normal: menciona que puede haber luz artificial cerca del nodo o una falla del sensor.',\n  '5. Usa la plantilla del cultivo (rangos óptimos y límites de alerta) si existe. Si no hay plantilla, dilo en \"limitaciones\" y usa un criterio general prudente.',\n  '6. No diagnostiques plagas ni enfermedades como hechos: menciona el riesgo y sugiere inspección. No recomiendes productos ni dosis de agroquímicos.',\n  '7. Si origen_datos es \"simulado\", indica en \"limitaciones\" que los datos son simulados (generados por el simulador, no lecturas de campo).',\n  '7b. Si el contexto trae \"clima_simulado\" (evento lluvia, sol_fuerte, tierra_seca o viento, con intensidad de 1 a 3), es un evento de PRUEBA que el usuario activó en el simulador: explica el cambio de los valores por ese evento, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que no es el clima real. Si \"plantilla.ajustada\" es true, los rangos son los que el agricultor ajustó para su cultivo.',\n  '7c. Si el contexto trae \"ajustes_manuales\" (por ejemplo {\"temperatura_aire\": 4, \"humedad_suelo_vwc\": -10}), son cambios que el usuario sumó a mano a los valores simulados de esas variables, en sus mismas unidades. Interprétalos: di qué variables movió y en qué sentido, explica que los valores observados ya incluyen ese cambio, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que son condiciones simuladas ajustadas a mano, no el clima ni el suelo reales.',\n  '7d. Si motivo es \"solicitud\", el agricultor pidió esta revisión ahora: responde sobre el estado actual del cultivo aunque no haya alertas abiertas.',\n  '8. Si no hay lecturas o todas tienen antiguedad_segundos mayor a 180, usa estado_general \"datos_insuficientes\".',\n  '9. estado_general: \"favorable\" si todo está en el rango óptimo; \"atencion\" si algo sale del óptimo o hay una alerta abierta; \"critico\" si se superan los límites de alerta de forma marcada o hay varias alertas. Estos valores van sin tilde porque son códigos.',\n  '10. Entre 1 y 4 recomendaciones ordenadas por prioridad. Longitudes máximas: resumen 600, riego 500, luz 500, limitaciones 500, titulo 100, accion 400, evidencia 300 caracteres.',\n].join('\\n');\n\nconst ESQUEMA_IA = {\n  type: 'OBJECT',\n  properties: {\n    resumen: { type: 'STRING' },\n    estado_general: { type: 'STRING', enum: ESTADOS_IA },\n    recomendaciones: { type: 'ARRAY', minItems: 1, maxItems: 4, items: {\n      type: 'OBJECT',\n      properties: {\n        titulo: { type: 'STRING' }, accion: { type: 'STRING' },\n        prioridad: { type: 'STRING', enum: PRIORIDADES_IA },\n        variable: { type: 'STRING', enum: VARIABLES_IA }, evidencia: { type: 'STRING' },\n      },\n      required: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n      propertyOrdering: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n    } },\n    riego: { type: 'STRING' }, luz: { type: 'STRING' }, limitaciones: { type: 'STRING' },\n  },\n  required: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n  propertyOrdering: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n};\n\nfunction baseSupabase(destino) {\n  const m = typeof destino === 'string' && destino.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/evaluar_alertas_lote$/);\n  return m ? m[1] : null;\n}\n\n// 1. Solo lotes NUEVOS con alertas evaluadas piden reserva; duplicados y fallos no gastan IA.\nfunction prepararReservaIA(final, rpcAlertas, modelo) {\n  const base = { ...final, lista: false };\n  if (!final || final.persistido !== true || final.estado !== 'insertado') return { ...base, ia: { estado: 'omitida', codigo: 'LOTE_NO_NUEVO' } };\n  if (final.alertas?.estado !== 'evaluada') return { ...base, ia: { estado: 'omitida', codigo: 'ALERTAS_NO_EVALUADAS' } };\n  const supabase = baseSupabase(rpcAlertas?.destino_alertas);\n  const nodo = rpcAlertas?.solicitud_alertas?.p_nodo_id;\n  if (!supabase || !esUuidIA(nodo) || rpcAlertas?.solicitud_alertas?.p_mensaje_id !== final.mensaje_id || !esUuidIA(final.mensaje_id))\n    return { ...base, ia: { estado: 'omitida', codigo: 'CONTEXTO_IA_INCONSISTENTE' } };\n  if (typeof modelo !== 'string' || !MODELO_IA.test(modelo)) return { ...base, ia: { estado: 'omitida', codigo: 'CONFIGURAR_MODELO_GEMINI' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_RESERVAR' }, modelo_ia: modelo,\n    destino_reserva: supabase + '/rest/v1/rpc/reservar_sugerencia_ia',\n    destino_completar: supabase + '/rest/v1/rpc/completar_sugerencia_ia',\n    solicitud_reserva: { p_nodo_id: nodo, p_mensaje_id: final.mensaje_id } };\n}\n\nfunction configuracionGeneracion(modelo) {\n  const c = { temperature: 0.3, maxOutputTokens: 1500, responseMimeType: 'application/json', responseSchema: ESQUEMA_IA };\n  // El razonamiento se cobra como salida: se deja al minimo para cuidar el saldo.\n  // La familia 2.5 lo apaga con thinkingBudget 0; la 3.x rechaza ese campo y usa thinkingLevel.\n  if (/^gemini-2\\.5-flash/.test(modelo)) c.thinkingConfig = { thinkingBudget: 0 };\n  else if (/^gemini-3(\\.\\d+)?-flash/.test(modelo)) c.thinkingConfig = { thinkingLevel: 'minimal' };\n  return c;\n}\n\n// 2. Si la base reservo la sugerencia, arma la solicitud a Gemini con el contexto guardado.\nfunction prepararGemini(previo, respuesta) {\n  const base = { ...previo, lista: false };\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  if (!r || typeof r !== 'object' || Array.isArray(r)) return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_NO_CONFIRMADA' } };\n  if (r.codigo !== 'RESERVADA') return { ...base, ia: { estado: 'omitida', codigo: typeof r.codigo === 'string' ? r.codigo.slice(0, 60) : 'RESERVA_SIN_CODIGO' } };\n  if (!esUuidIA(r.sugerencia_id) || !r.contexto || typeof r.contexto !== 'object' || !MOTIVOS_IA.includes(r.motivo))\n    return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_INCOMPLETA' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_CONSULTAR_GEMINI', sugerencia_id: r.sugerencia_id, motivo: r.motivo },\n    destino_gemini: 'https://generativelanguage.googleapis.com/v1beta/models/' + previo.modelo_ia + ':generateContent',\n    solicitud_gemini: {\n      systemInstruction: { parts: [{ text: INSTRUCCION_IA }] },\n      contents: [{ role: 'user', parts: [{ text: 'Contexto del cultivo (JSON):\\n' + JSON.stringify(r.contexto) }] }],\n      generationConfig: configuracionGeneracion(previo.modelo_ia),\n    } };\n}\n\nfunction recortar(texto, maximo) {\n  const t = texto.trim().replace(/\\s+/g, ' ');\n  if (t.length <= maximo) return t;\n  const corte = t.slice(0, maximo - 1); const espacio = corte.lastIndexOf(' ');\n  return (espacio > maximo * 0.6 ? corte.slice(0, espacio) : corte) + '…';\n}\nconst texto = v => typeof v === 'string' && v.trim().length > 0;\n\n// Misma forma que exige public.respuesta_ia_valida. Recorta textos largos; rechaza enums o forma.\nfunction normalizarRespuestaIA(r) {\n  const claves = ['estado_general', 'limitaciones', 'luz', 'recomendaciones', 'resumen', 'riego'];\n  if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join() !== claves.join()) return null;\n  if (!ESTADOS_IA.includes(r.estado_general) || !['resumen', 'riego', 'luz', 'limitaciones'].every(k => texto(r[k]))) return null;\n  if (!Array.isArray(r.recomendaciones) || r.recomendaciones.length < 1 || r.recomendaciones.length > 5) return null;\n  const recs = [];\n  for (const e of r.recomendaciones) {\n    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).sort().join() !== 'accion,evidencia,prioridad,titulo,variable') return null;\n    if (!PRIORIDADES_IA.includes(e.prioridad) || !VARIABLES_IA.includes(e.variable) || !['titulo', 'accion', 'evidencia'].every(k => texto(e[k]))) return null;\n    recs.push({ titulo: recortar(e.titulo, LIMITES_IA.titulo), accion: recortar(e.accion, LIMITES_IA.accion), prioridad: e.prioridad,\n      variable: e.variable, evidencia: recortar(e.evidencia, LIMITES_IA.evidencia) });\n  }\n  const salida = { resumen: recortar(r.resumen, LIMITES_IA.resumen), estado_general: r.estado_general, recomendaciones: recs,\n    riego: recortar(r.riego, LIMITES_IA.riego), luz: recortar(r.luz, LIMITES_IA.luz), limitaciones: recortar(r.limitaciones, LIMITES_IA.limitaciones) };\n  if (/<[a-zA-Z/!]/.test(JSON.stringify(salida))) return null;\n  return salida;\n}\n\n// 3. Interpreta la respuesta de Gemini sin exponer su cuerpo ante errores.\nfunction interpretarGemini(previo, respuesta) {\n  const completar = (extra) => ({ ...previo, lista: true, solicitud_completar: {\n    p_sugerencia_id: previo.ia.sugerencia_id, p_respuesta: null, p_modelo: previo.modelo_ia,\n    p_tokens_entrada: null, p_tokens_salida: null, p_error_codigo: null, ...extra } });\n  const estado = respuesta?.statusCode;\n  if (estado !== 200) return completar({ p_error_codigo: Number.isInteger(estado) ? 'GEMINI_HTTP_' + estado : 'GEMINI_SIN_RESPUESTA' });\n  const b = respuesta.body;\n  const uso = b?.usageMetadata ?? {};\n  const tokens = { p_tokens_entrada: Number.isInteger(uso.promptTokenCount) ? uso.promptTokenCount : null,\n    p_tokens_salida: Number.isInteger(uso.candidatesTokenCount) ? uso.candidatesTokenCount + (Number.isInteger(uso.thoughtsTokenCount) ? uso.thoughtsTokenCount : 0) : null };\n  if (b?.promptFeedback?.blockReason) return completar({ ...tokens, p_error_codigo: 'GEMINI_BLOQUEADA' });\n  const c = Array.isArray(b?.candidates) ? b.candidates[0] : null;\n  if (!c) return completar({ ...tokens, p_error_codigo: 'GEMINI_SIN_CANDIDATOS' });\n  if (c.finishReason === 'MAX_TOKENS') return completar({ ...tokens, p_error_codigo: 'GEMINI_RESPUESTA_TRUNCADA' });\n  if (c.finishReason && c.finishReason !== 'STOP') return completar({ ...tokens, p_error_codigo: 'GEMINI_FIN_' + String(c.finishReason).replace(/[^A-Z_]/g, '').slice(0, 40) });\n  const partes = Array.isArray(c.content?.parts) ? c.content.parts.filter(p => !p.thought && typeof p.text === 'string') : [];\n  let datos;\n  try { datos = JSON.parse(partes.map(p => p.text).join('')); } catch { return completar({ ...tokens, p_error_codigo: 'GEMINI_JSON_INVALIDO' }); }\n  const normal = normalizarRespuestaIA(datos);\n  if (!normal) return completar({ ...tokens, p_error_codigo: 'GEMINI_FORMA_INVALIDA' });\n  const modelo = typeof b.modelVersion === 'string' && MODELO_IA.test(b.modelVersion) ? b.modelVersion : previo.modelo_ia;\n  return completar({ ...tokens, p_respuesta: normal, p_modelo: modelo });\n}\n\n// 4. Resumen final de la ejecucion. Persistencia y alertas se conservan siempre.\nfunction resultadoIA(previo, respuesta) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo;\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  const ia = { ...previo.ia, modelo: solicitud_completar?.p_modelo ?? modelo_ia,\n    tokens: { entrada: solicitud_completar?.p_tokens_entrada ?? null, salida: solicitud_completar?.p_tokens_salida ?? null } };\n  if (!r || !['SUGERENCIA_GUARDADA', 'SUGERENCIA_FALLIDA', 'SUGERENCIA_YA_COMPLETADA'].includes(r.codigo))\n    return { ...resto, ia: { ...ia, estado: 'pendiente', codigo: 'GUARDADO_IA_NO_CONFIRMADO', error_gemini: solicitud_completar?.p_error_codigo ?? null } };\n  return { ...resto, ia: { ...ia, estado: r.estado === 'generada' ? 'generada' : 'fallida', codigo: r.codigo, error_codigo: r.error_codigo ?? null } };\n}\nfunction salidaSinIA(previo) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo ?? {};\n  return resto;\n}\n\n\nreturn (function reservaIA(){return $input.all().map((item,i)=>({json:prepararReservaIA(item.json,$('Preparar RPC alertas').itemMatching(i).json,$('Proyecto Supabase').itemMatching(i).json.gemini_modelo),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "id": "agv-IA-corresponde",
+      "name": "IA corresponde",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3420,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "lista",
+              "leftValue": "={{ $json.lista ? \"si\" : \"no\" }}",
+              "rightValue": "si",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-Reservar-sugerencia-IA",
+      "name": "Reservar sugerencia IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3660,
+        -100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.destino_reserva }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.solicitud_reserva }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Preparar Gemini",
+      "id": "agv-preparar-gemini",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura de la rama de sugerencias IA de los flujos 03e (real v2), 03f (simulado v3 por zonas), 03g (ambos por HTTP)\n// y del flujo 03h de sugerencias a peticion. Nunca incluye claves ni devuelve\n// cuerpos de error HTTP. La API key de Gemini vive solo en la credencial Header Auth de n8n.\nconst esUuidIA = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nconst MODELO_IA = /^gemini-[a-z0-9.\\-]{1,50}$/;\nconst VARIABLES_IA = ['temperatura_aire', 'humedad_aire', 'iluminacion_relativa', 'radiacion_solar', 'humedad_suelo_vwc', 'temperatura_suelo',\n  'ph_suelo', 'conductividad_suelo_ece', 'precipitacion_60min', 'velocidad_viento', 'general'];\nconst ESTADOS_IA = ['favorable', 'atencion', 'critico', 'datos_insuficientes'];\nconst PRIORIDADES_IA = ['alta', 'media', 'baja'];\n// periodica y alerta nacen de un lote nuevo (03e, 03f, 03g); solicitud, de una peticion del agricultor (03h).\nconst MOTIVOS_IA = ['periodica', 'alerta', 'solicitud'];\nconst LIMITES_IA = { resumen: 600, riego: 500, luz: 500, limitaciones: 500, titulo: 100, accion: 400, evidencia: 300 };\n\nconst INSTRUCCION_IA = [\n  'Eres un asistente agronómico para pequeños productores del Caribe colombiano.',\n  'Recibes un JSON con lecturas de sensores ambientales de UN cultivo. Responde solo con el JSON pedido, en español sencillo y con ortografía correcta: usa siempre tildes y la letra ñ (por ejemplo: puño, iluminación, límite, sombrío). Sin markdown ni HTML.',\n  'Reglas obligatorias:',\n  '1. Basa cada recomendación en datos del contexto y cítalos en \"evidencia\" (valor con unidad, hora o estadística). No inventes valores.',\n  '2. Usa solo las variables de \"sensores.variables\". iluminacion_relativa es un índice de 0 a 100, NO lux ni radiación calibrada; humedad_aire es humedad relativa del aire, no del suelo.',\n  '3. Agua y riego: si el contexto trae humedad_suelo_vwc (% VWC a 20 cm), compárala con suelo_vwc_optima_min/max y suelo_vwc_min/max de la plantilla y úsala como base del riego; considera también precipitacion_60min (lluvia acumulada de la última hora). Si no hay humedad del suelo (está en \"sensores.sin_sensor_de\"), nunca afirmes su estado: usa temperatura y humedad del aire solo como indicio de demanda (evapotranspiración) y pide verificar el suelo (prueba del puño o tensiómetro) antes de regar.',\n  '3b. pH, conductividad (ECe), temperatura del suelo, viento y radiación solo aparecen en nodos virtuales: menciónalos con prudencia (por ejemplo, pH fuera de lo habitual o viento fuerte) y sugiere un análisis o una revisión en campo, sin diagnosticar.',\n  '4. Si periodo_del_dia es \"noche\", la iluminación baja es normal y no es un problema. Si de noche el índice supera 20, no lo des por normal: menciona que puede haber luz artificial cerca del nodo o una falla del sensor.',\n  '5. Usa la plantilla del cultivo (rangos óptimos y límites de alerta) si existe. Si no hay plantilla, dilo en \"limitaciones\" y usa un criterio general prudente.',\n  '6. No diagnostiques plagas ni enfermedades como hechos: menciona el riesgo y sugiere inspección. No recomiendes productos ni dosis de agroquímicos.',\n  '7. Si origen_datos es \"simulado\", indica en \"limitaciones\" que los datos son simulados (generados por el simulador, no lecturas de campo).',\n  '7b. Si el contexto trae \"clima_simulado\" (evento lluvia, sol_fuerte, tierra_seca o viento, con intensidad de 1 a 3), es un evento de PRUEBA que el usuario activó en el simulador: explica el cambio de los valores por ese evento, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que no es el clima real. Si \"plantilla.ajustada\" es true, los rangos son los que el agricultor ajustó para su cultivo.',\n  '7c. Si el contexto trae \"ajustes_manuales\" (por ejemplo {\"temperatura_aire\": 4, \"humedad_suelo_vwc\": -10}), son cambios que el usuario sumó a mano a los valores simulados de esas variables, en sus mismas unidades. Interprétalos: di qué variables movió y en qué sentido, explica que los valores observados ya incluyen ese cambio, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que son condiciones simuladas ajustadas a mano, no el clima ni el suelo reales.',\n  '7d. Si motivo es \"solicitud\", el agricultor pidió esta revisión ahora: responde sobre el estado actual del cultivo aunque no haya alertas abiertas.',\n  '8. Si no hay lecturas o todas tienen antiguedad_segundos mayor a 180, usa estado_general \"datos_insuficientes\".',\n  '9. estado_general: \"favorable\" si todo está en el rango óptimo; \"atencion\" si algo sale del óptimo o hay una alerta abierta; \"critico\" si se superan los límites de alerta de forma marcada o hay varias alertas. Estos valores van sin tilde porque son códigos.',\n  '10. Entre 1 y 4 recomendaciones ordenadas por prioridad. Longitudes máximas: resumen 600, riego 500, luz 500, limitaciones 500, titulo 100, accion 400, evidencia 300 caracteres.',\n].join('\\n');\n\nconst ESQUEMA_IA = {\n  type: 'OBJECT',\n  properties: {\n    resumen: { type: 'STRING' },\n    estado_general: { type: 'STRING', enum: ESTADOS_IA },\n    recomendaciones: { type: 'ARRAY', minItems: 1, maxItems: 4, items: {\n      type: 'OBJECT',\n      properties: {\n        titulo: { type: 'STRING' }, accion: { type: 'STRING' },\n        prioridad: { type: 'STRING', enum: PRIORIDADES_IA },\n        variable: { type: 'STRING', enum: VARIABLES_IA }, evidencia: { type: 'STRING' },\n      },\n      required: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n      propertyOrdering: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n    } },\n    riego: { type: 'STRING' }, luz: { type: 'STRING' }, limitaciones: { type: 'STRING' },\n  },\n  required: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n  propertyOrdering: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n};\n\nfunction baseSupabase(destino) {\n  const m = typeof destino === 'string' && destino.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/evaluar_alertas_lote$/);\n  return m ? m[1] : null;\n}\n\n// 1. Solo lotes NUEVOS con alertas evaluadas piden reserva; duplicados y fallos no gastan IA.\nfunction prepararReservaIA(final, rpcAlertas, modelo) {\n  const base = { ...final, lista: false };\n  if (!final || final.persistido !== true || final.estado !== 'insertado') return { ...base, ia: { estado: 'omitida', codigo: 'LOTE_NO_NUEVO' } };\n  if (final.alertas?.estado !== 'evaluada') return { ...base, ia: { estado: 'omitida', codigo: 'ALERTAS_NO_EVALUADAS' } };\n  const supabase = baseSupabase(rpcAlertas?.destino_alertas);\n  const nodo = rpcAlertas?.solicitud_alertas?.p_nodo_id;\n  if (!supabase || !esUuidIA(nodo) || rpcAlertas?.solicitud_alertas?.p_mensaje_id !== final.mensaje_id || !esUuidIA(final.mensaje_id))\n    return { ...base, ia: { estado: 'omitida', codigo: 'CONTEXTO_IA_INCONSISTENTE' } };\n  if (typeof modelo !== 'string' || !MODELO_IA.test(modelo)) return { ...base, ia: { estado: 'omitida', codigo: 'CONFIGURAR_MODELO_GEMINI' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_RESERVAR' }, modelo_ia: modelo,\n    destino_reserva: supabase + '/rest/v1/rpc/reservar_sugerencia_ia',\n    destino_completar: supabase + '/rest/v1/rpc/completar_sugerencia_ia',\n    solicitud_reserva: { p_nodo_id: nodo, p_mensaje_id: final.mensaje_id } };\n}\n\nfunction configuracionGeneracion(modelo) {\n  const c = { temperature: 0.3, maxOutputTokens: 1500, responseMimeType: 'application/json', responseSchema: ESQUEMA_IA };\n  // El razonamiento se cobra como salida: se deja al minimo para cuidar el saldo.\n  // La familia 2.5 lo apaga con thinkingBudget 0; la 3.x rechaza ese campo y usa thinkingLevel.\n  if (/^gemini-2\\.5-flash/.test(modelo)) c.thinkingConfig = { thinkingBudget: 0 };\n  else if (/^gemini-3(\\.\\d+)?-flash/.test(modelo)) c.thinkingConfig = { thinkingLevel: 'minimal' };\n  return c;\n}\n\n// 2. Si la base reservo la sugerencia, arma la solicitud a Gemini con el contexto guardado.\nfunction prepararGemini(previo, respuesta) {\n  const base = { ...previo, lista: false };\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  if (!r || typeof r !== 'object' || Array.isArray(r)) return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_NO_CONFIRMADA' } };\n  if (r.codigo !== 'RESERVADA') return { ...base, ia: { estado: 'omitida', codigo: typeof r.codigo === 'string' ? r.codigo.slice(0, 60) : 'RESERVA_SIN_CODIGO' } };\n  if (!esUuidIA(r.sugerencia_id) || !r.contexto || typeof r.contexto !== 'object' || !MOTIVOS_IA.includes(r.motivo))\n    return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_INCOMPLETA' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_CONSULTAR_GEMINI', sugerencia_id: r.sugerencia_id, motivo: r.motivo },\n    destino_gemini: 'https://generativelanguage.googleapis.com/v1beta/models/' + previo.modelo_ia + ':generateContent',\n    solicitud_gemini: {\n      systemInstruction: { parts: [{ text: INSTRUCCION_IA }] },\n      contents: [{ role: 'user', parts: [{ text: 'Contexto del cultivo (JSON):\\n' + JSON.stringify(r.contexto) }] }],\n      generationConfig: configuracionGeneracion(previo.modelo_ia),\n    } };\n}\n\nfunction recortar(texto, maximo) {\n  const t = texto.trim().replace(/\\s+/g, ' ');\n  if (t.length <= maximo) return t;\n  const corte = t.slice(0, maximo - 1); const espacio = corte.lastIndexOf(' ');\n  return (espacio > maximo * 0.6 ? corte.slice(0, espacio) : corte) + '…';\n}\nconst texto = v => typeof v === 'string' && v.trim().length > 0;\n\n// Misma forma que exige public.respuesta_ia_valida. Recorta textos largos; rechaza enums o forma.\nfunction normalizarRespuestaIA(r) {\n  const claves = ['estado_general', 'limitaciones', 'luz', 'recomendaciones', 'resumen', 'riego'];\n  if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join() !== claves.join()) return null;\n  if (!ESTADOS_IA.includes(r.estado_general) || !['resumen', 'riego', 'luz', 'limitaciones'].every(k => texto(r[k]))) return null;\n  if (!Array.isArray(r.recomendaciones) || r.recomendaciones.length < 1 || r.recomendaciones.length > 5) return null;\n  const recs = [];\n  for (const e of r.recomendaciones) {\n    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).sort().join() !== 'accion,evidencia,prioridad,titulo,variable') return null;\n    if (!PRIORIDADES_IA.includes(e.prioridad) || !VARIABLES_IA.includes(e.variable) || !['titulo', 'accion', 'evidencia'].every(k => texto(e[k]))) return null;\n    recs.push({ titulo: recortar(e.titulo, LIMITES_IA.titulo), accion: recortar(e.accion, LIMITES_IA.accion), prioridad: e.prioridad,\n      variable: e.variable, evidencia: recortar(e.evidencia, LIMITES_IA.evidencia) });\n  }\n  const salida = { resumen: recortar(r.resumen, LIMITES_IA.resumen), estado_general: r.estado_general, recomendaciones: recs,\n    riego: recortar(r.riego, LIMITES_IA.riego), luz: recortar(r.luz, LIMITES_IA.luz), limitaciones: recortar(r.limitaciones, LIMITES_IA.limitaciones) };\n  if (/<[a-zA-Z/!]/.test(JSON.stringify(salida))) return null;\n  return salida;\n}\n\n// 3. Interpreta la respuesta de Gemini sin exponer su cuerpo ante errores.\nfunction interpretarGemini(previo, respuesta) {\n  const completar = (extra) => ({ ...previo, lista: true, solicitud_completar: {\n    p_sugerencia_id: previo.ia.sugerencia_id, p_respuesta: null, p_modelo: previo.modelo_ia,\n    p_tokens_entrada: null, p_tokens_salida: null, p_error_codigo: null, ...extra } });\n  const estado = respuesta?.statusCode;\n  if (estado !== 200) return completar({ p_error_codigo: Number.isInteger(estado) ? 'GEMINI_HTTP_' + estado : 'GEMINI_SIN_RESPUESTA' });\n  const b = respuesta.body;\n  const uso = b?.usageMetadata ?? {};\n  const tokens = { p_tokens_entrada: Number.isInteger(uso.promptTokenCount) ? uso.promptTokenCount : null,\n    p_tokens_salida: Number.isInteger(uso.candidatesTokenCount) ? uso.candidatesTokenCount + (Number.isInteger(uso.thoughtsTokenCount) ? uso.thoughtsTokenCount : 0) : null };\n  if (b?.promptFeedback?.blockReason) return completar({ ...tokens, p_error_codigo: 'GEMINI_BLOQUEADA' });\n  const c = Array.isArray(b?.candidates) ? b.candidates[0] : null;\n  if (!c) return completar({ ...tokens, p_error_codigo: 'GEMINI_SIN_CANDIDATOS' });\n  if (c.finishReason === 'MAX_TOKENS') return completar({ ...tokens, p_error_codigo: 'GEMINI_RESPUESTA_TRUNCADA' });\n  if (c.finishReason && c.finishReason !== 'STOP') return completar({ ...tokens, p_error_codigo: 'GEMINI_FIN_' + String(c.finishReason).replace(/[^A-Z_]/g, '').slice(0, 40) });\n  const partes = Array.isArray(c.content?.parts) ? c.content.parts.filter(p => !p.thought && typeof p.text === 'string') : [];\n  let datos;\n  try { datos = JSON.parse(partes.map(p => p.text).join('')); } catch { return completar({ ...tokens, p_error_codigo: 'GEMINI_JSON_INVALIDO' }); }\n  const normal = normalizarRespuestaIA(datos);\n  if (!normal) return completar({ ...tokens, p_error_codigo: 'GEMINI_FORMA_INVALIDA' });\n  const modelo = typeof b.modelVersion === 'string' && MODELO_IA.test(b.modelVersion) ? b.modelVersion : previo.modelo_ia;\n  return completar({ ...tokens, p_respuesta: normal, p_modelo: modelo });\n}\n\n// 4. Resumen final de la ejecucion. Persistencia y alertas se conservan siempre.\nfunction resultadoIA(previo, respuesta) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo;\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  const ia = { ...previo.ia, modelo: solicitud_completar?.p_modelo ?? modelo_ia,\n    tokens: { entrada: solicitud_completar?.p_tokens_entrada ?? null, salida: solicitud_completar?.p_tokens_salida ?? null } };\n  if (!r || !['SUGERENCIA_GUARDADA', 'SUGERENCIA_FALLIDA', 'SUGERENCIA_YA_COMPLETADA'].includes(r.codigo))\n    return { ...resto, ia: { ...ia, estado: 'pendiente', codigo: 'GUARDADO_IA_NO_CONFIRMADO', error_gemini: solicitud_completar?.p_error_codigo ?? null } };\n  return { ...resto, ia: { ...ia, estado: r.estado === 'generada' ? 'generada' : 'fallida', codigo: r.codigo, error_codigo: r.error_codigo ?? null } };\n}\nfunction salidaSinIA(previo) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo ?? {};\n  return resto;\n}\n\n\nreturn (function gemini(){return $input.all().map((item,i)=>({json:prepararGemini($('Preparar reserva IA').itemMatching(i).json,item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "id": "agv-Sugerencia-reservada",
+      "name": "Sugerencia reservada",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4140,
+        -100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "lista",
+              "leftValue": "={{ $json.lista ? \"si\" : \"no\" }}",
+              "rightValue": "si",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "agv-Consultar-Gemini",
+      "name": "Consultar Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4380,
+        -200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.destino_gemini }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.solicitud_gemini }}",
+        "options": {
+          "timeout": 45000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Interpretar Gemini",
+      "id": "agv-interpretar-gemini",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4620,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura de la rama de sugerencias IA de los flujos 03e (real v2), 03f (simulado v3 por zonas), 03g (ambos por HTTP)\n// y del flujo 03h de sugerencias a peticion. Nunca incluye claves ni devuelve\n// cuerpos de error HTTP. La API key de Gemini vive solo en la credencial Header Auth de n8n.\nconst esUuidIA = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nconst MODELO_IA = /^gemini-[a-z0-9.\\-]{1,50}$/;\nconst VARIABLES_IA = ['temperatura_aire', 'humedad_aire', 'iluminacion_relativa', 'radiacion_solar', 'humedad_suelo_vwc', 'temperatura_suelo',\n  'ph_suelo', 'conductividad_suelo_ece', 'precipitacion_60min', 'velocidad_viento', 'general'];\nconst ESTADOS_IA = ['favorable', 'atencion', 'critico', 'datos_insuficientes'];\nconst PRIORIDADES_IA = ['alta', 'media', 'baja'];\n// periodica y alerta nacen de un lote nuevo (03e, 03f, 03g); solicitud, de una peticion del agricultor (03h).\nconst MOTIVOS_IA = ['periodica', 'alerta', 'solicitud'];\nconst LIMITES_IA = { resumen: 600, riego: 500, luz: 500, limitaciones: 500, titulo: 100, accion: 400, evidencia: 300 };\n\nconst INSTRUCCION_IA = [\n  'Eres un asistente agronómico para pequeños productores del Caribe colombiano.',\n  'Recibes un JSON con lecturas de sensores ambientales de UN cultivo. Responde solo con el JSON pedido, en español sencillo y con ortografía correcta: usa siempre tildes y la letra ñ (por ejemplo: puño, iluminación, límite, sombrío). Sin markdown ni HTML.',\n  'Reglas obligatorias:',\n  '1. Basa cada recomendación en datos del contexto y cítalos en \"evidencia\" (valor con unidad, hora o estadística). No inventes valores.',\n  '2. Usa solo las variables de \"sensores.variables\". iluminacion_relativa es un índice de 0 a 100, NO lux ni radiación calibrada; humedad_aire es humedad relativa del aire, no del suelo.',\n  '3. Agua y riego: si el contexto trae humedad_suelo_vwc (% VWC a 20 cm), compárala con suelo_vwc_optima_min/max y suelo_vwc_min/max de la plantilla y úsala como base del riego; considera también precipitacion_60min (lluvia acumulada de la última hora). Si no hay humedad del suelo (está en \"sensores.sin_sensor_de\"), nunca afirmes su estado: usa temperatura y humedad del aire solo como indicio de demanda (evapotranspiración) y pide verificar el suelo (prueba del puño o tensiómetro) antes de regar.',\n  '3b. pH, conductividad (ECe), temperatura del suelo, viento y radiación solo aparecen en nodos virtuales: menciónalos con prudencia (por ejemplo, pH fuera de lo habitual o viento fuerte) y sugiere un análisis o una revisión en campo, sin diagnosticar.',\n  '4. Si periodo_del_dia es \"noche\", la iluminación baja es normal y no es un problema. Si de noche el índice supera 20, no lo des por normal: menciona que puede haber luz artificial cerca del nodo o una falla del sensor.',\n  '5. Usa la plantilla del cultivo (rangos óptimos y límites de alerta) si existe. Si no hay plantilla, dilo en \"limitaciones\" y usa un criterio general prudente.',\n  '6. No diagnostiques plagas ni enfermedades como hechos: menciona el riesgo y sugiere inspección. No recomiendes productos ni dosis de agroquímicos.',\n  '7. Si origen_datos es \"simulado\", indica en \"limitaciones\" que los datos son simulados (generados por el simulador, no lecturas de campo).',\n  '7b. Si el contexto trae \"clima_simulado\" (evento lluvia, sol_fuerte, tierra_seca o viento, con intensidad de 1 a 3), es un evento de PRUEBA que el usuario activó en el simulador: explica el cambio de los valores por ese evento, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que no es el clima real. Si \"plantilla.ajustada\" es true, los rangos son los que el agricultor ajustó para su cultivo.',\n  '7c. Si el contexto trae \"ajustes_manuales\" (por ejemplo {\"temperatura_aire\": 4, \"humedad_suelo_vwc\": -10}), son cambios que el usuario sumó a mano a los valores simulados de esas variables, en sus mismas unidades. Interprétalos: di qué variables movió y en qué sentido, explica que los valores observados ya incluyen ese cambio, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que son condiciones simuladas ajustadas a mano, no el clima ni el suelo reales.',\n  '7d. Si motivo es \"solicitud\", el agricultor pidió esta revisión ahora: responde sobre el estado actual del cultivo aunque no haya alertas abiertas.',\n  '8. Si no hay lecturas o todas tienen antiguedad_segundos mayor a 180, usa estado_general \"datos_insuficientes\".',\n  '9. estado_general: \"favorable\" si todo está en el rango óptimo; \"atencion\" si algo sale del óptimo o hay una alerta abierta; \"critico\" si se superan los límites de alerta de forma marcada o hay varias alertas. Estos valores van sin tilde porque son códigos.',\n  '10. Entre 1 y 4 recomendaciones ordenadas por prioridad. Longitudes máximas: resumen 600, riego 500, luz 500, limitaciones 500, titulo 100, accion 400, evidencia 300 caracteres.',\n].join('\\n');\n\nconst ESQUEMA_IA = {\n  type: 'OBJECT',\n  properties: {\n    resumen: { type: 'STRING' },\n    estado_general: { type: 'STRING', enum: ESTADOS_IA },\n    recomendaciones: { type: 'ARRAY', minItems: 1, maxItems: 4, items: {\n      type: 'OBJECT',\n      properties: {\n        titulo: { type: 'STRING' }, accion: { type: 'STRING' },\n        prioridad: { type: 'STRING', enum: PRIORIDADES_IA },\n        variable: { type: 'STRING', enum: VARIABLES_IA }, evidencia: { type: 'STRING' },\n      },\n      required: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n      propertyOrdering: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n    } },\n    riego: { type: 'STRING' }, luz: { type: 'STRING' }, limitaciones: { type: 'STRING' },\n  },\n  required: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n  propertyOrdering: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n};\n\nfunction baseSupabase(destino) {\n  const m = typeof destino === 'string' && destino.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/evaluar_alertas_lote$/);\n  return m ? m[1] : null;\n}\n\n// 1. Solo lotes NUEVOS con alertas evaluadas piden reserva; duplicados y fallos no gastan IA.\nfunction prepararReservaIA(final, rpcAlertas, modelo) {\n  const base = { ...final, lista: false };\n  if (!final || final.persistido !== true || final.estado !== 'insertado') return { ...base, ia: { estado: 'omitida', codigo: 'LOTE_NO_NUEVO' } };\n  if (final.alertas?.estado !== 'evaluada') return { ...base, ia: { estado: 'omitida', codigo: 'ALERTAS_NO_EVALUADAS' } };\n  const supabase = baseSupabase(rpcAlertas?.destino_alertas);\n  const nodo = rpcAlertas?.solicitud_alertas?.p_nodo_id;\n  if (!supabase || !esUuidIA(nodo) || rpcAlertas?.solicitud_alertas?.p_mensaje_id !== final.mensaje_id || !esUuidIA(final.mensaje_id))\n    return { ...base, ia: { estado: 'omitida', codigo: 'CONTEXTO_IA_INCONSISTENTE' } };\n  if (typeof modelo !== 'string' || !MODELO_IA.test(modelo)) return { ...base, ia: { estado: 'omitida', codigo: 'CONFIGURAR_MODELO_GEMINI' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_RESERVAR' }, modelo_ia: modelo,\n    destino_reserva: supabase + '/rest/v1/rpc/reservar_sugerencia_ia',\n    destino_completar: supabase + '/rest/v1/rpc/completar_sugerencia_ia',\n    solicitud_reserva: { p_nodo_id: nodo, p_mensaje_id: final.mensaje_id } };\n}\n\nfunction configuracionGeneracion(modelo) {\n  const c = { temperature: 0.3, maxOutputTokens: 1500, responseMimeType: 'application/json', responseSchema: ESQUEMA_IA };\n  // El razonamiento se cobra como salida: se deja al minimo para cuidar el saldo.\n  // La familia 2.5 lo apaga con thinkingBudget 0; la 3.x rechaza ese campo y usa thinkingLevel.\n  if (/^gemini-2\\.5-flash/.test(modelo)) c.thinkingConfig = { thinkingBudget: 0 };\n  else if (/^gemini-3(\\.\\d+)?-flash/.test(modelo)) c.thinkingConfig = { thinkingLevel: 'minimal' };\n  return c;\n}\n\n// 2. Si la base reservo la sugerencia, arma la solicitud a Gemini con el contexto guardado.\nfunction prepararGemini(previo, respuesta) {\n  const base = { ...previo, lista: false };\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  if (!r || typeof r !== 'object' || Array.isArray(r)) return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_NO_CONFIRMADA' } };\n  if (r.codigo !== 'RESERVADA') return { ...base, ia: { estado: 'omitida', codigo: typeof r.codigo === 'string' ? r.codigo.slice(0, 60) : 'RESERVA_SIN_CODIGO' } };\n  if (!esUuidIA(r.sugerencia_id) || !r.contexto || typeof r.contexto !== 'object' || !MOTIVOS_IA.includes(r.motivo))\n    return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_INCOMPLETA' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_CONSULTAR_GEMINI', sugerencia_id: r.sugerencia_id, motivo: r.motivo },\n    destino_gemini: 'https://generativelanguage.googleapis.com/v1beta/models/' + previo.modelo_ia + ':generateContent',\n    solicitud_gemini: {\n      systemInstruction: { parts: [{ text: INSTRUCCION_IA }] },\n      contents: [{ role: 'user', parts: [{ text: 'Contexto del cultivo (JSON):\\n' + JSON.stringify(r.contexto) }] }],\n      generationConfig: configuracionGeneracion(previo.modelo_ia),\n    } };\n}\n\nfunction recortar(texto, maximo) {\n  const t = texto.trim().replace(/\\s+/g, ' ');\n  if (t.length <= maximo) return t;\n  const corte = t.slice(0, maximo - 1); const espacio = corte.lastIndexOf(' ');\n  return (espacio > maximo * 0.6 ? corte.slice(0, espacio) : corte) + '…';\n}\nconst texto = v => typeof v === 'string' && v.trim().length > 0;\n\n// Misma forma que exige public.respuesta_ia_valida. Recorta textos largos; rechaza enums o forma.\nfunction normalizarRespuestaIA(r) {\n  const claves = ['estado_general', 'limitaciones', 'luz', 'recomendaciones', 'resumen', 'riego'];\n  if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join() !== claves.join()) return null;\n  if (!ESTADOS_IA.includes(r.estado_general) || !['resumen', 'riego', 'luz', 'limitaciones'].every(k => texto(r[k]))) return null;\n  if (!Array.isArray(r.recomendaciones) || r.recomendaciones.length < 1 || r.recomendaciones.length > 5) return null;\n  const recs = [];\n  for (const e of r.recomendaciones) {\n    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).sort().join() !== 'accion,evidencia,prioridad,titulo,variable') return null;\n    if (!PRIORIDADES_IA.includes(e.prioridad) || !VARIABLES_IA.includes(e.variable) || !['titulo', 'accion', 'evidencia'].every(k => texto(e[k]))) return null;\n    recs.push({ titulo: recortar(e.titulo, LIMITES_IA.titulo), accion: recortar(e.accion, LIMITES_IA.accion), prioridad: e.prioridad,\n      variable: e.variable, evidencia: recortar(e.evidencia, LIMITES_IA.evidencia) });\n  }\n  const salida = { resumen: recortar(r.resumen, LIMITES_IA.resumen), estado_general: r.estado_general, recomendaciones: recs,\n    riego: recortar(r.riego, LIMITES_IA.riego), luz: recortar(r.luz, LIMITES_IA.luz), limitaciones: recortar(r.limitaciones, LIMITES_IA.limitaciones) };\n  if (/<[a-zA-Z/!]/.test(JSON.stringify(salida))) return null;\n  return salida;\n}\n\n// 3. Interpreta la respuesta de Gemini sin exponer su cuerpo ante errores.\nfunction interpretarGemini(previo, respuesta) {\n  const completar = (extra) => ({ ...previo, lista: true, solicitud_completar: {\n    p_sugerencia_id: previo.ia.sugerencia_id, p_respuesta: null, p_modelo: previo.modelo_ia,\n    p_tokens_entrada: null, p_tokens_salida: null, p_error_codigo: null, ...extra } });\n  const estado = respuesta?.statusCode;\n  if (estado !== 200) return completar({ p_error_codigo: Number.isInteger(estado) ? 'GEMINI_HTTP_' + estado : 'GEMINI_SIN_RESPUESTA' });\n  const b = respuesta.body;\n  const uso = b?.usageMetadata ?? {};\n  const tokens = { p_tokens_entrada: Number.isInteger(uso.promptTokenCount) ? uso.promptTokenCount : null,\n    p_tokens_salida: Number.isInteger(uso.candidatesTokenCount) ? uso.candidatesTokenCount + (Number.isInteger(uso.thoughtsTokenCount) ? uso.thoughtsTokenCount : 0) : null };\n  if (b?.promptFeedback?.blockReason) return completar({ ...tokens, p_error_codigo: 'GEMINI_BLOQUEADA' });\n  const c = Array.isArray(b?.candidates) ? b.candidates[0] : null;\n  if (!c) return completar({ ...tokens, p_error_codigo: 'GEMINI_SIN_CANDIDATOS' });\n  if (c.finishReason === 'MAX_TOKENS') return completar({ ...tokens, p_error_codigo: 'GEMINI_RESPUESTA_TRUNCADA' });\n  if (c.finishReason && c.finishReason !== 'STOP') return completar({ ...tokens, p_error_codigo: 'GEMINI_FIN_' + String(c.finishReason).replace(/[^A-Z_]/g, '').slice(0, 40) });\n  const partes = Array.isArray(c.content?.parts) ? c.content.parts.filter(p => !p.thought && typeof p.text === 'string') : [];\n  let datos;\n  try { datos = JSON.parse(partes.map(p => p.text).join('')); } catch { return completar({ ...tokens, p_error_codigo: 'GEMINI_JSON_INVALIDO' }); }\n  const normal = normalizarRespuestaIA(datos);\n  if (!normal) return completar({ ...tokens, p_error_codigo: 'GEMINI_FORMA_INVALIDA' });\n  const modelo = typeof b.modelVersion === 'string' && MODELO_IA.test(b.modelVersion) ? b.modelVersion : previo.modelo_ia;\n  return completar({ ...tokens, p_respuesta: normal, p_modelo: modelo });\n}\n\n// 4. Resumen final de la ejecucion. Persistencia y alertas se conservan siempre.\nfunction resultadoIA(previo, respuesta) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo;\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  const ia = { ...previo.ia, modelo: solicitud_completar?.p_modelo ?? modelo_ia,\n    tokens: { entrada: solicitud_completar?.p_tokens_entrada ?? null, salida: solicitud_completar?.p_tokens_salida ?? null } };\n  if (!r || !['SUGERENCIA_GUARDADA', 'SUGERENCIA_FALLIDA', 'SUGERENCIA_YA_COMPLETADA'].includes(r.codigo))\n    return { ...resto, ia: { ...ia, estado: 'pendiente', codigo: 'GUARDADO_IA_NO_CONFIRMADO', error_gemini: solicitud_completar?.p_error_codigo ?? null } };\n  return { ...resto, ia: { ...ia, estado: r.estado === 'generada' ? 'generada' : 'fallida', codigo: r.codigo, error_codigo: r.error_codigo ?? null } };\n}\nfunction salidaSinIA(previo) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo ?? {};\n  return resto;\n}\n\n\nreturn (function interpretar(){return $input.all().map((item,i)=>({json:interpretarGemini($('Preparar Gemini').itemMatching(i).json,item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "id": "agv-Guardar-sugerencia-IA",
+      "name": "Guardar sugerencia IA",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4860,
+        -200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.destino_completar }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.solicitud_completar }}",
+        "options": {
+          "timeout": 15000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Resultado IA",
+      "id": "agv-resultado-ia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5100,
+        -200
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura de la rama de sugerencias IA de los flujos 03e (real v2), 03f (simulado v3 por zonas), 03g (ambos por HTTP)\n// y del flujo 03h de sugerencias a peticion. Nunca incluye claves ni devuelve\n// cuerpos de error HTTP. La API key de Gemini vive solo en la credencial Header Auth de n8n.\nconst esUuidIA = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nconst MODELO_IA = /^gemini-[a-z0-9.\\-]{1,50}$/;\nconst VARIABLES_IA = ['temperatura_aire', 'humedad_aire', 'iluminacion_relativa', 'radiacion_solar', 'humedad_suelo_vwc', 'temperatura_suelo',\n  'ph_suelo', 'conductividad_suelo_ece', 'precipitacion_60min', 'velocidad_viento', 'general'];\nconst ESTADOS_IA = ['favorable', 'atencion', 'critico', 'datos_insuficientes'];\nconst PRIORIDADES_IA = ['alta', 'media', 'baja'];\n// periodica y alerta nacen de un lote nuevo (03e, 03f, 03g); solicitud, de una peticion del agricultor (03h).\nconst MOTIVOS_IA = ['periodica', 'alerta', 'solicitud'];\nconst LIMITES_IA = { resumen: 600, riego: 500, luz: 500, limitaciones: 500, titulo: 100, accion: 400, evidencia: 300 };\n\nconst INSTRUCCION_IA = [\n  'Eres un asistente agronómico para pequeños productores del Caribe colombiano.',\n  'Recibes un JSON con lecturas de sensores ambientales de UN cultivo. Responde solo con el JSON pedido, en español sencillo y con ortografía correcta: usa siempre tildes y la letra ñ (por ejemplo: puño, iluminación, límite, sombrío). Sin markdown ni HTML.',\n  'Reglas obligatorias:',\n  '1. Basa cada recomendación en datos del contexto y cítalos en \"evidencia\" (valor con unidad, hora o estadística). No inventes valores.',\n  '2. Usa solo las variables de \"sensores.variables\". iluminacion_relativa es un índice de 0 a 100, NO lux ni radiación calibrada; humedad_aire es humedad relativa del aire, no del suelo.',\n  '3. Agua y riego: si el contexto trae humedad_suelo_vwc (% VWC a 20 cm), compárala con suelo_vwc_optima_min/max y suelo_vwc_min/max de la plantilla y úsala como base del riego; considera también precipitacion_60min (lluvia acumulada de la última hora). Si no hay humedad del suelo (está en \"sensores.sin_sensor_de\"), nunca afirmes su estado: usa temperatura y humedad del aire solo como indicio de demanda (evapotranspiración) y pide verificar el suelo (prueba del puño o tensiómetro) antes de regar.',\n  '3b. pH, conductividad (ECe), temperatura del suelo, viento y radiación solo aparecen en nodos virtuales: menciónalos con prudencia (por ejemplo, pH fuera de lo habitual o viento fuerte) y sugiere un análisis o una revisión en campo, sin diagnosticar.',\n  '4. Si periodo_del_dia es \"noche\", la iluminación baja es normal y no es un problema. Si de noche el índice supera 20, no lo des por normal: menciona que puede haber luz artificial cerca del nodo o una falla del sensor.',\n  '5. Usa la plantilla del cultivo (rangos óptimos y límites de alerta) si existe. Si no hay plantilla, dilo en \"limitaciones\" y usa un criterio general prudente.',\n  '6. No diagnostiques plagas ni enfermedades como hechos: menciona el riesgo y sugiere inspección. No recomiendes productos ni dosis de agroquímicos.',\n  '7. Si origen_datos es \"simulado\", indica en \"limitaciones\" que los datos son simulados (generados por el simulador, no lecturas de campo).',\n  '7b. Si el contexto trae \"clima_simulado\" (evento lluvia, sol_fuerte, tierra_seca o viento, con intensidad de 1 a 3), es un evento de PRUEBA que el usuario activó en el simulador: explica el cambio de los valores por ese evento, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que no es el clima real. Si \"plantilla.ajustada\" es true, los rangos son los que el agricultor ajustó para su cultivo.',\n  '7c. Si el contexto trae \"ajustes_manuales\" (por ejemplo {\"temperatura_aire\": 4, \"humedad_suelo_vwc\": -10}), son cambios que el usuario sumó a mano a los valores simulados de esas variables, en sus mismas unidades. Interprétalos: di qué variables movió y en qué sentido, explica que los valores observados ya incluyen ese cambio, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que son condiciones simuladas ajustadas a mano, no el clima ni el suelo reales.',\n  '7d. Si motivo es \"solicitud\", el agricultor pidió esta revisión ahora: responde sobre el estado actual del cultivo aunque no haya alertas abiertas.',\n  '8. Si no hay lecturas o todas tienen antiguedad_segundos mayor a 180, usa estado_general \"datos_insuficientes\".',\n  '9. estado_general: \"favorable\" si todo está en el rango óptimo; \"atencion\" si algo sale del óptimo o hay una alerta abierta; \"critico\" si se superan los límites de alerta de forma marcada o hay varias alertas. Estos valores van sin tilde porque son códigos.',\n  '10. Entre 1 y 4 recomendaciones ordenadas por prioridad. Longitudes máximas: resumen 600, riego 500, luz 500, limitaciones 500, titulo 100, accion 400, evidencia 300 caracteres.',\n].join('\\n');\n\nconst ESQUEMA_IA = {\n  type: 'OBJECT',\n  properties: {\n    resumen: { type: 'STRING' },\n    estado_general: { type: 'STRING', enum: ESTADOS_IA },\n    recomendaciones: { type: 'ARRAY', minItems: 1, maxItems: 4, items: {\n      type: 'OBJECT',\n      properties: {\n        titulo: { type: 'STRING' }, accion: { type: 'STRING' },\n        prioridad: { type: 'STRING', enum: PRIORIDADES_IA },\n        variable: { type: 'STRING', enum: VARIABLES_IA }, evidencia: { type: 'STRING' },\n      },\n      required: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n      propertyOrdering: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n    } },\n    riego: { type: 'STRING' }, luz: { type: 'STRING' }, limitaciones: { type: 'STRING' },\n  },\n  required: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n  propertyOrdering: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n};\n\nfunction baseSupabase(destino) {\n  const m = typeof destino === 'string' && destino.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/evaluar_alertas_lote$/);\n  return m ? m[1] : null;\n}\n\n// 1. Solo lotes NUEVOS con alertas evaluadas piden reserva; duplicados y fallos no gastan IA.\nfunction prepararReservaIA(final, rpcAlertas, modelo) {\n  const base = { ...final, lista: false };\n  if (!final || final.persistido !== true || final.estado !== 'insertado') return { ...base, ia: { estado: 'omitida', codigo: 'LOTE_NO_NUEVO' } };\n  if (final.alertas?.estado !== 'evaluada') return { ...base, ia: { estado: 'omitida', codigo: 'ALERTAS_NO_EVALUADAS' } };\n  const supabase = baseSupabase(rpcAlertas?.destino_alertas);\n  const nodo = rpcAlertas?.solicitud_alertas?.p_nodo_id;\n  if (!supabase || !esUuidIA(nodo) || rpcAlertas?.solicitud_alertas?.p_mensaje_id !== final.mensaje_id || !esUuidIA(final.mensaje_id))\n    return { ...base, ia: { estado: 'omitida', codigo: 'CONTEXTO_IA_INCONSISTENTE' } };\n  if (typeof modelo !== 'string' || !MODELO_IA.test(modelo)) return { ...base, ia: { estado: 'omitida', codigo: 'CONFIGURAR_MODELO_GEMINI' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_RESERVAR' }, modelo_ia: modelo,\n    destino_reserva: supabase + '/rest/v1/rpc/reservar_sugerencia_ia',\n    destino_completar: supabase + '/rest/v1/rpc/completar_sugerencia_ia',\n    solicitud_reserva: { p_nodo_id: nodo, p_mensaje_id: final.mensaje_id } };\n}\n\nfunction configuracionGeneracion(modelo) {\n  const c = { temperature: 0.3, maxOutputTokens: 1500, responseMimeType: 'application/json', responseSchema: ESQUEMA_IA };\n  // El razonamiento se cobra como salida: se deja al minimo para cuidar el saldo.\n  // La familia 2.5 lo apaga con thinkingBudget 0; la 3.x rechaza ese campo y usa thinkingLevel.\n  if (/^gemini-2\\.5-flash/.test(modelo)) c.thinkingConfig = { thinkingBudget: 0 };\n  else if (/^gemini-3(\\.\\d+)?-flash/.test(modelo)) c.thinkingConfig = { thinkingLevel: 'minimal' };\n  return c;\n}\n\n// 2. Si la base reservo la sugerencia, arma la solicitud a Gemini con el contexto guardado.\nfunction prepararGemini(previo, respuesta) {\n  const base = { ...previo, lista: false };\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  if (!r || typeof r !== 'object' || Array.isArray(r)) return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_NO_CONFIRMADA' } };\n  if (r.codigo !== 'RESERVADA') return { ...base, ia: { estado: 'omitida', codigo: typeof r.codigo === 'string' ? r.codigo.slice(0, 60) : 'RESERVA_SIN_CODIGO' } };\n  if (!esUuidIA(r.sugerencia_id) || !r.contexto || typeof r.contexto !== 'object' || !MOTIVOS_IA.includes(r.motivo))\n    return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_INCOMPLETA' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_CONSULTAR_GEMINI', sugerencia_id: r.sugerencia_id, motivo: r.motivo },\n    destino_gemini: 'https://generativelanguage.googleapis.com/v1beta/models/' + previo.modelo_ia + ':generateContent',\n    solicitud_gemini: {\n      systemInstruction: { parts: [{ text: INSTRUCCION_IA }] },\n      contents: [{ role: 'user', parts: [{ text: 'Contexto del cultivo (JSON):\\n' + JSON.stringify(r.contexto) }] }],\n      generationConfig: configuracionGeneracion(previo.modelo_ia),\n    } };\n}\n\nfunction recortar(texto, maximo) {\n  const t = texto.trim().replace(/\\s+/g, ' ');\n  if (t.length <= maximo) return t;\n  const corte = t.slice(0, maximo - 1); const espacio = corte.lastIndexOf(' ');\n  return (espacio > maximo * 0.6 ? corte.slice(0, espacio) : corte) + '…';\n}\nconst texto = v => typeof v === 'string' && v.trim().length > 0;\n\n// Misma forma que exige public.respuesta_ia_valida. Recorta textos largos; rechaza enums o forma.\nfunction normalizarRespuestaIA(r) {\n  const claves = ['estado_general', 'limitaciones', 'luz', 'recomendaciones', 'resumen', 'riego'];\n  if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join() !== claves.join()) return null;\n  if (!ESTADOS_IA.includes(r.estado_general) || !['resumen', 'riego', 'luz', 'limitaciones'].every(k => texto(r[k]))) return null;\n  if (!Array.isArray(r.recomendaciones) || r.recomendaciones.length < 1 || r.recomendaciones.length > 5) return null;\n  const recs = [];\n  for (const e of r.recomendaciones) {\n    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).sort().join() !== 'accion,evidencia,prioridad,titulo,variable') return null;\n    if (!PRIORIDADES_IA.includes(e.prioridad) || !VARIABLES_IA.includes(e.variable) || !['titulo', 'accion', 'evidencia'].every(k => texto(e[k]))) return null;\n    recs.push({ titulo: recortar(e.titulo, LIMITES_IA.titulo), accion: recortar(e.accion, LIMITES_IA.accion), prioridad: e.prioridad,\n      variable: e.variable, evidencia: recortar(e.evidencia, LIMITES_IA.evidencia) });\n  }\n  const salida = { resumen: recortar(r.resumen, LIMITES_IA.resumen), estado_general: r.estado_general, recomendaciones: recs,\n    riego: recortar(r.riego, LIMITES_IA.riego), luz: recortar(r.luz, LIMITES_IA.luz), limitaciones: recortar(r.limitaciones, LIMITES_IA.limitaciones) };\n  if (/<[a-zA-Z/!]/.test(JSON.stringify(salida))) return null;\n  return salida;\n}\n\n// 3. Interpreta la respuesta de Gemini sin exponer su cuerpo ante errores.\nfunction interpretarGemini(previo, respuesta) {\n  const completar = (extra) => ({ ...previo, lista: true, solicitud_completar: {\n    p_sugerencia_id: previo.ia.sugerencia_id, p_respuesta: null, p_modelo: previo.modelo_ia,\n    p_tokens_entrada: null, p_tokens_salida: null, p_error_codigo: null, ...extra } });\n  const estado = respuesta?.statusCode;\n  if (estado !== 200) return completar({ p_error_codigo: Number.isInteger(estado) ? 'GEMINI_HTTP_' + estado : 'GEMINI_SIN_RESPUESTA' });\n  const b = respuesta.body;\n  const uso = b?.usageMetadata ?? {};\n  const tokens = { p_tokens_entrada: Number.isInteger(uso.promptTokenCount) ? uso.promptTokenCount : null,\n    p_tokens_salida: Number.isInteger(uso.candidatesTokenCount) ? uso.candidatesTokenCount + (Number.isInteger(uso.thoughtsTokenCount) ? uso.thoughtsTokenCount : 0) : null };\n  if (b?.promptFeedback?.blockReason) return completar({ ...tokens, p_error_codigo: 'GEMINI_BLOQUEADA' });\n  const c = Array.isArray(b?.candidates) ? b.candidates[0] : null;\n  if (!c) return completar({ ...tokens, p_error_codigo: 'GEMINI_SIN_CANDIDATOS' });\n  if (c.finishReason === 'MAX_TOKENS') return completar({ ...tokens, p_error_codigo: 'GEMINI_RESPUESTA_TRUNCADA' });\n  if (c.finishReason && c.finishReason !== 'STOP') return completar({ ...tokens, p_error_codigo: 'GEMINI_FIN_' + String(c.finishReason).replace(/[^A-Z_]/g, '').slice(0, 40) });\n  const partes = Array.isArray(c.content?.parts) ? c.content.parts.filter(p => !p.thought && typeof p.text === 'string') : [];\n  let datos;\n  try { datos = JSON.parse(partes.map(p => p.text).join('')); } catch { return completar({ ...tokens, p_error_codigo: 'GEMINI_JSON_INVALIDO' }); }\n  const normal = normalizarRespuestaIA(datos);\n  if (!normal) return completar({ ...tokens, p_error_codigo: 'GEMINI_FORMA_INVALIDA' });\n  const modelo = typeof b.modelVersion === 'string' && MODELO_IA.test(b.modelVersion) ? b.modelVersion : previo.modelo_ia;\n  return completar({ ...tokens, p_respuesta: normal, p_modelo: modelo });\n}\n\n// 4. Resumen final de la ejecucion. Persistencia y alertas se conservan siempre.\nfunction resultadoIA(previo, respuesta) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo;\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  const ia = { ...previo.ia, modelo: solicitud_completar?.p_modelo ?? modelo_ia,\n    tokens: { entrada: solicitud_completar?.p_tokens_entrada ?? null, salida: solicitud_completar?.p_tokens_salida ?? null } };\n  if (!r || !['SUGERENCIA_GUARDADA', 'SUGERENCIA_FALLIDA', 'SUGERENCIA_YA_COMPLETADA'].includes(r.codigo))\n    return { ...resto, ia: { ...ia, estado: 'pendiente', codigo: 'GUARDADO_IA_NO_CONFIRMADO', error_gemini: solicitud_completar?.p_error_codigo ?? null } };\n  return { ...resto, ia: { ...ia, estado: r.estado === 'generada' ? 'generada' : 'fallida', codigo: r.codigo, error_codigo: r.error_codigo ?? null } };\n}\nfunction salidaSinIA(previo) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo ?? {};\n  return resto;\n}\n\n\nreturn (function resultadoFinalIA(){return $input.all().map((item,i)=>({json:resultadoIA($('Interpretar Gemini').itemMatching(i).json,item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "name": "Sin sugerencia IA",
+      "id": "agv-sin-sugerencia-ia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4380,
+        200
+      ],
+      "parameters": {
+        "jsCode": "'use strict';\n// Logica pura de la rama de sugerencias IA de los flujos 03e (real v2), 03f (simulado v3 por zonas), 03g (ambos por HTTP)\n// y del flujo 03h de sugerencias a peticion. Nunca incluye claves ni devuelve\n// cuerpos de error HTTP. La API key de Gemini vive solo en la credencial Header Auth de n8n.\nconst esUuidIA = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);\nconst MODELO_IA = /^gemini-[a-z0-9.\\-]{1,50}$/;\nconst VARIABLES_IA = ['temperatura_aire', 'humedad_aire', 'iluminacion_relativa', 'radiacion_solar', 'humedad_suelo_vwc', 'temperatura_suelo',\n  'ph_suelo', 'conductividad_suelo_ece', 'precipitacion_60min', 'velocidad_viento', 'general'];\nconst ESTADOS_IA = ['favorable', 'atencion', 'critico', 'datos_insuficientes'];\nconst PRIORIDADES_IA = ['alta', 'media', 'baja'];\n// periodica y alerta nacen de un lote nuevo (03e, 03f, 03g); solicitud, de una peticion del agricultor (03h).\nconst MOTIVOS_IA = ['periodica', 'alerta', 'solicitud'];\nconst LIMITES_IA = { resumen: 600, riego: 500, luz: 500, limitaciones: 500, titulo: 100, accion: 400, evidencia: 300 };\n\nconst INSTRUCCION_IA = [\n  'Eres un asistente agronómico para pequeños productores del Caribe colombiano.',\n  'Recibes un JSON con lecturas de sensores ambientales de UN cultivo. Responde solo con el JSON pedido, en español sencillo y con ortografía correcta: usa siempre tildes y la letra ñ (por ejemplo: puño, iluminación, límite, sombrío). Sin markdown ni HTML.',\n  'Reglas obligatorias:',\n  '1. Basa cada recomendación en datos del contexto y cítalos en \"evidencia\" (valor con unidad, hora o estadística). No inventes valores.',\n  '2. Usa solo las variables de \"sensores.variables\". iluminacion_relativa es un índice de 0 a 100, NO lux ni radiación calibrada; humedad_aire es humedad relativa del aire, no del suelo.',\n  '3. Agua y riego: si el contexto trae humedad_suelo_vwc (% VWC a 20 cm), compárala con suelo_vwc_optima_min/max y suelo_vwc_min/max de la plantilla y úsala como base del riego; considera también precipitacion_60min (lluvia acumulada de la última hora). Si no hay humedad del suelo (está en \"sensores.sin_sensor_de\"), nunca afirmes su estado: usa temperatura y humedad del aire solo como indicio de demanda (evapotranspiración) y pide verificar el suelo (prueba del puño o tensiómetro) antes de regar.',\n  '3b. pH, conductividad (ECe), temperatura del suelo, viento y radiación solo aparecen en nodos virtuales: menciónalos con prudencia (por ejemplo, pH fuera de lo habitual o viento fuerte) y sugiere un análisis o una revisión en campo, sin diagnosticar.',\n  '4. Si periodo_del_dia es \"noche\", la iluminación baja es normal y no es un problema. Si de noche el índice supera 20, no lo des por normal: menciona que puede haber luz artificial cerca del nodo o una falla del sensor.',\n  '5. Usa la plantilla del cultivo (rangos óptimos y límites de alerta) si existe. Si no hay plantilla, dilo en \"limitaciones\" y usa un criterio general prudente.',\n  '6. No diagnostiques plagas ni enfermedades como hechos: menciona el riesgo y sugiere inspección. No recomiendes productos ni dosis de agroquímicos.',\n  '7. Si origen_datos es \"simulado\", indica en \"limitaciones\" que los datos son simulados (generados por el simulador, no lecturas de campo).',\n  '7b. Si el contexto trae \"clima_simulado\" (evento lluvia, sol_fuerte, tierra_seca o viento, con intensidad de 1 a 3), es un evento de PRUEBA que el usuario activó en el simulador: explica el cambio de los valores por ese evento, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que no es el clima real. Si \"plantilla.ajustada\" es true, los rangos son los que el agricultor ajustó para su cultivo.',\n  '7c. Si el contexto trae \"ajustes_manuales\" (por ejemplo {\"temperatura_aire\": 4, \"humedad_suelo_vwc\": -10}), son cambios que el usuario sumó a mano a los valores simulados de esas variables, en sus mismas unidades. Interprétalos: di qué variables movió y en qué sentido, explica que los valores observados ya incluyen ese cambio, recomienda qué haría el agricultor ante una condición así y aclara en \"limitaciones\" que son condiciones simuladas ajustadas a mano, no el clima ni el suelo reales.',\n  '7d. Si motivo es \"solicitud\", el agricultor pidió esta revisión ahora: responde sobre el estado actual del cultivo aunque no haya alertas abiertas.',\n  '8. Si no hay lecturas o todas tienen antiguedad_segundos mayor a 180, usa estado_general \"datos_insuficientes\".',\n  '9. estado_general: \"favorable\" si todo está en el rango óptimo; \"atencion\" si algo sale del óptimo o hay una alerta abierta; \"critico\" si se superan los límites de alerta de forma marcada o hay varias alertas. Estos valores van sin tilde porque son códigos.',\n  '10. Entre 1 y 4 recomendaciones ordenadas por prioridad. Longitudes máximas: resumen 600, riego 500, luz 500, limitaciones 500, titulo 100, accion 400, evidencia 300 caracteres.',\n].join('\\n');\n\nconst ESQUEMA_IA = {\n  type: 'OBJECT',\n  properties: {\n    resumen: { type: 'STRING' },\n    estado_general: { type: 'STRING', enum: ESTADOS_IA },\n    recomendaciones: { type: 'ARRAY', minItems: 1, maxItems: 4, items: {\n      type: 'OBJECT',\n      properties: {\n        titulo: { type: 'STRING' }, accion: { type: 'STRING' },\n        prioridad: { type: 'STRING', enum: PRIORIDADES_IA },\n        variable: { type: 'STRING', enum: VARIABLES_IA }, evidencia: { type: 'STRING' },\n      },\n      required: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n      propertyOrdering: ['titulo', 'accion', 'prioridad', 'variable', 'evidencia'],\n    } },\n    riego: { type: 'STRING' }, luz: { type: 'STRING' }, limitaciones: { type: 'STRING' },\n  },\n  required: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n  propertyOrdering: ['resumen', 'estado_general', 'recomendaciones', 'riego', 'luz', 'limitaciones'],\n};\n\nfunction baseSupabase(destino) {\n  const m = typeof destino === 'string' && destino.match(/^((?:https:\\/\\/[a-z0-9-]+\\.supabase\\.co|http:\\/\\/(?:127\\.0\\.0\\.1|localhost|host\\.docker\\.internal):[0-9]{2,5}))\\/rest\\/v1\\/rpc\\/evaluar_alertas_lote$/);\n  return m ? m[1] : null;\n}\n\n// 1. Solo lotes NUEVOS con alertas evaluadas piden reserva; duplicados y fallos no gastan IA.\nfunction prepararReservaIA(final, rpcAlertas, modelo) {\n  const base = { ...final, lista: false };\n  if (!final || final.persistido !== true || final.estado !== 'insertado') return { ...base, ia: { estado: 'omitida', codigo: 'LOTE_NO_NUEVO' } };\n  if (final.alertas?.estado !== 'evaluada') return { ...base, ia: { estado: 'omitida', codigo: 'ALERTAS_NO_EVALUADAS' } };\n  const supabase = baseSupabase(rpcAlertas?.destino_alertas);\n  const nodo = rpcAlertas?.solicitud_alertas?.p_nodo_id;\n  if (!supabase || !esUuidIA(nodo) || rpcAlertas?.solicitud_alertas?.p_mensaje_id !== final.mensaje_id || !esUuidIA(final.mensaje_id))\n    return { ...base, ia: { estado: 'omitida', codigo: 'CONTEXTO_IA_INCONSISTENTE' } };\n  if (typeof modelo !== 'string' || !MODELO_IA.test(modelo)) return { ...base, ia: { estado: 'omitida', codigo: 'CONFIGURAR_MODELO_GEMINI' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_RESERVAR' }, modelo_ia: modelo,\n    destino_reserva: supabase + '/rest/v1/rpc/reservar_sugerencia_ia',\n    destino_completar: supabase + '/rest/v1/rpc/completar_sugerencia_ia',\n    solicitud_reserva: { p_nodo_id: nodo, p_mensaje_id: final.mensaje_id } };\n}\n\nfunction configuracionGeneracion(modelo) {\n  const c = { temperature: 0.3, maxOutputTokens: 1500, responseMimeType: 'application/json', responseSchema: ESQUEMA_IA };\n  // El razonamiento se cobra como salida: se deja al minimo para cuidar el saldo.\n  // La familia 2.5 lo apaga con thinkingBudget 0; la 3.x rechaza ese campo y usa thinkingLevel.\n  if (/^gemini-2\\.5-flash/.test(modelo)) c.thinkingConfig = { thinkingBudget: 0 };\n  else if (/^gemini-3(\\.\\d+)?-flash/.test(modelo)) c.thinkingConfig = { thinkingLevel: 'minimal' };\n  return c;\n}\n\n// 2. Si la base reservo la sugerencia, arma la solicitud a Gemini con el contexto guardado.\nfunction prepararGemini(previo, respuesta) {\n  const base = { ...previo, lista: false };\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  if (!r || typeof r !== 'object' || Array.isArray(r)) return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_NO_CONFIRMADA' } };\n  if (r.codigo !== 'RESERVADA') return { ...base, ia: { estado: 'omitida', codigo: typeof r.codigo === 'string' ? r.codigo.slice(0, 60) : 'RESERVA_SIN_CODIGO' } };\n  if (!esUuidIA(r.sugerencia_id) || !r.contexto || typeof r.contexto !== 'object' || !MOTIVOS_IA.includes(r.motivo))\n    return { ...base, ia: { estado: 'pendiente', codigo: 'RESERVA_INCOMPLETA' } };\n  return { ...base, lista: true, ia: { estado: 'pendiente', codigo: 'POR_CONSULTAR_GEMINI', sugerencia_id: r.sugerencia_id, motivo: r.motivo },\n    destino_gemini: 'https://generativelanguage.googleapis.com/v1beta/models/' + previo.modelo_ia + ':generateContent',\n    solicitud_gemini: {\n      systemInstruction: { parts: [{ text: INSTRUCCION_IA }] },\n      contents: [{ role: 'user', parts: [{ text: 'Contexto del cultivo (JSON):\\n' + JSON.stringify(r.contexto) }] }],\n      generationConfig: configuracionGeneracion(previo.modelo_ia),\n    } };\n}\n\nfunction recortar(texto, maximo) {\n  const t = texto.trim().replace(/\\s+/g, ' ');\n  if (t.length <= maximo) return t;\n  const corte = t.slice(0, maximo - 1); const espacio = corte.lastIndexOf(' ');\n  return (espacio > maximo * 0.6 ? corte.slice(0, espacio) : corte) + '…';\n}\nconst texto = v => typeof v === 'string' && v.trim().length > 0;\n\n// Misma forma que exige public.respuesta_ia_valida. Recorta textos largos; rechaza enums o forma.\nfunction normalizarRespuestaIA(r) {\n  const claves = ['estado_general', 'limitaciones', 'luz', 'recomendaciones', 'resumen', 'riego'];\n  if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join() !== claves.join()) return null;\n  if (!ESTADOS_IA.includes(r.estado_general) || !['resumen', 'riego', 'luz', 'limitaciones'].every(k => texto(r[k]))) return null;\n  if (!Array.isArray(r.recomendaciones) || r.recomendaciones.length < 1 || r.recomendaciones.length > 5) return null;\n  const recs = [];\n  for (const e of r.recomendaciones) {\n    if (!e || typeof e !== 'object' || Array.isArray(e) || Object.keys(e).sort().join() !== 'accion,evidencia,prioridad,titulo,variable') return null;\n    if (!PRIORIDADES_IA.includes(e.prioridad) || !VARIABLES_IA.includes(e.variable) || !['titulo', 'accion', 'evidencia'].every(k => texto(e[k]))) return null;\n    recs.push({ titulo: recortar(e.titulo, LIMITES_IA.titulo), accion: recortar(e.accion, LIMITES_IA.accion), prioridad: e.prioridad,\n      variable: e.variable, evidencia: recortar(e.evidencia, LIMITES_IA.evidencia) });\n  }\n  const salida = { resumen: recortar(r.resumen, LIMITES_IA.resumen), estado_general: r.estado_general, recomendaciones: recs,\n    riego: recortar(r.riego, LIMITES_IA.riego), luz: recortar(r.luz, LIMITES_IA.luz), limitaciones: recortar(r.limitaciones, LIMITES_IA.limitaciones) };\n  if (/<[a-zA-Z/!]/.test(JSON.stringify(salida))) return null;\n  return salida;\n}\n\n// 3. Interpreta la respuesta de Gemini sin exponer su cuerpo ante errores.\nfunction interpretarGemini(previo, respuesta) {\n  const completar = (extra) => ({ ...previo, lista: true, solicitud_completar: {\n    p_sugerencia_id: previo.ia.sugerencia_id, p_respuesta: null, p_modelo: previo.modelo_ia,\n    p_tokens_entrada: null, p_tokens_salida: null, p_error_codigo: null, ...extra } });\n  const estado = respuesta?.statusCode;\n  if (estado !== 200) return completar({ p_error_codigo: Number.isInteger(estado) ? 'GEMINI_HTTP_' + estado : 'GEMINI_SIN_RESPUESTA' });\n  const b = respuesta.body;\n  const uso = b?.usageMetadata ?? {};\n  const tokens = { p_tokens_entrada: Number.isInteger(uso.promptTokenCount) ? uso.promptTokenCount : null,\n    p_tokens_salida: Number.isInteger(uso.candidatesTokenCount) ? uso.candidatesTokenCount + (Number.isInteger(uso.thoughtsTokenCount) ? uso.thoughtsTokenCount : 0) : null };\n  if (b?.promptFeedback?.blockReason) return completar({ ...tokens, p_error_codigo: 'GEMINI_BLOQUEADA' });\n  const c = Array.isArray(b?.candidates) ? b.candidates[0] : null;\n  if (!c) return completar({ ...tokens, p_error_codigo: 'GEMINI_SIN_CANDIDATOS' });\n  if (c.finishReason === 'MAX_TOKENS') return completar({ ...tokens, p_error_codigo: 'GEMINI_RESPUESTA_TRUNCADA' });\n  if (c.finishReason && c.finishReason !== 'STOP') return completar({ ...tokens, p_error_codigo: 'GEMINI_FIN_' + String(c.finishReason).replace(/[^A-Z_]/g, '').slice(0, 40) });\n  const partes = Array.isArray(c.content?.parts) ? c.content.parts.filter(p => !p.thought && typeof p.text === 'string') : [];\n  let datos;\n  try { datos = JSON.parse(partes.map(p => p.text).join('')); } catch { return completar({ ...tokens, p_error_codigo: 'GEMINI_JSON_INVALIDO' }); }\n  const normal = normalizarRespuestaIA(datos);\n  if (!normal) return completar({ ...tokens, p_error_codigo: 'GEMINI_FORMA_INVALIDA' });\n  const modelo = typeof b.modelVersion === 'string' && MODELO_IA.test(b.modelVersion) ? b.modelVersion : previo.modelo_ia;\n  return completar({ ...tokens, p_respuesta: normal, p_modelo: modelo });\n}\n\n// 4. Resumen final de la ejecucion. Persistencia y alertas se conservan siempre.\nfunction resultadoIA(previo, respuesta) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo;\n  const r = respuesta?.statusCode === 200 ? respuesta.body : null;\n  const ia = { ...previo.ia, modelo: solicitud_completar?.p_modelo ?? modelo_ia,\n    tokens: { entrada: solicitud_completar?.p_tokens_entrada ?? null, salida: solicitud_completar?.p_tokens_salida ?? null } };\n  if (!r || !['SUGERENCIA_GUARDADA', 'SUGERENCIA_FALLIDA', 'SUGERENCIA_YA_COMPLETADA'].includes(r.codigo))\n    return { ...resto, ia: { ...ia, estado: 'pendiente', codigo: 'GUARDADO_IA_NO_CONFIRMADO', error_gemini: solicitud_completar?.p_error_codigo ?? null } };\n  return { ...resto, ia: { ...ia, estado: r.estado === 'generada' ? 'generada' : 'fallida', codigo: r.codigo, error_codigo: r.error_codigo ?? null } };\n}\nfunction salidaSinIA(previo) {\n  const { lista, destino_reserva, destino_completar, destino_gemini, solicitud_reserva, solicitud_gemini, solicitud_completar, modelo_ia, ...resto } = previo ?? {};\n  return resto;\n}\n\n\nreturn (function sinIA(){return $input.all().map((item,i)=>({json:salidaSinIA(item.json),pairedItem:{item:i}}));})();\n"
+      }
+    },
+    {
+      "id": "agv-responder-ingesta-nodo",
+      "name": "Responder ingesta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1400,
+        -260
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.respuesta_http.cuerpo }}",
+        "options": {
+          "responseCode": "={{ $json.respuesta_http.codigo_http }}"
+        }
+      }
+    },
+    {
+      "id": "agv-responder-rechazo-nodo",
+      "name": "Responder rechazo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1290,
+        150
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.respuesta_http.cuerpo }}",
+        "options": {
+          "responseCode": "={{ $json.respuesta_http.codigo_http }}"
+        }
+      }
+    },
+    {
+      "id": "agv-responder-sin-autenticar-nodo",
+      "name": "Responder sin autenticar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        750,
+        -400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.respuesta_http.cuerpo }}",
+        "options": {
+          "responseCode": "={{ $json.respuesta_http.codigo_http }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Proyecto Supabase": {
+      "main": [
+        [
+          {
+            "node": "Preparar autenticacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar ingesta": {
+      "main": [
+        [
+          {
+            "node": "Forma valida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Forma valida": {
+      "main": [
+        [
+          {
+            "node": "Guardar lote en Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rechazado antes de RPC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar lote en Supabase": {
+      "main": [
+        [
+          {
+            "node": "Resultado de persistencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook nodo": {
+      "main": [
+        [
+          {
+            "node": "Proyecto Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado de persistencia": {
+      "main": [
+        [
+          {
+            "node": "Responder ingesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar evaluacion": {
+      "main": [
+        [
+          {
+            "node": "Persistencia confirmada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persistencia confirmada": {
+      "main": [
+        [
+          {
+            "node": "Consultar nodo guardado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin evaluar alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar nodo guardado": {
+      "main": [
+        [
+          {
+            "node": "Preparar RPC alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar RPC alertas": {
+      "main": [
+        [
+          {
+            "node": "Nodo resuelto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nodo resuelto": {
+      "main": [
+        [
+          {
+            "node": "Evaluar alertas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin evaluar alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar alertas": {
+      "main": [
+        [
+          {
+            "node": "Resultado de alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado de alertas": {
+      "main": [
+        [
+          {
+            "node": "Preparar reserva IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar reserva IA": {
+      "main": [
+        [
+          {
+            "node": "IA corresponde",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA corresponde": {
+      "main": [
+        [
+          {
+            "node": "Reservar sugerencia IA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin sugerencia IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar sugerencia IA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Gemini": {
+      "main": [
+        [
+          {
+            "node": "Sugerencia reservada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sugerencia reservada": {
+      "main": [
+        [
+          {
+            "node": "Consultar Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin sugerencia IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Gemini": {
+      "main": [
+        [
+          {
+            "node": "Interpretar Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpretar Gemini": {
+      "main": [
+        [
+          {
+            "node": "Guardar sugerencia IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar sugerencia IA": {
+      "main": [
+        [
+          {
+            "node": "Resultado IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar autenticacion": {
+      "main": [
+        [
+          {
+            "node": "Cabeceras validas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cabeceras validas": {
+      "main": [
+        [
+          {
+            "node": "Autenticar nodo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sin autenticar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticar nodo": {
+      "main": [
+        [
+          {
+            "node": "Preparar ingesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder ingesta": {
+      "main": [
+        [
+          {
+            "node": "Preparar evaluacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rechazado antes de RPC": {
+      "main": [
+        [
+          {
+            "node": "Responder rechazo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "pinData": {}
+}

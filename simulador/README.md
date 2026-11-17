@@ -90,3 +90,86 @@ npm.cmd --prefix simulador run test:browser
 Las pruebas unitarias usan solo Node. La prueba de navegador reutiliza `playwright-core` ya instalado en `web/node_modules`, con Chrome/Edge local y un perfil propio; no usa la sesión personal del navegador ni llama servicios externos. Si no hay un ejecutable instalado en las rutas habituales, se puede definir `AGROVIGIA_CHROME`. Capturas de QA en `.local/qa-simulador/`, excluidas de Git. Los servidores de prueba se abren en puertos efímeros loopback y se cierran al finalizar.
 
 `public/motor.mjs` concentra el catálogo y la generación pura. `public/app.mjs` controla interfaz/bitácora y `public/transporte.mjs` el envío manual. `server.mjs` sirve seis recursos públicos. Con `-ConMqtt` habilita únicamente los endpoints locales de estado/mapeo/publicación, protegidos por Host, mismo origen, token de instancia, tamaño y validación; no expone archivos privados ni escribe configuración a disco. `transporte-mqtt.mjs` usa el cliente Mosquitto ya instalado, sin shell ni claves en argv. La [guía de conexión](../n8n/SIMULACION_ZONAS.md) describe pruebas y límites.
+
+## Valores prellenados por cultivo
+
+El selector **Cultivo** del panel incluye Yuca, Plátano, Hortalizas de clima cálido, Mango, Papaya y Maracuyá. Al pulsar **Aplicar y reiniciar zonas**, cada punto arranca con valores de referencia de su plantilla (0009): el centro del rango óptimo de temperatura, humedad del aire y humedad del suelo, más la temperatura y el pH habituales del suelo, con la misma variación por punto que define la semilla. Después se puede ajustar a mano cualquier medición y preparar escenarios igual que antes; **Regreso a referencia** vuelve a los valores del cultivo elegido. Maíz y Papa no tienen plantilla y conservan los valores sintéticos genéricos. Son puntos de partida para probar, no recomendaciones agronómicas.
+
+En Linux el envío MQTT del panel usa la librería `mqtt` en lugar de `mosquitto_pub.exe`, con el mismo contrato: QoS 1, MQTT v5, sin retain y PUBACK observado. Se inicia con `local/agrovigia.sh panel`.
+
+## Servicio de simulación
+
+`servicio.mjs` es el proceso que hace reaccionar a los nodos cuando en la web (vista Escenario) se activa un evento de clima o se ajusta la simulación a mano. Cada 5 s lee de Supabase, con la clave de servidor, la RPC `estado_simulacion()`: cultivos, rangos vigentes, clima activo, ajuste manual y nodos. Con eso publica:
+
+- un lote v3 de diez variables por cada nodo virtual, con el intervalo configurado en ese nodo y al instante cuando cambia el clima o el ajuste de su cultivo;
+- mientras hay un evento activo, o un ajuste manual de temperatura o humedad del aire, la proyección de cada nodo físico: su última lectura real más el efecto, como lote v2 de origen simulado (`agrovigia/v2/simulado/nodos/<codigo>/telemetria`). La lectura real no se toca y sin lectura real reciente no se proyecta nada.
+
+Los valores de referencia de cada nodo virtual salen del centro del rango óptimo vigente de su cultivo (plantilla o ajuste propio), con el ciclo del día del Caribe y una variación fija por nodo. Un evento lleva los valores a su efecto en dos minutos y, al volver a normal, regresan en otros dos. Respeta la pausa de cada nodo. No escribe en Supabase: los datos entran por n8n (03f para v3 y 03e para la proyección v2 por MQTT; 03g para ambos por HTTP).
+
+```bash
+local/agrovigia.sh simular               # lee el estado de Supabase (SUPABASE_URL y SUPABASE_SECRET_KEY en .local/secretos.env)
+node servicio.mjs --sondeo 10            # consultar cada 10 s
+node servicio.mjs --estado archivo.json  # sin Supabase: estado desde un archivo (demostraciones y pruebas)
+local/agrovigia.sh simular --http http://localhost:5678/webhook/agrovigia/telemetria   # por HTTP en lugar de MQTT
+node servicio.mjs --puerto 10000         # además abre el servidor de salud
+```
+
+| Evento | Efecto de prueba (intensidad moderada, fuerte, extrema) |
+|---|---|
+| Lluvia fuerte | lluvia 8, 25 o 55 mm; sube la humedad del aire y del suelo; bajan temperatura, luz y radiación |
+| Sol fuerte | temperatura +3, +6 o +9 °C; baja la humedad del aire y del suelo; radiación y luz altas |
+| Tierra seca | humedad del suelo -6, -12 o -18 % VWC; baja algo la del aire; sube la temperatura del suelo |
+| Viento fuerte | viento 8, 14 o 22 m/s; bajan un poco humedad y temperatura del aire |
+
+Son efectos para ver reaccionar la plataforma, no un modelo agronómico ni meteorológico validado. En el contrato v3 cada lote se etiqueta con el escenario de Juan más cercano (`lluvia`, `calor-seco`, `viento`, `recuperacion`); el evento exacto queda en la tabla `clima_cultivo`.
+
+### Ajuste manual
+
+El agricultor puede sumar o restar a mano sobre lo que ya produce la simulación (RPC `ajustar_simulacion`, tabla `ajustes_simulacion`). Son deltas que se aplican **después** del evento de clima y sin transición:
+
+| Clave | Rango del delta | Límite del valor resultante |
+|---|---|---|
+| `temperatura_aire` | -10 a 10 °C | -40 a 80 °C |
+| `humedad_aire` | -30 a 30 % HR | 0 a 100 % HR |
+| `humedad_suelo_vwc` | -30 a 30 % VWC | 0 a 80 % VWC |
+| `ph_suelo` | -2 a 2 | 0 a 14 |
+| `precipitacion_60min` | -50 a 50 mm | 0 a 200 mm |
+| `velocidad_viento` | -10 a 15 m/s | 0 a 50 m/s |
+
+En los nodos virtuales aplican las seis claves. En la proyección del nodo físico solo `temperatura_aire` y `humedad_aire`, que es lo que mide; un ajuste de pH, suelo, lluvia o viento no proyecta nada sobre el físico. Un lote con ajuste y sin evento se etiqueta como `referencia` en modo `manual`; el ajuste exacto queda en `ajustes_simulacion`.
+
+### Publicar por HTTP (sin broker)
+
+Con `--http <url>` o la variable `AGROVIGIA_INGESTA_URL` el servicio no se conecta a MQTT: envía cada lote con `POST` al webhook de n8n (flujo 03g, ver [n8n/INGESTA_HTTP.md](../n8n/INGESTA_HTTP.md)).
+
+- Cabecera `X-AgroVigia-Clave` con el valor de `AGROVIGIA_INGESTA_CLAVE` (en local, si la variable no existe, lee `.local/ingesta-http/clave`).
+- Cuerpo `{"topico":"<el mismo tópico MQTT>","payload":{...el mismo JSON del lote...}}`.
+- 200 confirma. 400, 401, 403 y 404 son definitivos y no se reintentan. Sin respuesta, 408, 429 o 5xx se reintentan a los 2, 4 y 8 s con el mismo `mensaje_id`, y una captura de más de 300 s se descarta, igual que por MQTT.
+
+### Servidor de salud
+
+Con la variable `PORT` (la que define Render) o `--puerto N`, el servicio abre HTTP en ese puerto. `GET /` y `GET /salud` devuelven JSON con `estado` (`iniciando`, `activo` o `degradado`), `transporte`, `estado_desde`, `ciclos`, `ultimo_ciclo` (`en`, `publicados`, `error`), `lotes_publicados` y `lotes_fallidos`. No incluye claves ni direcciones.
+
+### Variables de entorno
+
+| Variable | Uso |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | Leer `estado_simulacion()`. Obligatorias salvo con `--estado` |
+| `AGROVIGIA_INGESTA_URL` | Dirección del webhook; activa el transporte HTTP |
+| `AGROVIGIA_INGESTA_CLAVE` | Clave de la cabecera `X-AgroVigia-Clave` (mínimo 16 caracteres) |
+| `PORT` | Puerto del servidor de salud |
+| `AGROVIGIA_MQTT_URL`, `AGROVIGIA_MQTT_USUARIO`, `AGROVIGIA_MQTT_CLAVE` | Solo con transporte MQTT |
+
+Para desplegarlo como servicio (por ejemplo en Render): directorio de trabajo en la raíz del repositorio, porque `clima-modelo.mjs` usa el validador de `n8n/`; instalación con `npm ci --prefix simulador` y arranque con `node simulador/servicio.mjs`. Ese despliegue no está probado.
+
+Pruebas: `npm test` (motor y panel de Juan, modelo de clima, ajustes, ciclo del servicio, transporte HTTP contra un servidor local y servidor de salud), `npm run test:http` (solo lo de HTTP) y `npm run test:mqtt` (integración con el Mosquitto local: 17 lotes v3 y la proyección v2, y ACL).
+
+## Reporte continuo desde el panel
+
+Para que la plataforma reciba lo que simulas en el panel sin enviar captura por captura:
+
+1. `local/agrovigia.sh mapa` deja en `.local/simulacion/nodos.json` los nodos virtuales y su `asignacion_version`, sin claves. Solo lo usa este panel; el servicio de simulación lee su estado directo de Supabase.
+2. En el panel, elige el **Cultivo** (Yuca, Plátano u Hortalizas), pulsa **Aplicar y reiniciar zonas** y después **Cargar mapa del cultivo elegido**: toma los nodos 01 a 04 de ese cultivo, uno por sector, y los valida igual que si se pegara el JSON.
+3. Marca **Enviar cada captura automáticamente**. Cada captura nueva, manual o de una secuencia, entra en una cola y se publica por MQTT en orden, sin pausar la secuencia. Desmarcarla detiene el envío.
+
+Con n8n (03f) y Supabase configurados, cada captura se guarda, se evalúan las alertas de la plantilla y la base decide si corresponde una sugerencia de IA. En la web se ven llegar en Inicio > Zonas y nodos, Alertas (cada 30 s), IA (cada minuto), Red (cada 10 s), Dispositivos por sector (cada 30 s) e Historial con **Actualizar en vivo**. Como en el envío manual, cambiar el mapeo después de un envío requiere reiniciar el panel. Prueba: `npm run test:browser:auto`.

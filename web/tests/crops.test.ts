@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { createClient } from '@supabase/supabase-js';
 import { validarCultivo, guardarCultivo, archivarCultivo } from '../src/crop-data.ts';
 const datos = { nombre:' Norte ',tipo:' Maíz ',area:'0,5',unidad:'ha',nodos:['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'] };
-test('cultivo valida decimales, unidades, nodo obligatorio y texto; preserva la precision', () => {
+test('cultivo valida decimales, unidades, hasta dos nodos y texto; preserva la precision', () => {
   assert.deepEqual(validarCultivo(datos,true),{p_nombre:'Norte',p_tipo:'Maíz',p_area:0.5,p_unidad_area:'ha'});
-  for (const cambio of [{area:'0'},{area:'NaN'},{area:'0.00001'},{area:'100000000'},{area:'1e2'},{unidad:'acres'},{nombre:' '},{nodos:[]},{nodos:[...datos.nodos,...datos.nodos]}])
+  for (const cambio of [{area:'0'},{area:'NaN'},{area:'0.00001'},{area:'100000000'},{area:'1e2'},{unidad:'acres'},{nombre:' '},{nodos:['a','b','c']},{nodos:[...datos.nodos,...datos.nodos]}])
     assert.throws(() => validarCultivo({...datos,...cambio},true));
   assert.doesNotThrow(() => validarCultivo({...datos,nodos:[]},false));
+  // Desde la 0011 un cultivo puede crearse sin nodos fisicos y recibir despues nodos simulados.
+  assert.doesNotThrow(() => validarCultivo({...datos,nodos:[]},true));
 });
 test('RPC usa sesion SDK sin propietario enviado; reintento mantiene UUID; errores no confirman exito', async () => {
   const peticiones: { url:string; body:Record<string,unknown> }[]=[];

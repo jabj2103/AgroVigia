@@ -1,0 +1,44 @@
+# Entorno local de AgroVigia en Linux: broker MQTT y n8n. Supabase y Gemini son remotos.
+# Datos privados (claves MQTT, base de n8n y su clave de cifrado) en ../.local, excluido de Git.
+name: agrovigia
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    user: "${AGROVIGIA_UID:-1000}:${AGROVIGIA_GID:-1000}"
+    command: mosquitto -c /mosquitto/config/mosquitto.conf
+    ports:
+      - "${AGROVIGIA_MQTT_BIND:-127.0.0.1}:18883:18883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ../mqtt/agrovigia.acl:/mosquitto/config/agrovigia.acl:ro
+      - ../.local/mqtt/passwd:/mosquitto/privado/passwd:ro
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:2.44.7
+    user: "${AGROVIGIA_UID:-1000}:${AGROVIGIA_GID:-1000}"
+    depends_on: [mosquitto]
+    ports:
+      # Solo este equipo por defecto. Con AGROVIGIA_N8N_BIND=0.0.0.0 (local-iniciar --lan) recibe tambien de la red
+      # local, para que una placa envie a http://<IP del equipo>:5678/webhook/agrovigia/nodo.
+      - "${AGROVIGIA_N8N_BIND:-127.0.0.1}:5678:5678"
+    extra_hosts:
+      # Permite llegar al Supabase local del anfitrion (http://host.docker.internal:54321).
+      - "host.docker.internal:host-gateway"
+    environment:
+      GENERIC_TIMEZONE: America/Bogota
+      TZ: America/Bogota
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+    volumes:
+      - ../.local/n8n-docker:/home/node/.n8n
+    restart: unless-stopped

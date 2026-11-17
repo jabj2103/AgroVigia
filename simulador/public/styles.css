@@ -8,3 +8,6 @@
 .mqtt-panel{margin-top:22px;padding:24px;min-width:0}.mqtt-panel p{font-size:12px;line-height:1.7;margin-block:12px;overflow-wrap:anywhere}.mqtt-panel details{margin-block:18px;font-size:12px}.mqtt-panel summary{cursor:pointer;padding-block:12px}.mqtt-panel label{display:block;margin-block:10px}.mqtt-panel textarea{display:block;box-sizing:border-box;width:100%;resize:vertical;font:12px Consolas,monospace;padding:12px;border:1px solid #becdb2;border-radius:8px;margin-bottom:12px}.mqtt-panel .mono{font-size:11px}.mqtt-panel code{overflow-wrap:anywhere}.mqtt-panel .fineprint{font-size:10px}#mqtt-status{min-height:2em}
 @media(max-width:520px){.mqtt-panel{padding:18px}.mqtt-panel .button{width:100%}}
 @media(prefers-reduced-motion:no-preference){button{transition:background .15s,border-color .15s,filter .15s}}
+
+/* Envio automatico (integracion): solo agrega reglas nuevas. */
+.mqtt-auto-fila{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:14px 0}.mqtt-auto-opcion{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--green)}.mqtt-auto-opcion input{width:18px;height:18px;min-height:0;accent-color:var(--green)}

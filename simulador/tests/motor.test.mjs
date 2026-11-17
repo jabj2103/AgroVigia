@@ -69,3 +69,22 @@ test('editar el borrador o el archivo exportado no reescribe capturas previas', 
   assert.equal(exp.capturas_descartadas,7);assert.equal(exp.enviado_mqtt,false);assert.equal(exp.persistido_supabase,false);
   assert.throws(()=>crearExportacion([{...a,origen:'real'}]));const altered=structuredClone(a);altered.mediciones[0].origen='real';assert.throws(()=>crearExportacion([altered]));
 });
+
+test('perfiles por cultivo: prellenan el centro del optimo de la plantilla; Maiz conserva los genericos; se pueden ajustar', () => {
+  const generico = crearZonas(), yuca = crearZonas(20261103, 'Yuca'), platano = crearZonas(20261103, 'Plátano');
+  assert.deepEqual(crearZonas(20261103, 'Maíz'), generico);
+  for (const n of yuca) {
+    assert.equal(n.cultivo, 'Yuca');
+    assert.ok(Math.abs(n.valores.temperatura_aire - 27) <= 1.6, 'temperatura cerca del optimo 25 a 29');
+    assert.ok(n.valores.humedad_suelo_vwc >= 20 && n.valores.humedad_suelo_vwc <= 30, 'suelo dentro del optimo 20 a 30 % VWC');
+  }
+  assert.ok(platano.every(n => n.valores.humedad_suelo_vwc > yuca.find(y => y.codigo === n.codigo).valores.humedad_suelo_vwc), 'el platano parte con mas agua en el suelo');
+  // Mismo punto y semilla: la variacion entre puntos se conserva, solo cambia el centro.
+  assert.deepEqual(yuca.map(n => n.codigo), generico.map(n => n.codigo));
+  // Regreso a referencia vuelve al perfil del cultivo, no a los genericos.
+  const editado = editarValor(yuca[0], 'humedad_suelo_vwc', 12);
+  const vuelta = prepararEscenario(editado, 'recuperacion');
+  assert.equal(vuelta.destino.humedad_suelo_vwc, yuca[0].valores.humedad_suelo_vwc);
+  assert.equal(editado.valores.humedad_suelo_vwc, 12, 'el ajuste manual sigue disponible');
+  assert.throws(() => crearZonas(1, 'Café'), /Cultivo de ejemplo no admitido/);
+});

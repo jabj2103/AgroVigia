@@ -1,0 +1,9 @@
+# Nada local ni pesado entra al contexto de construccion de las imagenes.
+.git
+.local
+.n8n
+**/node_modules
+**/dist
+**/.ds-receipts
+firmware
+docs

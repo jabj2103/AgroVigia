@@ -1,0 +1,42 @@
+# Plano de despliegue de AgroVigia en Render (plan gratuito). Guia paso a paso: docs/guia-despliegue-render.html
+# Dos servicios: la web como sitio estatico y n8n (con el servicio de simulacion dentro) como servicio web.
+# Las claves no van en este archivo: Render las pide al crear el plano (sync: false) o las genera.
+services:
+  - type: web
+    name: agrovigia-web
+    runtime: static
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+
+  - type: web
+    name: agrovigia-n8n
+    runtime: docker
+    plan: free
+    dockerfilePath: ./local/render/n8n.Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AGROVIGIA_INGESTA_CLAVE
+        generateValue: true
+      - key: N8N_ENCRYPTION_KEY
+        generateValue: true
+      - key: AGROVIGIA_SIMULADOR
+        value: "si"
+      - key: GENERIC_TIMEZONE
+        value: America/Bogota

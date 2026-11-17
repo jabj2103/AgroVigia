@@ -8,14 +8,14 @@ La interfaz adopta el fondo oscuro, verdes, tarjetas y navegacion para telefono 
 2. Iniciar sesion. Revisar tema oscuro y temperatura/humedad del aire/iluminacion relativa reales del cultivo actual. No se presenta humedad del suelo, lux, salud ni un indice de rendimiento.
 3. Pulsar Cultivos. Debe aparecer tu cultivo en Activos. Abrir Editar, comprobar datos y cancelar primero. Puedes probar un cambio deliberado de nombre y guardarlo; comprobarlo tras Actualizar cuenta y recargar. No cambia la identidad ni las mediciones.
 4. Pulsar Registrar cultivo. Solo muestra nodos propios habilitados sin cultivo. Con el unico nodo real ocupado, muestra que no hay disponibles e impide guardar. Cancelar. No hay que archivar el cultivo actual para probar este paso.
-5. Abrir Historial desde la tarjeta y comprobar sus datos reales. Volver a Inicio. En F12/Ctrl+Shift+M comprobar a 390px navegacion inferior Inicio/Historial/Cultivos y menu desplegable para cuenta/cierre de sesion. En escritorio menu lateral.
+5. Abrir Historial desde la tarjeta y comprobar sus datos reales. Volver a Inicio. En F12/Ctrl+Shift+M comprobar a 390px la tira de pestanas superior (Inicio, IA, Escenario, Alertas, Historial, Cultivos, Dispositivos; se desliza si no cabe) y el menu desplegable para cuenta/cierre de sesion. En escritorio menu lateral.
 6. Comprobar segunda cuenta: no debe mostrar datos ni nodos de la primera. No crearle perfiles/nodos ficticios para llenar la interfaz.
 
 Archivar es una operacion real: exige marcar una casilla y confirmar; conserva historial, libera nodos y detiene la persistencia de nuevas capturas para ese cultivo. No hay restauracion en esta etapa. Probarlo solo cuando se quiera ese efecto, no para ensayar la pantalla. Si falla una solicitud de cambio, actualizar la cuenta antes de asumir que no se guardo. Reintentar la misma creacion conserva el UUID de solicitud; salir del formulario inicia otra solicitud.
 
 ## Incluido
 
-Login adaptado, panel con tarjetas de variables, menu movil con teclado/Escape, navegacion inferior y escritorio, historial con tema oscuro, Mis cultivos activos/archivados, alta con uno/dos nodos disponibles, edicion, confirmacion de archivado y acceso al historial archivado. Monitoreo filtra cultivos archivados; historial los conserva. No se dan permisos nuevos al navegador: se usan las RPC authenticated de 0004 con propietario derivado de la sesion.
+Login adaptado, panel con tarjetas de variables, menu movil con teclado/Escape, tira de pestanas en telefono y menu lateral en escritorio, historial, Mis cultivos activos/archivados, alta con uno/dos nodos disponibles, edicion, confirmacion de archivado y acceso al historial archivado. Monitoreo filtra cultivos archivados; historial los conserva. No se dan permisos nuevos al navegador: se usan las RPC authenticated de 0004 con propietario derivado de la sesion.
 
 ## Comprobaciones y limites
 

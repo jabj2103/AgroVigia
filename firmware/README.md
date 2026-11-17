@@ -60,3 +60,7 @@ Tras esa evidencia se preparara el nodo MQTT: Wi-Fi, reloj sincronizado, UUID po
 - [Conexion de sensores DHT de Adafruit](https://learn.adafruit.com/dht/connecting-to-a-dhtxx-sensor): alimentacion y pull-up; comprobar la variante concreta del sensor.
 
 No hay credenciales en el nuevo sketch. La prueba no requiere crear servicios remotos ni conectar Supabase o Gemini.
+
+## Firmware por HTTPS configurable desde la web
+
+La carpeta `nodo-agrovigia-http/` tiene el firmware nuevo del ESP32: guarda su configuracion en la placa, se configura por USB desde la web y envia por HTTPS con la clave propia del nodo. Compila y pasa sus pruebas en el computador; no se ha probado en una placa. Ver su README.

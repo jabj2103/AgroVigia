@@ -47,6 +47,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\n8n\iniciar-local.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\web\iniciar-local.ps1
 ```
 
+En Linux con Docker, seguir [ejecución local en Linux](docs/ejecucion-local-linux.md) (`local/agrovigia.sh`), que también levanta el [simulador de 17 nodos](simulador/README.md).
+
 Abrir n8n en http://localhost:5678 y la web en http://127.0.0.1:5173. Debe estar publicado un único flujo ambiental de persistencia, actualmente 03e. Estas instrucciones suponen que la configuración local existente está preparada. Si cambia la red o se utiliza otro computador, seguir la [guía de demostración en la universidad](docs/DEMOSTRACION_UNIVERSIDAD.md).
 
 La configuración privada de Wi-Fi/MQTT, el entorno de la web y los datos/credenciales locales de n8n están excluidos de Git. Clonar el repositorio no restaura esos archivos. No repetir migraciones ya aplicadas ni publicar claves en código o capturas.

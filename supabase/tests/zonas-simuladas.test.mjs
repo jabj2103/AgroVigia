@@ -132,11 +132,14 @@ test('nuevo origen/zonas se ocultan a otra cuenta bajo RLS SQL',async()=>{
  assert.equal((await asUser(owner,()=>db.query('SELECT count(*)::int AS n FROM public.mediciones WHERE mensaje_id=$1',[p.payload.mensaje_id]))).rows[0].n,10);
  assert.equal((await asUser(other,()=>db.query('SELECT count(*)::int AS n FROM public.mediciones WHERE mensaje_id=$1',[p.payload.mensaje_id]))).rows[0].n,0);
 });
-test('más de dos virtuales conviven con dos físicos; las RPC mantienen límite físico',async()=>{
+test('más de dos virtuales conviven con físicos; desde la 0012 el límite físico por cultivo es dieciséis',async()=>{
  const extra=(await db.query("INSERT INTO public.nodos(codigo,agricultor_id)VALUES('agv-extra-02',$1)RETURNING *",[owner])).rows[0];
  await asUser(owner,()=>db.query('SELECT public.vincular_nodo($1,$2)',[extra.id,crop]));
  const third=(await db.query("INSERT INTO public.nodos(codigo,agricultor_id)VALUES('agv-extra-03',$1)RETURNING *",[owner])).rows[0];
- await assert.rejects(asUser(owner,()=>db.query('SELECT public.vincular_nodo($1,$2)',[third.id,crop])),/LIMITE_NODOS_CULTIVO/);
+ // Desde la 0012 el limite fisico por cultivo es dieciseis (antes dos): el tercero se acepta. Se desvincula
+ // para dejar el cultivo como lo esperan las pruebas siguientes. El limite nuevo se prueba en terreno-nodos.test.mjs.
+ assert.equal((await asUser(owner,()=>db.query('SELECT * FROM public.vincular_nodo($1,$2)',[third.id,crop]))).rows[0].cultivo_id,crop);
+ await asUser(owner,()=>db.query('SELECT public.desvincular_nodo($1,$2)',[third.id,crop]));
  for(let i=2;i<=4;i++){const n=(await db.query("INSERT INTO public.nodos(codigo,agricultor_id,tipo_nodo)VALUES($1,$2,'virtual')RETURNING *",[`sim-extra-0${i}`,owner])).rows[0];await asUser(owner,()=>db.query('SELECT public.vincular_nodo($1,$2)',[n.id,crop]));}
  assert.equal((await db.query("SELECT count(*)::int AS n FROM public.nodos WHERE cultivo_id=$1 AND tipo_nodo='virtual'",[crop])).rows[0].n,4);
 });

@@ -37,10 +37,23 @@ BEGIN
     PERFORM public.crear_cultivo('Otro','Demostracion',10,'m2',ARRAY[nodo],gen_random_uuid());
     RAISE EXCEPTION 'Se acepto nodo ocupado';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
-  BEGIN
-    PERFORM public.crear_cultivo('Sin nodo','Demostracion',10,'m2',ARRAY[]::uuid[],gen_random_uuid());
-    RAISE EXCEPTION 'Se acepto cultivo sin nodo';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  -- Desde la 0011 un cultivo puede crearse sin nodos, para agregarle despues nodos simulados
+  -- (crear_nodo_virtual). Antes de la 0011 el arreglo vacio se rechaza.
+  IF to_regprocedure('public.crear_nodo_virtual(uuid,uuid)') IS NOT NULL THEN
+    SELECT * INTO repetido FROM public.crear_cultivo('Sin nodo','Demostracion',10,'m2',ARRAY[]::uuid[],gen_random_uuid());
+    IF repetido.id IS NULL OR EXISTS (SELECT 1 FROM public.nodos WHERE cultivo_id=repetido.id) THEN
+      RAISE EXCEPTION 'Alta de cultivo sin nodos incorrecta';
+    END IF;
+    BEGIN
+      PERFORM public.crear_cultivo('Tres nodos','Demostracion',10,'m2',ARRAY[gen_random_uuid(),gen_random_uuid(),gen_random_uuid()],gen_random_uuid());
+      RAISE EXCEPTION 'Se aceptaron tres nodos';
+    EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  ELSE
+    BEGIN
+      PERFORM public.crear_cultivo('Sin nodo','Demostracion',10,'m2',ARRAY[]::uuid[],gen_random_uuid());
+      RAISE EXCEPTION 'Se acepto cultivo sin nodo';
+    EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  END IF;
   BEGIN
     PERFORM public.editar_cultivo(cultivo.id,'Prueba','Demostracion',0,'m2');
     RAISE EXCEPTION 'Se acepto area cero';

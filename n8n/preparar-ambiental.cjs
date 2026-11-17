@@ -23,7 +23,7 @@ function prepararIngestaAmbiental(entrada, configuracion, recibidaEn) {
     return { ...base, estado: 'rechazado', codigo: 'PERFIL_NO_ADMITIDO_EN_ESTA_RPC' };
   }
   const url = entrada.supabase_url;
-  if (typeof url !== 'string' || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url)) {
+  if (typeof url !== 'string' || !/^(?:https:\/\/[a-z0-9-]+\.supabase\.co|http:\/\/(?:127\.0\.0\.1|localhost|host\.docker\.internal):[0-9]{2,5})\/?$/.test(url)) {
     return { ...base, estado: 'rechazado', codigo: 'CONFIGURAR_URL_SUPABASE' };
   }
   return {

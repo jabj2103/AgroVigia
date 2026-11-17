@@ -1,5 +1,6 @@
 // Chrome headless, perfil temporal propio y fixtures. No lee sesiones del usuario.
 import assert from 'node:assert/strict';
+import { elegir } from './selector-qa.mjs';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +36,7 @@ try {
   assert.ok(canvas.width > 100 && canvas.height > 100);
   await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
   await page.getByText('21–40 de 45', { exact: true }).waitFor();
-  await page.locator('#hist-variable').selectOption('iluminacion_relativa');
+  await elegir(page, '#hist-variable', 'iluminacion_relativa');
   await page.getByRole('button', { name: 'Consultar historial', exact: true }).click();
   await page.getByRole('heading', { name: 'Iluminación relativa', exact: true }).waitFor();
   await page.getByText('1–20 de 45', { exact: true }).waitFor();
@@ -47,12 +48,12 @@ try {
   assert.ok((await page.getByRole('alert').innerText()).includes('resultado anterior'));
   assert.equal(await page.locator('.estadisticas-historial dd').first().innerText(),'45');
   await page.evaluate(() => { window.qaError=false; });
-  await page.locator('#hist-variable').selectOption('humedad_aire');
+  await elegir(page, '#hist-variable', 'humedad_aire');
   await page.getByRole('button', { name: 'Consultar historial', exact: true }).click();
   await page.getByRole('heading', { name: 'No hay mediciones reales en este período' }).waitFor();
   assert.equal(await page.locator('.estadisticas-historial').count(),0);
-  await page.locator('#hist-nodo').selectOption('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
-  await page.locator('#hist-variable').selectOption('temperatura_aire');
+  await elegir(page, '#hist-nodo', 'cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+  await elegir(page, '#hist-variable', 'temperatura_aire');
   await page.getByRole('button', { name: 'Consultar historial', exact: true }).click();
   await page.getByText('Nodo: agv-prueba-02', { exact:true }).waitFor();
   assert.ok((await page.locator('.estadisticas-historial dd').nth(1).innerText()).startsWith('30'));

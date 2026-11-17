@@ -48,7 +48,7 @@ CU01: iniciar sesión. CU02: registrar cultivo y vincular nodos habilitados. CU0
 
 CU06, consultar predicción de temperatura ambiental, permanece como funcionalidad prevista para una fase posterior. No hay modelo temporal, horizonte o validación definidos. No se elimina del diseño ni se afirma que esté implementado.
 
-Las cuentas se preparan por el equipo. No hay autorregistro público ni necesidad de una pantalla de administrador para la primera demostración. El agricultor selecciona uno o ambos nodos previamente habilitados para su cuenta y disponibles. El registro del cultivo exige al menos un nodo; cada nodo tiene a lo sumo un cultivo actual.
+Las cuentas se preparan por el equipo. No hay autorregistro público ni necesidad de una pantalla de administrador para la primera demostración. El agricultor selecciona uno o ambos nodos previamente habilitados para su cuenta y disponibles. El registro del cultivo exige al menos un nodo; cada nodo tiene a lo sumo un cultivo actual. Ampliación de noviembre de 2026 (0007 de zonas de Juan y 0009): un cultivo admite hasta 2 nodos físicos y 16 virtuales ubicados en zonas del croquis; la demostración arma un hexágono de 6 nodos por cultivo (plátano con el físico y 5 virtuales, yuca y hortalizas con 6 virtuales). Los datos, alertas y sugerencias de nodos físicos (reales) y virtuales (simulados v3) se mantienen separados por origen. Ampliación del 14 de noviembre de 2026 (0009 y 0010, pedido de Camilo): la web reúne en la vista Escenario el clima simulado (lluvia, sol fuerte, tierra seca y viento, con intensidad), el estado de recepción de cada nodo, la pausa de recepción, la configuración de dispositivo (ESP32, Arduino Uno, Raspberry Pi o virtual; automática o manual), los parámetros propios por cultivo y las preferencias por usuario. Un servicio de simulación (Node) lee ese estado y publica por MQTT; no se agrega otro backend de escritura. Durante un evento, el nodo físico conserva sus lecturas reales y recibe además una proyección de origen simulado. Solo el firmware ESP32 está probado: los demás tipos son perfiles de configuración.
 
 ## Persistencia
 
@@ -65,3 +65,12 @@ El SQL de referencia contiene claves, restricciones, índices, catálogo, trigge
 - Ambos: contrato MQTT, revisión de requisitos, integración y demostración.
 
 Este reparto permite avanzar simultáneamente con mensajes de ejemplo. Las claves, nombres y unidades compartidos deben mantenerse consistentes.
+
+## Ampliacion del 16 de noviembre de 2026 (pedida por Camilo, pendiente de acuerdo con Juan)
+
+- Transporte: ademas de MQTT, n8n acepta el mismo JSON por HTTP con clave de cabecera. Es lo que permite desplegar sin broker publico. El origen real por HTTP queda cerrado hasta tener una clave por nodo.
+- Cultivos: un cultivo puede crearse sin nodos fisicos y recibir despues nodos simulados creados por el agricultor (hasta 16).
+- Simulacion: ademas de los eventos de clima, el agricultor puede sumar un ajuste manual por variable. Sigue vigente la separacion de datos: la lectura real del nodo fisico no se modifica.
+- IA: el agricultor puede pedir un analisis a peticion; lo atiende n8n con el mismo control de gasto diario.
+- Nodos fisicos: el agricultor puede registrar sus placas, que envian por HTTPS con una clave propia por nodo; el nodo agv-dht22-01 sigue por MQTT. El limite por cultivo pasa a 16 fisicos y 16 virtuales.
+- Terreno: cada cultivo puede declarar su ancho y su largo en metros y tener sectores libres dibujados por el agricultor; la posicion de cada nodo se guarda dentro de su sector.

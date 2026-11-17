@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { crearApiMqtt } from './api-mqtt.mjs';
-import { publicarMqtt } from './transporte-mqtt.mjs';
+import { publicarMqtt, publicarMqttNode } from './transporte-mqtt.mjs';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const files = new Map([
@@ -16,8 +16,8 @@ const files = new Map([
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
 ]);
 
-export function createPanelServer({ publicar = null } = {}) {
-  const api = publicar ? crearApiMqtt(publicar) : null;
+export function createPanelServer({ publicar = null, archivoMapa } = {}) {
+  const api = publicar ? crearApiMqtt(publicar, archivoMapa ? { archivoMapa } : {}) : null;
   return createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -50,7 +50,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     console.error('El puerto debe ser un número entero entre 1024 y 65535.'); process.exitCode = 1;
   } else {
     const conMqtt = process.argv[3] === '--mqtt';
-    const port = Number(rawPort), server = createPanelServer({ publicar: conMqtt ? publicarMqtt : null });
+    const port = Number(rawPort), server = createPanelServer({ publicar: conMqtt ? (process.platform === 'win32' ? publicarMqtt : publicarMqttNode) : null });
     server.on('error', error => {
       console.error(error.code === 'EADDRINUSE' ? `El puerto ${port} está ocupado. Cierra la otra instancia o elige otro puerto.` : `No se pudo iniciar el panel (${error.code ?? 'ERROR'}).`);
       process.exitCode = 1;

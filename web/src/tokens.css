@@ -1,0 +1,171 @@
+/* Tema unico de AgroVigia. Todo color, tamano, espacio y tiempo de la web sale de este archivo.
+   Regla de texto: letras negras; blancas solo sobre verde solido o sobre el rojo de peligro.
+   Los primitivos (--agv-p-*) no se usan en los componentes: se usan los semanticos. */
+:root {
+  color-scheme: light;
+
+  /* Primitivos. */
+  --agv-p-blanco: #ffffff;
+  --agv-p-tinta: #111111;
+  --agv-p-tinta-2: #474747;
+  --agv-p-papel: #f4f6f1;
+  --agv-p-papel-2: #edf1e8;
+  --agv-p-raya: #dfe5dc;
+  --agv-p-raya-fuerte: #76897c;
+  --agv-p-verde-900: #123f32;
+  --agv-p-verde-800: #174d3d;
+  --agv-p-verde-600: #1f7a4d;
+  --agv-p-verde-500: #2f9e63;
+  --agv-p-verde-100: #e6f0dc;
+  --agv-p-lima: #d5e9a7;
+  --agv-p-naranja: #f59e2e;
+  --agv-p-naranja-700: #c9730f;
+  --agv-p-naranja-100: #fdf0dc;
+  --agv-p-rojo: #b3372b;
+  --agv-p-rojo-800: #93291f;
+  --agv-p-rojo-100: #fbe9e6;
+  --agv-p-azul: #0f6485;
+  --agv-p-azul-100: #e3eef7;
+  --agv-p-violeta: #7e679e;
+  --agv-p-violeta-100: #ece6f7;
+  --agv-p-gris-100: #e4e7e5;
+  --agv-p-gris-500: #7b8780;
+  --agv-p-terracota: #a53a26;
+  --agv-p-terracota-100: #ffe8dc;
+  --agv-p-ambar: #8a5200;
+  --agv-p-ambar-100: #fff0ca;
+  --agv-p-cielo-100: #dceff7;
+
+  /* Superficies y texto. */
+  --agv-fondo: var(--agv-p-papel);
+  --agv-superficie: var(--agv-p-blanco);
+  --agv-superficie-2: var(--agv-p-papel-2);
+  --agv-texto: var(--agv-p-tinta);
+  --agv-texto-2: var(--agv-p-tinta-2);
+  --agv-sobre-verde: var(--agv-p-blanco);
+  --agv-borde: var(--agv-p-raya);
+  --agv-borde-fuerte: var(--agv-p-raya-fuerte);
+  --agv-velo: rgba(18, 63, 50, 0.45);
+  --agv-brillo: rgba(255, 255, 255, 0.07);
+  --agv-brillo-fuerte: rgba(255, 255, 255, 0.4);
+
+  /* Accion principal y marca. */
+  --agv-verde: var(--agv-p-verde-800);
+  --agv-verde-oscuro: var(--agv-p-verde-900);
+  --agv-verde-suave: var(--agv-p-verde-100);
+  --agv-acento: var(--agv-p-lima);
+
+  /* Estados: recibe (verde), sin recibir o atencion (naranja), inactivo (gris), peligro (rojo). */
+  --agv-recibe: var(--agv-p-verde-600);
+  --agv-recibe-punto: var(--agv-p-verde-500);
+  --agv-no-recibe: var(--agv-p-naranja);
+  --agv-no-recibe-punto: var(--agv-p-naranja-700);
+  --agv-aviso-suave: var(--agv-p-naranja-100);
+  --agv-inactivo: var(--agv-p-gris-100);
+  --agv-inactivo-punto: var(--agv-p-gris-500);
+  --agv-error: var(--agv-p-rojo);
+  --agv-error-oscuro: var(--agv-p-rojo-800);
+  --agv-error-suave: var(--agv-p-rojo-100);
+  --agv-info: var(--agv-p-azul);
+  --agv-info-suave: var(--agv-p-azul-100);
+  --agv-simulado: var(--agv-p-violeta);
+  --agv-simulado-suave: var(--agv-p-violeta-100);
+
+  /* Simbolos de las variables y tintes de clima. */
+  --agv-temp: var(--agv-p-terracota);
+  --agv-temp-suave: var(--agv-p-terracota-100);
+  --agv-hum: var(--agv-p-azul);
+  --agv-hum-suave: var(--agv-p-cielo-100);
+  --agv-luz: var(--agv-p-ambar);
+  --agv-luz-suave: var(--agv-p-ambar-100);
+  --agv-lluvia: #cfe3f2;
+  --agv-sol: #f6e7b8;
+  --agv-seca: #e9d8c2;
+  --agv-viento: #dfe7ea;
+
+  /* Graficas: series distinguibles tambien con daltonismo, franja del optimo y limites de alerta. */
+  --agv-serie-1: #2563eb;
+  --agv-serie-2: #e8710a;
+  --agv-serie-3: #0e9f6e;
+  --agv-serie-4: #d81b7a;
+  --agv-serie-5: #7c3aed;
+  --agv-serie-6: #0891b2;
+  --agv-serie-7: #b45309;
+  --agv-serie-8: #64748b;
+  --agv-grafica-optimo: rgba(47, 158, 99, 0.14);
+  --agv-grafica-limite: var(--agv-p-rojo);
+
+  /* Tipografia: Inter (servida desde el propio sitio, sin terceros), escala de tercera mayor. */
+  --agv-fuente: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --agv-t-xs: 0.75rem;
+  --agv-t-sm: 0.875rem;
+  --agv-t-base: 1rem;
+  --agv-t-lg: 1.125rem;
+  --agv-t-xl: 1.25rem;
+  --agv-t-2xl: 1.5rem;
+  --agv-t-3xl: 1.875rem;
+  --agv-t-4xl: 2.25rem;
+  --agv-t-5xl: 3rem;
+  --agv-t-portada: clamp(2.25rem, 4.4vw, 4.5rem);
+  --agv-tracking-apretado: -0.02em;
+  --agv-tracking-amplio: 0.08em;
+
+  /* Espacios: base de 4 px. El numero es la cantidad de pasos de 4 px. */
+  --agv-sp-0-5: 0.125rem;
+  --agv-sp-1: 0.25rem;
+  --agv-sp-1-5: 0.375rem;
+  --agv-sp-2: 0.5rem;
+  --agv-sp-2-5: 0.625rem;
+  --agv-sp-3: 0.75rem;
+  --agv-sp-3-5: 0.875rem;
+  --agv-sp-4: 1rem;
+  --agv-sp-5: 1.25rem;
+  --agv-sp-6: 1.5rem;
+  --agv-sp-7: 1.75rem;
+  --agv-sp-8: 2rem;
+  --agv-sp-9: 2.25rem;
+  --agv-sp-10: 2.5rem;
+  --agv-sp-11: 2.75rem;
+  --agv-sp-12: 3rem;
+  --agv-sp-14: 3.5rem;
+  --agv-sp-16: 4rem;
+  --agv-sp-20: 5rem;
+  --agv-sp-24: 6rem;
+
+  /* Radios, lineas, sombras y foco. */
+  --agv-r-sm: 0.375rem;
+  --agv-r-control: 0.5rem;
+  --agv-r-tarjeta: 0.75rem;
+  --agv-r-dialogo: 1rem;
+  --agv-r-pastilla: 62rem;
+  --agv-linea: 0.0625rem;
+  --agv-linea-fuerte: 0.125rem;
+  --agv-linea-foco: 0.1875rem;
+  --agv-sombra: 0 0.0625rem 0.125rem rgba(23, 77, 61, 0.06), 0 0.5rem 1.5rem rgba(23, 77, 61, 0.08);
+  --agv-sombra-dialogo: 0 0.25rem 0.75rem rgba(23, 77, 61, 0.1), 0 1.5rem 3.5rem rgba(23, 77, 61, 0.22);
+  --agv-foco: 0 0 0 0.1875rem rgba(23, 77, 61, 0.35);
+
+  /* Tamanos de control y de maquetacion. */
+  --agv-toque: 2.75rem;
+  --agv-control: 3rem;
+  --agv-icono: 1.25rem;
+  --agv-icono-nav: 1.5rem;
+  --agv-punto: 0.625rem;
+  --agv-lateral: 14.5rem;
+  --agv-contenido: 73.75rem;
+  --agv-dialogo-ancho: 42rem;
+  --agv-medida: 65ch;
+
+  /* Movimiento. */
+  --agv-rapido: 150ms;
+  --agv-latido: 1.4s;
+
+  /* Bootstrap toma sus colores de este tema. */
+  --bs-body-font-family: var(--agv-fuente);
+  --bs-body-color: var(--agv-texto);
+  --bs-body-bg: var(--agv-fondo);
+  --bs-border-color: var(--agv-borde);
+  --bs-secondary-color: var(--agv-texto-2);
+  --bs-tertiary-bg: var(--agv-superficie-2);
+  --bs-emphasis-color: var(--agv-texto);
+}

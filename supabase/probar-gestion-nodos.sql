@@ -32,7 +32,11 @@ BEGIN
  BEGIN PERFORM public.vincular_nodo(n,c); RAISE EXCEPTION 'Acceso a cultivo ajeno'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  PERFORM public.desvincular_nodo(n,a); PERFORM public.desvincular_nodo(n,a);
  IF (SELECT count(*) FROM public.nodo_asignaciones WHERE nodo_id=n)<>contador+1 THEN RAISE EXCEPTION 'Desvinculacion no idempotente'; END IF;
- BEGIN PERFORM public.vincular_nodo(n,b); RAISE EXCEPTION 'Supero dos nodos'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ -- Desde la 0012 un cultivo admite hasta dieciseis nodos fisicos (antes dos): el rechazo del tercer nodo
+ -- solo se exige en una base que todavia no tiene esa migracion.
+ IF to_regprocedure('public.registrar_nodo_fisico(text,text[])') IS NULL THEN
+  BEGIN PERFORM public.vincular_nodo(n,b); RAISE EXCEPTION 'Supero dos nodos'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ END IF;
  PERFORM public.desvincular_nodo(current_setting('agv.n3')::uuid,b);
  SELECT * INTO r FROM public.vincular_nodo(n,b);
  IF r.cultivo_id<>b THEN RAISE EXCEPTION 'Vinculo incorrecto'; END IF;
@@ -62,4 +66,4 @@ BEGIN
 END $$;
 RESET ROLE;
 ROLLBACK;
-SELECT 'OK: permisos, vinculos, reintentos, limite de dos, aislamiento, historial y auditoria. Prueba revertida.' AS resultado;
+SELECT 'OK: permisos, vinculos, reintentos, limite de nodos, aislamiento, historial y auditoria. Prueba revertida.' AS resultado;

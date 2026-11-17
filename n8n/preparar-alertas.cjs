@@ -4,15 +4,18 @@ const esUuidAlerta = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0
 function prepararEvaluacionAlertas(persistencia, ingesta) {
   const base = { persistencia, alertas: { estado: 'omitida', codigo: 'PERSISTENCIA_NO_CONFIRMADA' }, lista: false };
   if (!persistencia || persistencia.persistido !== true || !['insertado','duplicado'].includes(persistencia.estado)) return base;
+  // Lote v2 (3 mediciones, 03e) o lote simulado v3 por zonas (10 mediciones, 03f).
   const ids=persistencia.medicion_ids;
-  if (!esUuidAlerta(persistencia.mensaje_id) || !esUuidAlerta(persistencia.cultivo_id) || !Array.isArray(ids) || ids.length!==3 || !ids.every(esUuidAlerta) || new Set(ids).size!==3 ||
-    ingesta?.payload?.mensaje_id!==persistencia.mensaje_id || !['real','simulado'].includes(ingesta?.payload?.origen)) {
+  const match=typeof ingesta?.destino_rpc==='string' && ingesta.destino_rpc.match(/^((?:https:\/\/[a-z0-9-]+\.supabase\.co|http:\/\/(?:127\.0\.0\.1|localhost|host\.docker\.internal):[0-9]{2,5}))\/rest\/v1\/rpc\/(registrar_lote_ambiental|registrar_lote_simulado_v3)$/);
+  if(!match)return {...base,alertas:{estado:'pendiente',codigo:'DESTINO_ALERTAS_NO_VALIDO'}};
+  const v3=match[2]==='registrar_lote_simulado_v3', esperadas=v3?10:3;
+  const mensaje=v3?ingesta?.mensaje_id:ingesta?.payload?.mensaje_id, origen=v3?ingesta?.origen:ingesta?.payload?.origen;
+  if (!esUuidAlerta(persistencia.mensaje_id) || !esUuidAlerta(persistencia.cultivo_id) || !Array.isArray(ids) || ids.length!==esperadas || !ids.every(esUuidAlerta) || new Set(ids).size!==esperadas ||
+    mensaje!==persistencia.mensaje_id || !['real','simulado'].includes(origen) || (v3 && origen!=='simulado')) {
     return {...base,alertas:{estado:'pendiente',codigo:'CONTEXTO_PERSISTENCIA_INCONSISTENTE'}};
   }
-  const match=typeof ingesta?.destino_rpc==='string' && ingesta.destino_rpc.match(/^(https:\/\/[a-z0-9-]+\.supabase\.co)\/rest\/v1\/rpc\/registrar_lote_ambiental$/);
-  if(!match)return {...base,alertas:{estado:'pendiente',codigo:'DESTINO_ALERTAS_NO_VALIDO'}};
-  const consulta=match[1]+'/rest/v1/mediciones?select=id,nodo_id,cultivo_id,mensaje_id,origen&id=eq.'+ids[0]+'&cultivo_id=eq.'+persistencia.cultivo_id+'&mensaje_id=eq.'+persistencia.mensaje_id+'&origen=eq.'+ingesta.payload.origen+'&limit=2';
-  return {...base,lista:true,alertas:{estado:'pendiente',codigo:'POR_EVALUAR'},consulta_nodo_url:consulta,destino_alertas:match[1]+'/rest/v1/rpc/evaluar_alertas_lote',origen:ingesta.payload.origen};
+  const consulta=match[1]+'/rest/v1/mediciones?select=id,nodo_id,cultivo_id,mensaje_id,origen&id=eq.'+ids[0]+'&cultivo_id=eq.'+persistencia.cultivo_id+'&mensaje_id=eq.'+persistencia.mensaje_id+'&origen=eq.'+origen+'&limit=2';
+  return {...base,lista:true,alertas:{estado:'pendiente',codigo:'POR_EVALUAR'},consulta_nodo_url:consulta,destino_alertas:match[1]+'/rest/v1/rpc/evaluar_alertas_lote',origen};
 }
 function prepararRpcAlertas(contexto,respuesta) {
   const base={...contexto,lista:false};
@@ -29,7 +32,7 @@ function resultadoAlertas(contexto,respuesta) {
   if(['NODO_NO_ACTIVO','CULTIVO_NO_ACTIVO'].includes(r.codigo) && r.evaluadas===0)
     return {...final,alertas:{estado:'omitida',codigo:r.codigo,evaluadas:0}};
   const campos=['evaluadas','abiertas','actualizadas','cerradas'];
-  if(r.codigo!=='LOTE_EVALUADO' || !campos.every(k=>Number.isInteger(r[k]) && r[k]>=0 && r[k]<=3) || r.abiertas+r.actualizadas>r.evaluadas || r.cerradas>r.evaluadas)return final;
+  if(r.codigo!=='LOTE_EVALUADO' || !campos.every(k=>Number.isInteger(r[k]) && r[k]>=0 && r[k]<=10) || r.abiertas+r.actualizadas>r.evaluadas || r.cerradas>r.evaluadas)return final;
   return {...final,alertas:{estado:'evaluada',codigo:r.codigo,...Object.fromEntries(campos.map(k=>[k,r[k]])),
     observacion:r.evaluadas===0?'Sin mediciones nuevas aplicables a reglas activas. No indica salud del cultivo ni ausencia de alertas previas.':'Evaluacion confirmada de las mediciones aplicables.'}};
 }

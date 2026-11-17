@@ -13,6 +13,9 @@ build/
 coverage/
 .pio/
 supabase/.temp/
+*.tsbuildinfo
+# Recibos locales de los gates de ux-ui-agent-skills
+.ds-receipts/
 
 # Archivos del sistema
 .DS_Store

@@ -1,4 +1,15 @@
-import type { Capacidad, LoteDht, Medicion } from './types.ts';
+import type { Capacidad, LoteDht, Medicion, Nodo, Origen } from './types.ts';
+
+// Un nodo simulado solo tiene datos simulados; el fisico se consulta por su origen real.
+export const origenNodo = (n: Pick<Nodo, 'simulado'> | undefined): Origen => n?.simulado ? 'simulado' : 'real';
+// Un cultivo es simulado si todos sus nodos lo son (los cultivos demo del hexagono).
+// Origenes presentes en un cultivo: un hexagono mixto (fisico + simulados) tiene los dos.
+export function origenesCultivo(nodos: Pick<Nodo, 'simulado'>[]): Origen[] {
+  const o: Origen[] = [];
+  if (nodos.some(n => !n.simulado)) o.push('real');
+  if (nodos.some(n => n.simulado)) o.push('simulado');
+  return o;
+}
 
 export const ANTIGUEDAD_MAXIMA_MS = 180_000;
 export function esDht22(nodoId: string, capacidades: Capacidad[]): boolean {
@@ -14,7 +25,7 @@ export function esAmbiental(nodoId: string, capacidades: Capacidad[]): boolean {
     propias.some(c => c.variable_codigo === 'iluminacion_relativa' && c.sensor_modelo === 'LDR');
 }
 export function formarLote(
-  filas: Medicion[], nodoId: string, cultivoId: string, mensajeId: string, conLdr = false,
+  filas: Medicion[], nodoId: string, cultivoId: string, mensajeId: string, conLdr = false, origen: Origen = 'real',
 ): LoteDht {
   if ((filas.length !== 2 && !(conLdr && filas.length === 3)) ||
       new Set(filas.map(f => f.variable_codigo)).size !== filas.length) {
@@ -25,7 +36,7 @@ export function formarLote(
   const luz = filas.find(f => f.variable_codigo === 'iluminacion_relativa');
   if (!t || !h || (filas.length === 3 && !luz) || filas.some(f =>
     f.nodo_id !== nodoId || f.cultivo_id !== cultivoId ||
-    f.mensaje_id !== mensajeId || f.origen !== 'real' ||
+    f.mensaje_id !== mensajeId || f.origen !== origen ||
     typeof f.valor !== 'number' || !Number.isFinite(f.valor) ||
     !Number.isFinite(Date.parse(f.tomada_en)) || !Number.isFinite(Date.parse(f.recibida_en))
   )) throw new Error('El lote no coincide con el nodo, cultivo u origen solicitado.');
@@ -60,10 +71,10 @@ export function formarLote(
     temperatura: t.valor, humedad: h.valor, ...(luz ? { iluminacion: luz.valor, adcLdr } : {}),
   };
 }
-export function estadoDatos(lote: LoteDht | null, ahora: number): {
+export function estadoDatos(lote: LoteDht | null, ahora: number, origen: Origen = 'real'): {
   texto: string; clase: 'neutral' | 'reciente' | 'antiguo' | 'revisar';
 } {
-  if (!lote) return { texto: 'Sin datos reales', clase: 'neutral' };
+  if (!lote) return { texto: origen === 'simulado' ? 'Sin datos simulados' : 'Sin datos reales', clase: 'neutral' };
   if (Date.parse(lote.tomadaEn) > ahora || Date.parse(lote.recibidaEn) > ahora) {
     return { texto: 'Revisar reloj', clase: 'revisar' };
   }

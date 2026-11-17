@@ -8,8 +8,9 @@ export function validarCultivo(d: DatosCultivo, crear: boolean) {
   const area = Number(d.area.replace(',', '.'));
   if (!Number.isFinite(area) || area <= 0 || area > 99999999.9999) throw new Error('Revisa el área del cultivo.');
   if (!['m2','ha'].includes(d.unidad)) throw new Error('Selecciona m² o hectáreas.');
-  if (crear && (d.nodos.length < 1 || d.nodos.length > 2 || new Set(d.nodos).size !== d.nodos.length))
-    throw new Error('Selecciona uno o dos nodos disponibles de tu cuenta.');
+  // Un cultivo puede nacer sin nodos fisicos: despues se le agregan nodos simulados (0011).
+  if (crear && (d.nodos.length > 2 || new Set(d.nodos).size !== d.nodos.length))
+    throw new Error('Puedes vincular como máximo dos nodos físicos disponibles de tu cuenta.');
   return { p_nombre: d.nombre.trim(), p_tipo: d.tipo.trim(), p_area: area, p_unidad_area: d.unidad };
 }
 export function mensajeGestion(error: { message?: string; code?: string }) {

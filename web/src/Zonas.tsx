@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Capacidad } from './types.ts';
+import { Selector } from './Filtros.tsx';
 import { antiguedad, ANTIGUEDAD_MAXIMA_MS, fechaBogota } from './domain.ts';
 import { cargarCapturaZona, cargarPlano } from './zone-data.ts';
 import { puntoNodo, ubicacionCoincide } from './zone-domain.ts';
 import type { CapturaZona, NodoPlano, Plano } from './zone-domain.ts';
-import './zonas.css';
 
 function Procedencia({ virtual }: { virtual: boolean }) {
   return <span className={'procedencia-zona ' + (virtual ? 'simulada' : 'real')}>{virtual ? 'Simulada' : 'Real'}</span>;
@@ -104,11 +104,7 @@ export default function Zonas({ client, cultivoId, usuarioId, revision }: { clie
         {!zonas.length && <p className="croquis-vacio">Este cultivo todavía no tiene zonas configuradas. Sus nodos aparecen en la lista.</p>}
       </div></div>
       <p className="nota-croquis">Croquis esquemático de las posiciones registradas. No representa coordenadas GPS, cobertura ni salud del cultivo. También puedes seleccionar zonas y nodos en la lista.</p>
-      <div className="filtros-zonas"><div><label htmlFor="zona-cultivo">Zona</label><select id="zona-cultivo" className="form-select" value={zonaActual} onChange={e => seleccionarZona(e.target.value)}>
-        <option value="todas">Todas las zonas</option>{zonas.map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}<option value="sin-ubicar">Sin ubicar</option>
-      </select></div><div><label htmlFor="origen-zonas">Tipo de nodo</label><select id="origen-zonas" className="form-select" value={origen} onChange={e => { setOrigen(e.target.value); setNodoId(''); }}>
-        <option value="todos">Todos los nodos</option><option value="fisico">Físicos · datos reales</option><option value="virtual">Virtuales · datos simulados</option>
-      </select></div></div>
+      <div className="filtros-zonas"><div><Selector id="zona-cultivo" etiqueta="Zona" valor={zonaActual} alCambiar={seleccionarZona} opciones={[{ valor: 'todas', texto: 'Todas las zonas' }, ...zonas.map(z => ({ valor: z.id, texto: z.nombre })), { valor: 'sin-ubicar', texto: 'Sin ubicar' }]} /></div><div><Selector id="origen-zonas" etiqueta="Tipo de nodo" valor={origen} alCambiar={v => { setOrigen(v); setNodoId(''); }} opciones={[{ valor: 'todos', texto: 'Todos los nodos' }, { valor: 'fisico', texto: 'Físicos · datos reales' }, { valor: 'virtual', texto: 'Virtuales · datos simulados' }]} /></div></div>
       <div className="contenido-zonas"><div className="lista-nodos-zona" role="group" aria-label="Nodos de la zona seleccionada">
         <p className="sobre-titulo">{lista.length} {lista.length === 1 ? 'NODO' : 'NODOS'} EN ESTA VISTA</p>
         {!lista.length && <p className="vacio">No hay nodos para esta selección.</p>}

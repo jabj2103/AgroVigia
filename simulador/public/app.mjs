@@ -1,4 +1,4 @@
-import { VARIABLES, ZONAS, CULTIVOS, ESCENARIOS, PASOS, MAX_CAPTURAS, crearZonas, prepararEscenario, avanzar, editarValor, crearCaptura, crearExportacion, validarSemilla, validarValor } from './motor.mjs';
+import { VARIABLES, ZONAS, CULTIVOS, PERFILES_CULTIVO, ESCENARIOS, PASOS, MAX_CAPTURAS, crearZonas, prepararEscenario, avanzar, editarValor, crearCaptura, crearExportacion, validarSemilla, validarValor } from './motor.mjs';
 import { iniciarTransporte } from './transporte.mjs';
 
 const $ = id => document.getElementById(id);
@@ -11,10 +11,10 @@ function preferencias() {
   return { semilla: 20261103, cultivo: 'Maíz' };
 }
 const prefs = preferencias();
-let nodes = crearZonas(prefs.semilla), selected = 0, ejecucion = crypto.randomUUID();
+let nodes = crearZonas(prefs.semilla, prefs.cultivo), selected = 0, ejecucion = crypto.randomUUID();
 let records = [], discarded = 0, timer = null, autoTargets = [];
 const fields = new Map(), invalidFields = new Set();
-const transporte = iniciarTransporte({ ultimaCaptura: todas => todas ? records : records[0], pausar: () => detener() });
+const transporte = iniciarTransporte({ ultimaCaptura: todas => todas ? records : records[0], pausar: () => detener(), cultivo: () => $('crop').value });
 $('seed').value = String(prefs.semilla); $('crop').value = prefs.cultivo;
 
 function element(tag, className, text) {
@@ -183,6 +183,7 @@ function renderAuto() {
 function agregarCaptura(index, fecha = new Date()) {
   const capture = crearCaptura(nodes[index], { fecha, ejecucion, cultivo: $('crop').value });
   records.unshift(capture);
+  transporte.nuevaCaptura(capture);
   if (records.length > MAX_CAPTURAS) { discarded += records.length - MAX_CAPTURAS; records.length = MAX_CAPTURAS; }
 }
 function nombreEscenario(capture) {
@@ -246,13 +247,15 @@ $('step').addEventListener('click', () => {
   catch (error) { status(error.message, true); }
 });
 $('auto').addEventListener('click', iniciarAuto);
-$('crop').addEventListener('change', () => { antesDeEditar(); guardarPreferencias(); status(`Contexto de ejemplo: ${$('crop').value}. Los valores y las reglas no cambian por elegir el cultivo.`); });
+$('crop').addEventListener('change', () => { antesDeEditar(); guardarPreferencias(); const c = $('crop').value;
+  status(PERFILES_CULTIVO[c] ? `${c}: pulsa «Aplicar y reiniciar zonas» para cargar sus valores de referencia (rango óptimo de la plantilla). Puedes ajustarlos después.` : `${c}: sin plantilla; al aplicar se usan los valores sintéticos genéricos.`); });
 $('reset').addEventListener('click', () => {
   try {
     const semilla = validarSemilla($('seed').value);
-    detener(); nodes = crearZonas(semilla); ejecucion = crypto.randomUUID();
+    const cultivo = $('crop').value;
+    detener(); nodes = crearZonas(semilla, cultivo); ejecucion = crypto.randomUUID();
     guardarPreferencias(); renderDraft(); renderHistory();
-    status('Zonas reiniciadas con la semilla elegida. Las capturas anteriores se conservan con su ejecución original.');
+    status(`Zonas reiniciadas${PERFILES_CULTIVO[cultivo] ? ' con los valores de referencia de ' + cultivo : ''} y la semilla elegida. Las capturas anteriores se conservan con su ejecución original.`);
   } catch (error) { status(error.message, true); $('seed').focus(); }
 });
 $('copy').addEventListener('click', async () => {

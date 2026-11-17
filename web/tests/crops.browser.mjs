@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { opcionesDe, valorDe } from './selector-qa.mjs';
 import { existsSync,mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +35,8 @@ try{
   const calls=await page.evaluate(()=>window.qaCropsRequests.filter(x=>x.name==='crear_cultivo'));
   assert.equal(calls.length,2);assert.deepEqual(calls[0].args,calls[1].args);assert.ok(!('agricultor_id' in calls[0].args));
   await page.getByRole('button',{name:'+ Registrar cultivo',exact:true}).click();
-  await page.getByText('No tienes nodos disponibles.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Guardar cultivo',exact:true}).isDisabled(),true);
+  // Desde la 0011 un cultivo puede guardarse sin nodos fisicos y recibir despues nodos simulados.
+  await page.getByText('No tienes nodos físicos disponibles.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Guardar cultivo',exact:true}).isDisabled(),false);
   await page.getByRole('button',{name:'Cancelar',exact:true}).click();
   const card=page.locator('.tarjeta-cultivo').filter({has:page.getByRole('heading',{name:'Nuevo lote',exact:true})});
   await card.getByRole('button',{name:'Archivar',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Confirmar archivado',exact:true}).isDisabled(),true);
@@ -46,7 +48,7 @@ try{
   await page.getByRole('button',{name:'Ver historial',exact:true}).click();
   await page.getByText('Cultivo archivado. Se conserva su historial; no recibe nuevas mediciones.',{exact:true}).waitFor();
   await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:'Inicio',exact:true}).click();
-  assert.equal(await page.locator('#cultivo option').count(),1);assert.equal(await page.locator('#cultivo').inputValue(),'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  assert.equal((await opcionesDe(page,'#cultivo')).opciones.length,1);assert.equal(await valorDe(page,'#cultivo'),'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
   await page.getByRole('button',{name:'Abrir menú',exact:true}).click();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).waitFor({state:'visible'});await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('button',{name:'Abrir menú',exact:true}).getAttribute('aria-expanded'),'false');
   for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:844});await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);}

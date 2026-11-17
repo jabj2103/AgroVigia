@@ -53,3 +53,42 @@ export function publicarMqtt({ topico, mensaje }, {
     child.stdin.end(mensaje, 'utf8');
   });
 }
+
+// Linux y macOS: mismo contrato que publicarMqtt (QoS 1, MQTT v5, sin retain, PUBACK observado) con la
+// libreria mqtt en lugar de mosquitto_pub.exe. La clave sale de .local/mqtt/simulador.conf y no se registra.
+export async function publicarMqttNode({ topico, mensaje }, {
+  opciones = path.join(raiz, '.local', 'mqtt', 'simulador.conf'), puerto = 18883, timeoutMs = 12000,
+} = {}) {
+  const { readFileSync } = await import('node:fs');
+  const { default: mqtt } = await import('mqtt');
+  const lineas = readFileSync(opciones, 'utf8').split(/\r?\n/);
+  const valor = f => lineas.find(l => l.startsWith(f + ' '))?.slice(f.length + 1).trim();
+  if (!valor('-u') || !valor('-P')) throw new Error('Faltan credenciales MQTT locales del simulador.');
+  const cliente = await mqtt.connectAsync(`mqtt://127.0.0.1:${puerto}`, { username: valor('-u'), password: valor('-P'),
+    protocolVersion: 5, clean: true, reconnectPeriod: 0, connectTimeout: timeoutMs });
+  try {
+    const espera = new Promise((_, reject) => setTimeout(() => reject(new Error('MQTT agotó el tiempo de espera. El resultado puede ser desconocido; reintenta la misma captura.')), timeoutMs));
+    // mqtt.js rechaza el PUBACK con codigo de motivo >= 0x80 (por ejemplo, ACL negativa).
+    await Promise.race([cliente.publishAsync(topico, mensaje, { qos: 1, retain: false }), espera]);
+    return { estado: 'mqtt_confirmado', codigo: 'PUBACK_RECIBIDO', qos: 1, retain: false, persistido: null, comprobacion_supabase: 'pendiente' };
+  } catch (e) {
+    throw new Error(/tiempo de espera/.test(e.message) ? e.message : 'MQTT no confirmó la publicación. Revisa broker, ACL y credenciales locales.');
+  } finally { await cliente.endAsync().catch(() => {}); }
+}
+
+// Del mapa exportado (local/agrovigia.sh mapa) a las cuatro filas del panel para un cultivo: nodos 01 a 04,
+// uno por sector. El resultado pasa por validarVinculos igual que si se pegara a mano.
+export const PLANTILLA_DE_CULTIVO = Object.freeze({ 'Yuca': 'yuca', 'Plátano': 'platano', 'Hortalizas de clima cálido': 'hortalizas', 'Mango': 'mango', 'Papaya': 'papaya', 'Maracuyá': 'maracuya' });
+export function vinculosDeMapa(lista, cultivo) {
+  const plantilla = PLANTILLA_DE_CULTIVO[cultivo];
+  if (!plantilla) throw new Error('Elige un cultivo con plantilla (Yuca, Plátano, Hortalizas...) para cargar su mapa.');
+  if (!Array.isArray(lista)) throw new Error('El mapa local no es válido. Vuelve a exportarlo con local/agrovigia.sh mapa.');
+  const filas = ZONAS.map((zona, i) => {
+    const f = lista.find(n => n?.plantilla === plantilla && typeof n.nodo_codigo === 'string' && n.nodo_codigo.endsWith('-' + String(i + 1).padStart(2, '0')));
+    if (!f) throw new Error(`El mapa no tiene el nodo ${String(i + 1).padStart(2, '0')} de ${cultivo}. Ejecuta local/agrovigia.sh migrar o mapa.`);
+    return { nodo_local: zona.nodo, nodo_codigo: f.nodo_codigo, asignacion_version: f.asignacion_version, cultivo_id: f.cultivo_id,
+      zona_id: f.zona_id, zona_codigo: f.zona_codigo, habilitado: f.habilitado, variables_simuladas: f.variables_simuladas };
+  });
+  validarVinculos(filas);
+  return filas;
+}

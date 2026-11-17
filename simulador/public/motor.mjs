@@ -17,7 +17,18 @@ export const ZONAS = Object.freeze([
   { codigo: 'zona-central', nombre: 'Sector central', nodo: 'sim-zona-03', referencia: 'Punto virtual 03', factor: 0.2 },
   { codigo: 'zona-drenaje', nombre: 'Sector de drenaje', nodo: 'sim-zona-04', referencia: 'Punto virtual 04', factor: -0.2 },
 ].map(Object.freeze));
-export const CULTIVOS = Object.freeze(['Maíz', 'Yuca', 'Papa']);
+export const CULTIVOS = Object.freeze(['Maíz', 'Yuca', 'Plátano', 'Hortalizas de clima cálido', 'Mango', 'Papaya', 'Maracuyá', 'Papa']);
+// Valores de partida por cultivo: centro del rango óptimo de su plantilla (0009) para el aire y el suelo,
+// temperatura del suelo unos 2 °C bajo el aire y pH habitual del cultivo. Maíz y Papa no tienen plantilla
+// y conservan los valores sintéticos genéricos. Son puntos de partida para probar, no recomendaciones.
+export const PERFILES_CULTIVO = Object.freeze({
+  'Yuca': { temperatura_aire: 27, humedad_aire: 70, humedad_suelo_vwc: 25, temperatura_suelo: 25, ph_suelo: 6 },
+  'Plátano': { temperatura_aire: 28, humedad_aire: 80, humedad_suelo_vwc: 35, temperatura_suelo: 26, ph_suelo: 6.2 },
+  'Hortalizas de clima cálido': { temperatura_aire: 24, humedad_aire: 67.5, humedad_suelo_vwc: 30, temperatura_suelo: 22, ph_suelo: 6.5 },
+  'Mango': { temperatura_aire: 27, humedad_aire: 60, humedad_suelo_vwc: 23, temperatura_suelo: 25, ph_suelo: 6 },
+  'Papaya': { temperatura_aire: 26, humedad_aire: 70, humedad_suelo_vwc: 28.5, temperatura_suelo: 24, ph_suelo: 6.3 },
+  'Maracuyá': { temperatura_aire: 25.5, humedad_aire: 70, humedad_suelo_vwc: 30, temperatura_suelo: 23.5, ph_suelo: 6 },
+});
 export const PASOS = 12;
 export const MAX_CAPTURAS = 300;
 export const ESCENARIOS = Object.freeze([
@@ -52,18 +63,20 @@ export function validarValor(codigo, value) {
   }
   return round(number, v.paso);
 }
-function valoresReferencia(zona, seed, escenario) {
+function valoresReferencia(zona, seed, escenario, cultivo) {
+  const perfil = PERFILES_CULTIVO[cultivo] ?? {};
   return Object.fromEntries(VARIABLES.map(v => {
-    const centro = escenario.cambios[v.codigo] ?? v.base;
+    const centro = escenario.cambios[v.codigo] ?? perfil[v.codigo] ?? v.base;
     const variacion = v.amplitud * ((hash(seed, zona.codigo + ':' + v.codigo) - 0.5) * 1.4 + zona.factor * 0.25);
     return [v.codigo, round(Math.min(v.max, Math.max(v.min, centro + variacion)), v.paso)];
   }));
 }
-export function crearZonas(semilla = 20261103) {
+export function crearZonas(semilla = 20261103, cultivo = 'Maíz') {
   const seed = validarSemilla(semilla);
+  if (!CULTIVOS.includes(cultivo)) throw new Error('Cultivo de ejemplo no admitido.');
   return ZONAS.map(zona => {
-    const valores = valoresReferencia(zona, seed, ESCENARIOS[0]);
-    return { ...zona, semilla: seed, valores, inicio: { ...valores }, destino: { ...valores }, escenario: 'referencia', modo: 'manual', paso: 0 };
+    const valores = valoresReferencia(zona, seed, ESCENARIOS[0], cultivo);
+    return { ...zona, semilla: seed, cultivo, valores, inicio: { ...valores }, destino: { ...valores }, escenario: 'referencia', modo: 'manual', paso: 0 };
   });
 }
 export function prepararEscenario(node, escenarioId) {
@@ -71,7 +84,7 @@ export function prepararEscenario(node, escenarioId) {
   if (!escenario) throw new Error('Escenario no admitido.');
   const zona = ZONAS.find(z => z.codigo === node.codigo && z.nodo === node.nodo);
   if (!zona) throw new Error('Solo se admiten los nodos virtuales de este panel.');
-  return { ...node, valores: { ...node.valores }, inicio: { ...node.valores }, destino: valoresReferencia(zona, validarSemilla(node.semilla), escenario), escenario: escenarioId, modo: 'escenario', paso: 0 };
+  return { ...node, valores: { ...node.valores }, inicio: { ...node.valores }, destino: valoresReferencia(zona, validarSemilla(node.semilla), escenario, node.cultivo), escenario: escenarioId, modo: 'escenario', paso: 0 };
 }
 export function avanzar(node) {
   if (node.modo !== 'escenario' || node.paso >= PASOS) return { ...node, valores: { ...node.valores } };

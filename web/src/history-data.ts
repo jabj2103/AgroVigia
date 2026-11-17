@@ -16,7 +16,7 @@ export async function cargarHistorial(client: SupabaseClient, filtro: FiltroHist
         ? 'id,cultivo_id,nodo_id,mensaje_id,variable_codigo,valor,tomada_en,recibida_en,origen,metadatos'
         : 'id,cultivo_id,nodo_id,mensaje_id,variable_codigo,valor,tomada_en,recibida_en,origen')
       .eq('cultivo_id', filtro.cultivoId).eq('nodo_id', filtro.nodoId)
-      .eq('variable_codigo', filtro.variable).eq('origen', 'real')
+      .eq('variable_codigo', filtro.variable).eq('origen', filtro.origen ?? 'real')
       .gte('tomada_en', filtro.inicio).lte('tomada_en', filtro.fin)
       .lte('recibida_en', filtro.recibidasHasta)
       .order('tomada_en', { ascending: true }).order('id', { ascending: true })
