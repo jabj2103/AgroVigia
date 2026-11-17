@@ -81,9 +81,15 @@ export const serieDisponible = () => !!serie();
 // La demo local reemplaza el puerto por una placa simulada: sirve para configurar, no para grabar firmware.
 export const placaSimulada = () => !!(serie() as { agvDemo?: boolean } | undefined)?.agvDemo;
 export class PlacaSerie {
-  private lector: ReadableStreamDefaultReader<Uint8Array> | null = null; private resto = ''; private texto = new TextDecoder();
-  private puerto: PuertoSerie;
+  private lector: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  private escritor: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private resto = '';
+  private texto = new TextDecoder();
+  private ocupada = false;
+  private cierre: Promise<void> | null = null;
+  private readonly puerto: PuertoSerie;
   private constructor(puerto: PuertoSerie) { this.puerto = puerto; }
+  get conectada(): boolean { return this.cierre === null; }
   // El navegador muestra su propio selector de puerto: la pagina no ve ningun dispositivo sin ese permiso.
   static async conectar(): Promise<PlacaSerie> {
     const s = serie(); if (!s) throw new Error('Este navegador no permite hablar con la placa por USB. Usa Chrome o Edge en un computador.');
@@ -93,27 +99,51 @@ export class PlacaSerie {
     return new PlacaSerie(puerto);
   }
   async orden(o: Record<string, unknown>, esperaMs = 8000): Promise<Record<string, unknown>> {
-    if (!this.puerto.writable || !this.puerto.readable) throw new Error('La conexión con la placa se cerró.');
-    const escritor = this.puerto.writable.getWriter();
-    try { await escritor.write(new TextEncoder().encode(JSON.stringify(o) + '\n')); } finally { escritor.releaseLock(); }
-    this.lector ??= this.puerto.readable.getReader();
+    if (!this.conectada) throw new Error('Vuelve a conectar la placa por USB.');
+    if (this.ocupada) throw new Error('Espera a que termine la orden en curso.');
+    this.ocupada = true;
+    try {
+      const { readable, writable } = this.puerto;
+      if (!writable || !readable) throw new Error('La placa se desconectó. Vuelve a conectarla por USB.');
+      const escritor = this.escritor = writable.getWriter();
+      try { await escritor.write(new TextEncoder().encode(JSON.stringify(o) + '\n')); }
+      finally { escritor.releaseLock(); this.escritor = null; }
+      if (!this.conectada) throw new Error('La conexión con la placa se cerró.');
+      this.lector ??= readable.getReader();
+      return await this.leerRespuesta(this.lector, esperaMs);
+    } catch (error) {
+      // La respuesta no lleva identificador de orden. Tras perderla, hay que cerrar la sesión de lectura.
+      await this.cerrar();
+      throw error;
+    } finally { this.ocupada = false; }
+  }
+  private async leerRespuesta(lector: ReadableStreamDefaultReader<Uint8Array>, esperaMs: number): Promise<Record<string, unknown>> {
     const limite = Date.now() + esperaMs;
+    const sinRespuesta = 'La placa no respondió. Vuelve a conectarla por USB y comprueba el firmware de AgroVigía.';
     for (;;) {
       const r = extraerRespuesta(this.resto); this.resto = r.resto;
       if (r.respuesta) return r.respuesta;
-      const queda = limite - Date.now(); if (queda <= 0) throw new Error('La placa no respondió. Comprueba que tenga cargado el firmware de AgroVigía.');
-      let reloj = 0;
-      const leido = await Promise.race([this.lector.read(), new Promise<null>(ok => { reloj = window.setTimeout(() => ok(null), queda); })]);
-      window.clearTimeout(reloj);
-      if (leido === null) throw new Error('La placa no respondió. Comprueba que tenga cargado el firmware de AgroVigía.');
-      if (leido.done) throw new Error('La placa se desconectó.');
+      const queda = limite - Date.now(); if (queda <= 0) throw new Error(sinRespuesta);
+      let reloj: ReturnType<typeof setTimeout> | undefined;
+      const espera = new Promise<null>(ok => { reloj = setTimeout(() => ok(null), queda); });
+      const leido = await Promise.race([lector.read(), espera]).finally(() => clearTimeout(reloj));
+      if (leido === null) throw new Error(sinRespuesta);
+      if (leido.done) throw new Error('La placa se desconectó. Vuelve a conectarla por USB.');
       this.resto += this.texto.decode(leido.value, { stream: true });
     }
   }
-  async cerrar(): Promise<void> {
-    try { await this.lector?.cancel(); } catch { /* ya cerrado */ }
-    try { this.lector?.releaseLock(); } catch { /* ya liberado */ }
-    this.lector = null;
+  cerrar(): Promise<void> {
+    this.cierre ??= this.liberarPuerto();
+    return this.cierre;
+  }
+  private async liberarPuerto(): Promise<void> {
+    const { lector, escritor } = this;
+    try { await lector?.cancel(); } catch { /* ya cerrado */ }
+    lector?.releaseLock();
+    if (escritor && this.escritor === escritor) {
+      try { await escritor.abort(); } catch { /* ya cerrado */ }
+      escritor.releaseLock();
+    }
     try { await this.puerto.close(); } catch { /* ya cerrado */ }
   }
 }

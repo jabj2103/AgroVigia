@@ -1,0 +1,5 @@
+# Estos archivos se copian como código dentro de los flujos JSON de n8n.
+n8n/*.cjs text eol=lf
+n8n/*.mjs text eol=lf
+simulador/contrato-v3.mjs text eol=lf
+simulador/public/motor.mjs text eol=lf

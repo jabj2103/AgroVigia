@@ -3,7 +3,8 @@
 // 03c/03d/03e (lotes v2), 03f (lotes simulados v3) y 03g (ambos por HTTP): los generadores toman de aqui
 // exactamente los mismos modulos que cubren las pruebas.
 const fs = require('node:fs'), path = require('node:path');
-const leer = nombre => fs.readFileSync(path.join(__dirname, nombre), 'utf8');
+const normalizarCodigo = codigo => codigo.replaceAll('\r\n', '\n');
+const leer = nombre => normalizarCodigo(fs.readFileSync(path.join(__dirname, nombre), 'utf8'));
 const cargar = nombre => leer(nombre).split('// EXPORTACIONES_LOCALES:')[0];
 const sinExportar = s => s.replace(/^export /gm, '');
 const sinImportar = s => s.replace(/^import .*;\r?\n/gm, '');
@@ -20,6 +21,6 @@ function baseSimulada() {
   const preparacion = sinExportar(sinImportar(leer('preparar-simulada.mjs')).replace(/^const \{ leerJsonEstricto \} = validador;\r?\n/m, ''));
   // El Code solo maneja JSON validado; no depender de structuredClone en el sandbox.
   return 'const structuredClone = value => JSON.parse(JSON.stringify(value));\n' + motor + '\n' + contrato + '\n' +
-    require('./validar-telemetria.cjs').leerJsonEstricto.toString() + '\n' + preparacion;
+    normalizarCodigo(require('./validar-telemetria.cjs').leerJsonEstricto.toString()) + '\n' + preparacion;
 }
-module.exports = { cargar, baseAmbiental, baseSimulada };
+module.exports = { cargar, baseAmbiental, baseSimulada, normalizarCodigo };

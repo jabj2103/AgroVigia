@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { prevalidarTelemetria, evaluarContexto } = require('./validar-telemetria.cjs');
+const { cargar, normalizarCodigo } = require('./codigo-ingesta.cjs');
 const base = path.join(__dirname, '../docs/mqtt');
 const leer = name => fs.readFileSync(path.join(base, 'ejemplos', name), 'utf8');
 const casos = JSON.parse(fs.readFileSync(path.join(base, 'casos.json')));
@@ -116,8 +117,7 @@ test('las nueve evidencias fisicas se comprueban con advertencias, sin reproduci
 test('flujo generado usa exactamente el validador probado y conserva rechazo por item', () => {
   const w = JSON.parse(fs.readFileSync(path.join(__dirname, '03a-inspeccion-mqtt.json')));
   const code = w.nodes.find(n => n.name === 'Prevalidar contrato').parameters.jsCode;
-  const local = fs.readFileSync(path.join(__dirname, 'validar-telemetria.cjs'), 'utf8').split('// EXPORTACIONES_LOCALES:')[0];
-  assert.ok(code.startsWith(local));
+  assert.ok(normalizarCodigo(code).startsWith(cargar('validar-telemetria.cjs')));
   const ejecutar = new Function('$input', 'Buffer', code);
   const output = ejecutar({ all: () => [{ json: { topic, message: raw } }, { json: { topic, message: '{}' } }] }, Buffer);
   assert.equal(output[0].json.estado, 'prevalidado');

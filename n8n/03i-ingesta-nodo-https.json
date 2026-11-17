@@ -167,7 +167,7 @@
       "parameters": {
         "width": 850,
         "height": 280,
-        "content": "## Ingesta REAL por HTTPS con clave de nodo\nPOST /webhook/agrovigia/nodo con las cabeceras X-AgroVigia-Nodo (codigo) y X-AgroVigia-Clave (clave propia del nodo, la que entrega registrar_nodo_fisico). El cuerpo es el mismo JSON v2 que el firmware publica por MQTT.\nLa base valida la clave (autenticar_nodo) y el flujo sigue la ruta de 03e: validar, guardar, alertas e IA, con el topico real de ese nodo.\nRespuesta {estado, codigo, intervalo_segundos, pausado}: 200 guardado o duplicado, 400 lote rechazado, 401 {estado: rechazado, codigo: CLAVE_INVALIDA}, 503 sin confirmacion (reintentar el mismo lote).\nSin credencial en el webhook. Apikey privada de Supabase en Autenticar nodo y en los demas HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nUna clave de nodo solo escribe datos reales de su propio nodo.\nLas ejecuciones correctas no se guardan (cabecera con la clave). Requiere 0001 a 0012."
+        "content": "## Ingesta REAL por HTTPS con clave de nodo\nPOST /webhook/agrovigia/nodo con las cabeceras X-AgroVigia-Nodo (codigo) y X-AgroVigia-Clave (clave propia del nodo, la que entrega registrar_nodo_fisico). El cuerpo es el mismo JSON v2 que el firmware publica por MQTT.\nLa base valida la clave (autenticar_nodo) y el flujo sigue la ruta de 03e: validar, guardar, alertas e IA, con el topico real de ese nodo.\nRespuesta {estado, codigo, intervalo_segundos, pausado}: 200 guardado o duplicado, 400 lote rechazado, 401 {estado: rechazado, codigo: CLAVE_INVALIDA}, 503 sin confirmacion (reintentar el mismo lote).\nSin credencial en el webhook. Apikey privada de Supabase en Autenticar nodo y en los demas HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nUna clave de nodo solo escribe datos reales de su propio nodo.\nEl historial de ejecuciones y el guardado por nodo estan desactivados para proteger la clave. Requiere 0001 a 0012."
       }
     },
     {
@@ -1081,8 +1081,9 @@
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": false,
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "none"
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveExecutionProgress": false
   },
   "pinData": {}
 }

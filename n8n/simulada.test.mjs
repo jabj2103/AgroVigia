@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import vm from 'node:vm';
+import { normalizarCodigo } from './codigo-ingesta.cjs';
 import { prepararIngestaSimulada, resumirPersistenciaSimulada } from './preparar-simulada.mjs';
 import { prepararCapturaV3 } from '../simulador/contrato-v3.mjs';
 import { captura, filas } from '../simulador/tests/fixtures.mjs';
@@ -49,8 +50,8 @@ test('03f exportado usa tópico independiente, sin credenciales y ejecuta el Cod
   assert.equal(f.active, false); assert.deepEqual(f.pinData, {}); assert.ok(f.nodes.every(n => !n.credentials));
   assert.equal(f.nodes.find(n => n.name === 'MQTT receptor').parameters.topics, 'agrovigia/v3/simulado/nodos/+/telemetria:1');
   const e = entrada(), node = name => f.nodes.find(n => n.name === name);
-  assert.ok(node('Preparar ingesta').parameters.jsCode.includes(prepararIngestaSimulada.toString()), 'Regenerar 03f tras modificar la preparación.');
-  assert.ok(node('Resultado de persistencia').parameters.jsCode.includes(resumirPersistenciaSimulada.toString()), 'Regenerar 03f tras modificar el resumen.');
+  assert.ok(normalizarCodigo(node('Preparar ingesta').parameters.jsCode).includes(normalizarCodigo(prepararIngestaSimulada.toString())), 'Regenerar 03f tras modificar la preparación.');
+  assert.ok(normalizarCodigo(node('Resultado de persistencia').parameters.jsCode).includes(normalizarCodigo(resumirPersistenciaSimulada.toString())), 'Regenerar 03f tras modificar el resumen.');
   const p = vm.runInNewContext('(function(){' + node('Preparar ingesta').parameters.jsCode + '})()', {
     $input: { all: () => [{ json: e }] }, Buffer,
   })[0].json;

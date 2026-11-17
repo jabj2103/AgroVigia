@@ -119,22 +119,24 @@ test('03g: webhook POST con clave en cabecera, respuesta antes de alertas e IA, 
   const g = nodo('Guardar lote en Supabase'); assert.equal(g.onError, 'continueRegularOutput'); assert.equal(g.retryOnFail, true);
   const conf = Object.fromEntries(nodo('Proyecto Supabase').parameters.assignments.assignments.map(a => [a.name, a.value]));
   assert.deepEqual(conf, { supabase_url: 'https://TU_PROYECTO.supabase.co', gemini_modelo: 'gemini-3.5-flash-lite', http_admite_real: 'no' });
-  assert.deepEqual([f.settings.saveDataSuccessExecution, f.settings.saveDataErrorExecution], ['none', 'all'], 'no se guardan ejecuciones correctas ni su cabecera');
+  assert.deepEqual([f.settings.saveDataSuccessExecution, f.settings.saveDataErrorExecution, f.settings.saveManualExecutions, f.settings.saveExecutionProgress],
+    ['none', 'none', false, false], 'las ejecuciones pueden contener la clave de ingesta');
 });
 
 test('03g: el Code incrustado es el de los modulos probados y ejecuta v2 y v3 de punta a punta hasta la reserva de IA', async () => {
   const { sim } = await cargar(), f = flujo(), nodo = name => f.nodes.find(n => n.name === name);
-  const { baseAmbiental, baseSimulada } = require('./codigo-ingesta.cjs');
+  const { baseAmbiental, baseSimulada, normalizarCodigo } = require('./codigo-ingesta.cjs');
   for (const name of ['Preparar ingesta', 'Resultado de persistencia']) {
-    const codigo = nodo(name).parameters.jsCode;
+    const codigo = normalizarCodigo(nodo(name).parameters.jsCode);
     assert.ok(codigo.includes(baseAmbiental()), 'Regenerar 03g: base v2'); assert.ok(codigo.includes(baseSimulada()), 'Regenerar 03g: base v3');
     for (const fn of [prepararIngestaHttp, resumirPersistenciaHttp, respuestaHttp, prepararIngestaAmbiental, resumirPersistenciaAmbiental, sim.prepararIngestaSimulada, sim.resumirPersistenciaSimulada])
-      assert.ok(codigo.includes(fn.toString()), 'Regenerar 03g tras modificar ' + fn.name);
+      assert.ok(codigo.includes(normalizarCodigo(fn.toString())), 'Regenerar 03g tras modificar ' + fn.name);
   }
   const e03e = JSON.parse(fs.readFileSync(path.join(__dirname, '03e-ingesta-alertas.json'), 'utf8')), e03f = JSON.parse(fs.readFileSync(path.join(__dirname, '03f-ingesta-simulada-v3.json'), 'utf8'));
   for (const name of ['Preparar evaluacion', 'Preparar RPC alertas', 'Resultado de alertas', 'Preparar reserva IA', 'Preparar Gemini', 'Interpretar Gemini', 'Resultado IA']) {
-    assert.equal(nodo(name).parameters.jsCode, e03e.nodes.find(n => n.name === name).parameters.jsCode, name + ' igual que 03e');
-    assert.equal(nodo(name).parameters.jsCode, e03f.nodes.find(n => n.name === name).parameters.jsCode, name + ' igual que 03f');
+    const codigo = normalizarCodigo(nodo(name).parameters.jsCode);
+    assert.equal(codigo, normalizarCodigo(e03e.nodes.find(n => n.name === name).parameters.jsCode), name + ' igual que 03e');
+    assert.equal(codigo, normalizarCodigo(e03f.nodes.find(n => n.name === name).parameters.jsCode), name + ' igual que 03f');
   }
   const ejecutar = (name, inputs, linked = {}) => JSON.parse(JSON.stringify(vm.runInNewContext('(function(){' + nodo(name).parameters.jsCode + '})()',
     { $input: { all: () => inputs.map(json => ({ json })) }, $: n => ({ itemMatching: i => ({ json: linked[n][i] }) }), Buffer })));

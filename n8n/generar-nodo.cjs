@@ -2,7 +2,7 @@
 // Genera 03i: ingesta REAL por HTTPS con clave propia de cada nodo fisico (migracion 0012). Reutiliza el
 // esqueleto de 03b, la preparacion v2 de 03e y las mismas ramas de alertas e IA.
 const fs = require('node:fs'), path = require('node:path');
-const { cargar, baseAmbiental } = require('./codigo-ingesta.cjs');
+const { cargar, baseAmbiental, normalizarCodigo } = require('./codigo-ingesta.cjs');
 const { agregarModelo, agregarAlertas, agregarIA } = require('./ramas-alertas-ia.cjs');
 const RUTA = 'agrovigia/nodo';
 const edge = node => [{ node, type: 'main', index: 0 }];
@@ -57,8 +57,11 @@ Object.assign(flujo.connections, {
   'Responder ingesta': { main: [edge('Preparar evaluacion')] },
   'Rechazado antes de RPC': { main: [edge('Responder rechazo')] },
 });
-// Ni los lotes correctos ni las cabeceras con la clave del nodo se guardan en el historial de ejecuciones.
-Object.assign(flujo.settings, { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'all', saveManualExecutions: false });
-flujo.nodes.find(n => n.name === 'Guia de prueba').parameters.content = '## Ingesta REAL por HTTPS con clave de nodo\nPOST /webhook/' + RUTA + ' con las cabeceras X-AgroVigia-Nodo (codigo) y X-AgroVigia-Clave (clave propia del nodo, la que entrega registrar_nodo_fisico). El cuerpo es el mismo JSON v2 que el firmware publica por MQTT.\nLa base valida la clave (autenticar_nodo) y el flujo sigue la ruta de 03e: validar, guardar, alertas e IA, con el topico real de ese nodo.\nRespuesta {estado, codigo, intervalo_segundos, pausado}: 200 guardado o duplicado, 400 lote rechazado, 401 {estado: rechazado, codigo: CLAVE_INVALIDA}, 503 sin confirmacion (reintentar el mismo lote).\nSin credencial en el webhook. Apikey privada de Supabase en Autenticar nodo y en los demas HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nUna clave de nodo solo escribe datos reales de su propio nodo.\nLas ejecuciones correctas no se guardan (cabecera con la clave). Requiere 0001 a 0012.';
+// Los datos de entrada contienen una clave. Desactivar el historial y los puntos de guardado por nodo.
+Object.assign(flujo.settings, { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false });
+flujo.nodes.find(n => n.name === 'Guia de prueba').parameters.content = '## Ingesta REAL por HTTPS con clave de nodo\nPOST /webhook/' + RUTA + ' con las cabeceras X-AgroVigia-Nodo (codigo) y X-AgroVigia-Clave (clave propia del nodo, la que entrega registrar_nodo_fisico). El cuerpo es el mismo JSON v2 que el firmware publica por MQTT.\nLa base valida la clave (autenticar_nodo) y el flujo sigue la ruta de 03e: validar, guardar, alertas e IA, con el topico real de ese nodo.\nRespuesta {estado, codigo, intervalo_segundos, pausado}: 200 guardado o duplicado, 400 lote rechazado, 401 {estado: rechazado, codigo: CLAVE_INVALIDA}, 503 sin confirmacion (reintentar el mismo lote).\nSin credencial en el webhook. Apikey privada de Supabase en Autenticar nodo y en los demas HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nUna clave de nodo solo escribe datos reales de su propio nodo.\nEl historial de ejecuciones y el guardado por nodo estan desactivados para proteger la clave. Requiere 0001 a 0012.';
+for (const nodo of flujo.nodes) {
+  if (nodo.type === 'n8n-nodes-base.code') nodo.parameters.jsCode = normalizarCodigo(nodo.parameters.jsCode);
+}
 fs.writeFileSync(path.join(__dirname, '03i-ingesta-nodo-https.json'), JSON.stringify(flujo, null, 2) + '\n');
 console.log('03i generado (ingesta real por HTTPS con clave de nodo, alertas y sugerencias IA), inactivo y sin credenciales.');

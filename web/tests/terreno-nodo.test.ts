@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ajustarRect, distanciaMetros, medidasDe, posicionNodo, sectorEn } from '../src/terreno-data.ts';
 import type { Sector } from '../src/terreno-data.ts';
-import { extraerRespuesta, validarConfig } from '../src/nodo-fisico-data.ts';
+import { extraerRespuesta, PlacaSerie, validarConfig } from '../src/nodo-fisico-data.ts';
 import { panalRed } from '../src/red-data.ts';
 import type { EstadoNodoRed } from '../src/red-data.ts';
 
@@ -54,6 +54,42 @@ test('placa por USB: solo cuenta la linea que empieza por AGV; registros y linea
   assert.deepEqual(extraerRespuesta('[WIFI] ok\nAGV {"ok":true,"fw":"agv-http"}\n[RELOJ] ok\nAGV {"ok":fal'), { respuesta: { ok: true, fw: 'agv-http' }, resto: '[RELOJ] ok\nAGV {"ok":fal' });
   assert.deepEqual(extraerRespuesta('AGV {"ok":tr'), { respuesta: null, resto: 'AGV {"ok":tr' }, 'una respuesta incompleta espera el resto');
   assert.deepEqual(extraerRespuesta('AGV no es json\nAGV [1,2]\nAGV {"ok":false,"error":"URL_INVALIDA"}\n').respuesta, { ok: false, error: 'URL_INVALIDA' });
+});
+
+test('placa por USB: el timeout cancela la lectura y permite reconectar el mismo puerto', async t => {
+  let aperturas = 0, cancelaciones = 0, cierres = 0;
+  let entrada: ReadableStreamDefaultController<Uint8Array>;
+  const ordenes: string[] = [];
+  const puerto = {
+    readable: null as ReadableStream<Uint8Array> | null,
+    writable: null as WritableStream<Uint8Array> | null,
+    async open() {
+      aperturas++;
+      this.readable = new ReadableStream<Uint8Array>({ start: c => { entrada = c; }, cancel: () => { cancelaciones++; } });
+      this.writable = new WritableStream<Uint8Array>({ write(bytes) {
+        ordenes.push(JSON.parse(new TextDecoder().decode(bytes)).cmd);
+        if (aperturas === 2) entrada.enqueue(new TextEncoder().encode('AGV {"ok":true,"fw":"agv-http"}\n'));
+      } });
+    },
+    async close() {
+      assert.equal(this.readable?.locked, false);
+      assert.equal(this.writable?.locked, false);
+      this.readable = this.writable = null;
+      cierres++;
+    },
+  };
+  Object.defineProperty(navigator, 'serial', { configurable: true, value: { requestPort: async () => puerto } });
+  t.after(() => { Reflect.deleteProperty(navigator, 'serial'); });
+
+  const primera = await PlacaSerie.conectar();
+  await assert.rejects(primera.orden({ cmd: 'leer' }, 30), /Vuelve a conectarla por USB/);
+  assert.deepEqual([cancelaciones, cierres], [1, 1]);
+  await assert.rejects(primera.orden({ cmd: 'leer' }), /Vuelve a conectar/);
+  const segunda = await PlacaSerie.conectar();
+  try {
+    assert.deepEqual(await segunda.orden({ cmd: 'info' }, 500), { ok: true, fw: 'agv-http' });
+    assert.deepEqual(ordenes, ['leer', 'info']);
+  } finally { await segunda.cerrar(); }
 });
 
 test('placa por USB: la configuracion se valida antes de enviarla y exige https y clave', () => {

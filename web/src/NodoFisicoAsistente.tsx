@@ -29,15 +29,29 @@ export default function NodoFisicoAsistente({ client, nodo: inicial, alCambiar, 
   const registrar = () => tarea(registrarNodoFisico(client, 'esp32').then(r => { setNodo(r.nodo); setClave(r.clave); alCambiar(); return `Nodo ${r.nodo.codigo} registrado. Su clave se muestra una sola vez: llega a la placa en el paso 3.`; }));
   const nuevaClave = () => { if (nodo) tarea(regenerarClaveNodo(client, nodo.id).then(k => { setClave(k); return 'Clave nueva generada. La anterior dejó de servir: envíala a la placa en el paso 3.'; })); };
   async function conectar() {
-    await placa.current?.cerrar(); placa.current = await PlacaSerie.conectar();
-    const r = await placa.current.orden({ cmd: 'info' }) as unknown as InfoPlaca;
-    if (!r.ok) throw new Error(textoErrorPlaca(r.error));
+    setInfo(null);
+    setLectura('');
+    const anterior = placa.current;
+    placa.current = null;
+    await anterior?.cerrar();
+    placa.current = await PlacaSerie.conectar();
+    const r = await ordenar({ cmd: 'info' }) as unknown as InfoPlaca;
     setInfo(r); if (r.wifi_ssid && !wifi) setWifi(r.wifi_ssid); if (r.url && !url) setUrl(r.url);
     return `Placa conectada: firmware ${r.fw ?? 'desconocido'} ${r.version ?? ''}.`;
   }
   async function ordenar(o: Record<string, unknown>, espera?: number) {
-    if (!placa.current) throw new Error('Conecta primero la placa por USB.');
-    const r = await placa.current.orden(o, espera);
+    const conexion = placa.current;
+    if (!conexion) throw new Error('Conecta primero la placa por USB.');
+    let r;
+    try { r = await conexion.orden(o, espera); }
+    catch (error) {
+      if (!conexion.conectada && placa.current === conexion) {
+        placa.current = null;
+        setInfo(null);
+        setLectura('');
+      }
+      throw error;
+    }
     if (r.ok !== true && o.cmd !== 'enviar') throw new Error(textoErrorPlaca(typeof r.error === 'string' ? r.error : undefined));
     return r;
   }

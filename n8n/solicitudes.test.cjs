@@ -4,6 +4,7 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const { prepararToma, repartirSolicitudes, prepararGeminiSolicitud, completarSolicitud, resultadoSolicitud, solicitudSinIA } = require('./preparar-solicitudes.cjs');
 const { prepararGemini, INSTRUCCION_IA, ESQUEMA_IA } = require('./preparar-sugerencias.cjs');
+const { normalizarCodigo } = require('./codigo-ingesta.cjs');
 const id = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
 const config = () => ({ supabase_url: 'https://fixture.supabase.co', gemini_modelo: 'gemini-3.5-flash-lite' });
 const tomadas = (...ns) => ({ statusCode: 200, body: { codigo: 'SOLICITUDES_TOMADAS', solicitudes: ns.map(n => ({ solicitud_id: id(n), cultivo_id: id(20), origen: n % 2 ? 'simulado' : 'real', creada_en: '2026-11-16T15:00:00Z', intento: 1 })) } });
@@ -105,7 +106,7 @@ test('03h: disparador cada 30 s, HTTP limitados con reintentos, sin credenciales
   }
   assert.equal(nodo('Consultar Gemini').parameters.options.timeout, 45000);
   for (const fn of [prepararToma, repartirSolicitudes, prepararGeminiSolicitud, completarSolicitud, resultadoSolicitud, prepararGemini])
-    assert.ok(nodo('Preparar Gemini').parameters.jsCode.includes(fn.toString()), 'Regenerar 03h tras modificar ' + fn.name);
+    assert.ok(normalizarCodigo(nodo('Preparar Gemini').parameters.jsCode).includes(normalizarCodigo(fn.toString())), 'Regenerar 03h tras modificar ' + fn.name);
   assert.equal(f.settings.saveDataSuccessExecution, 'none');
 });
 

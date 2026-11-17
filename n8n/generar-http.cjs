@@ -2,7 +2,7 @@
 // Genera 03g: ingesta por HTTP (webhook) para desplegar sin puerto MQTT publico. Reutiliza el esqueleto de 03b,
 // el codigo de preparacion de 03e (v2) y 03f (v3) y las mismas ramas de alertas e IA.
 const fs = require('node:fs'), path = require('node:path');
-const { cargar, baseAmbiental, baseSimulada } = require('./codigo-ingesta.cjs');
+const { cargar, baseAmbiental, baseSimulada, normalizarCodigo } = require('./codigo-ingesta.cjs');
 const { agregarModelo, agregarAlertas, agregarIA } = require('./ramas-alertas-ia.cjs');
 const RUTA = 'agrovigia/telemetria', CABECERA = 'X-AgroVigia-Clave';
 const edge = node => [{ node, type: 'main', index: 0 }];
@@ -45,8 +45,11 @@ Object.assign(flujo.connections, {
   'Responder ingesta': { main: [edge('Preparar evaluacion')] },
   'Rechazado antes de RPC': { main: [edge('Responder rechazo')] },
 });
-// Ni los lotes correctos ni la cabecera con la clave se guardan en el historial de ejecuciones.
-Object.assign(flujo.settings, { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'all', saveManualExecutions: false });
-flujo.nodes.find(n => n.name === 'Guia de prueba').parameters.content = '## Ingesta por HTTP (sin puerto MQTT)\nPOST /webhook/' + RUTA + ' con la cabecera ' + CABECERA + ' y el cuerpo {"topico","payload"}.\nMisma validacion, guardado, alertas e IA que 03e (agrovigia/v2/...) y 03f (agrovigia/v3/simulado/...).\nRespuesta {estado, codigo}: 200 guardado o duplicado, 400 lote rechazado, 503 guardado sin confirmar (reintentar el mismo lote). Sin clave o con clave incorrecta el nodo Webhook responde 403.\nCredenciales: Header Auth ' + CABECERA + ' en Webhook ingesta; apikey privada de Supabase en los HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nOrigen real cerrado por defecto (http_admite_real = no): por HTTP la clave es compartida y no hay ACL del broker que separe origenes.\nLas ejecuciones correctas no se guardan (volumen y cabecera con la clave). El resultado esta en la respuesta y en Supabase.\nRequiere 0001 a 0011. Puede convivir con 03e y 03f: el guardado es idempotente por mensaje_id.';
+// Los datos de entrada contienen una clave. Desactivar el historial y los puntos de guardado por nodo.
+Object.assign(flujo.settings, { saveDataSuccessExecution: 'none', saveDataErrorExecution: 'none', saveManualExecutions: false, saveExecutionProgress: false });
+flujo.nodes.find(n => n.name === 'Guia de prueba').parameters.content = '## Ingesta por HTTP (sin puerto MQTT)\nPOST /webhook/' + RUTA + ' con la cabecera ' + CABECERA + ' y el cuerpo {"topico","payload"}.\nMisma validacion, guardado, alertas e IA que 03e (agrovigia/v2/...) y 03f (agrovigia/v3/simulado/...).\nRespuesta {estado, codigo}: 200 guardado o duplicado, 400 lote rechazado, 503 guardado sin confirmar (reintentar el mismo lote). Sin clave o con clave incorrecta el nodo Webhook responde 403.\nCredenciales: Header Auth ' + CABECERA + ' en Webhook ingesta; apikey privada de Supabase en los HTTP de Supabase; x-goog-api-key en Consultar Gemini.\nOrigen real cerrado por defecto (http_admite_real = no): por HTTP la clave es compartida y no hay ACL del broker que separe origenes.\nEl historial de ejecuciones y el guardado por nodo estan desactivados para proteger la clave. El resultado esta en la respuesta y en Supabase.\nRequiere 0001 a 0011. Puede convivir con 03e y 03f: el guardado es idempotente por mensaje_id.';
+for (const nodo of flujo.nodes) {
+  if (nodo.type === 'n8n-nodes-base.code') nodo.parameters.jsCode = normalizarCodigo(nodo.parameters.jsCode);
+}
 fs.writeFileSync(path.join(__dirname, '03g-ingesta-http.json'), JSON.stringify(flujo, null, 2) + '\n');
 console.log('03g generado (ingesta por HTTP con alertas y sugerencias IA), inactivo y sin credenciales.');

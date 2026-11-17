@@ -98,8 +98,8 @@ export function transporteMqtt(cliente) {
     cerrar: async () => { await cliente.endAsync?.(); } };
 }
 // HTTP hacia el webhook de n8n (flujo 03g): mismo topico y mismo JSON del lote que por MQTT.
-// 200: registrado o duplicado. 4xx: el receptor lo rechazo (lote invalido o clave incorrecta) y no se
-// reintenta. Sin respuesta, 408, 429 o 5xx: se reintenta con el mismo mensaje_id (el guardado es idempotente).
+// 200 con estado insertado o duplicado confirma el guardado. Una respuesta sin confirmacion se reintenta
+// con el mismo mensaje_id. Los 4xx son definitivos, salvo 408 y 429.
 export function transporteHttp({ url, clave, timeoutMs = 30_000, fetchImpl = fetch }) {
   return { nombre: 'http', confirmacion: 'HTTP 200',
     async enviar(lote) {
@@ -112,7 +112,10 @@ export function transporteHttp({ url, clave, timeoutMs = 30_000, fetchImpl = fet
       let cuerpo = null;
       try { cuerpo = await r.json(); } catch { /* el rechazo de la clave llega como texto plano */ }
       const codigo = typeof cuerpo?.codigo === 'string' ? ' ' + cuerpo.codigo.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60) : '';
-      if (r.status === 200) return { ok: true };
+      if (r.status === 200) {
+        if (cuerpo?.estado === 'insertado' || cuerpo?.estado === 'duplicado') return { ok: true };
+        return { ok: false, definitivo: false, motivo: 'HTTP 200 sin confirmación de guardado' };
+      }
       const reintentable = r.status >= 500 || r.status === 408 || r.status === 429;
       return { ok: false, definitivo: !reintentable, motivo: `HTTP ${r.status}${codigo}${[401, 403].includes(r.status) ? ' (clave de ingesta no aceptada)' : ''}` };
     },

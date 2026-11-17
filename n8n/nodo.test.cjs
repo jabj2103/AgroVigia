@@ -3,6 +3,7 @@
 // contexto aislado. No es una ejecucion real de n8n ni una llamada a Supabase. Datos y claves ficticios.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const { randomUUID } = require('node:crypto');
+const { baseAmbiental, normalizarCodigo } = require('./codigo-ingesta.cjs');
 const { prepararAutenticacionNodo, prepararIngestaNodo, resumirPersistenciaNodo, respuestaNodo } = require('./preparar-nodo.cjs');
 const { prepararIngestaAmbiental, resumirPersistenciaAmbiental } = require('./preparar-ambiental.cjs');
 const canal = { acl_verificada: true, retencion_broker_desactivada: true };
@@ -89,6 +90,8 @@ test('nodo HTTPS: la respuesta lleva intervalo y pausa del nodo; 200 solo con gu
 test('03i: webhook POST sin credencial compartida, autenticacion por nodo antes de validar, respuesta antes de alertas e IA', () => {
   const f = flujo(), nodo = name => f.nodes.find(n => n.name === name);
   assert.equal(f.active, false); assert.deepEqual(f.pinData, {}); assert.ok(f.nodes.every(n => !n.credentials)); assert.ok(!/AIza|sb_secret_/.test(JSON.stringify(f)));
+  assert.deepEqual([f.settings.saveDataSuccessExecution, f.settings.saveDataErrorExecution, f.settings.saveManualExecutions, f.settings.saveExecutionProgress],
+    ['none', 'none', false, false], 'las ejecuciones pueden contener la clave del nodo');
   assert.ok(!f.nodes.some(n => n.type === 'n8n-nodes-base.mqttTrigger'));
   const w = nodo('Webhook nodo');
   assert.deepEqual([w.type, w.parameters.httpMethod, w.parameters.path, w.parameters.authentication, w.parameters.responseMode], ['n8n-nodes-base.webhook', 'POST', 'agrovigia/nodo', 'none', 'responseNode']);
@@ -105,18 +108,18 @@ test('03i: webhook POST sin credencial compartida, autenticacion por nodo antes 
   assert.deepEqual([f.settings.saveDataSuccessExecution, f.settings.saveManualExecutions], ['none', false], 'no se guardan ejecuciones correctas ni sus cabeceras');
   const e03e = JSON.parse(fs.readFileSync(path.join(__dirname, '03e-ingesta-alertas.json'), 'utf8'));
   for (const name of ['Preparar evaluacion', 'Preparar RPC alertas', 'Resultado de alertas', 'Preparar reserva IA', 'Preparar Gemini', 'Interpretar Gemini', 'Resultado IA'])
-    assert.equal(nodo(name).parameters.jsCode, e03e.nodes.find(n => n.name === name).parameters.jsCode, name + ' igual que 03e');
+    assert.equal(normalizarCodigo(nodo(name).parameters.jsCode), normalizarCodigo(e03e.nodes.find(n => n.name === name).parameters.jsCode), name + ' igual que 03e');
 });
 
 test('03i: el Code incrustado es el de los modulos probados y recorre autenticacion, validacion, guardado y alertas sin exponer la clave', () => {
   const f = flujo(), nodo = name => f.nodes.find(n => n.name === name);
-  const { baseAmbiental } = require('./codigo-ingesta.cjs');
   for (const name of ['Preparar ingesta', 'Resultado de persistencia']) {
-    assert.ok(nodo(name).parameters.jsCode.includes(baseAmbiental()), 'Regenerar 03i: base v2');
+    const codigo = normalizarCodigo(nodo(name).parameters.jsCode);
+    assert.ok(codigo.includes(baseAmbiental()), 'Regenerar 03i: base v2');
     for (const fn of [prepararAutenticacionNodo, prepararIngestaNodo, resumirPersistenciaNodo, respuestaNodo, prepararIngestaAmbiental, resumirPersistenciaAmbiental])
-      assert.ok(nodo(name).parameters.jsCode.includes(fn.toString()), 'Regenerar 03i tras modificar ' + fn.name);
+      assert.ok(codigo.includes(normalizarCodigo(fn.toString())), 'Regenerar 03i tras modificar ' + fn.name);
   }
-  assert.ok(nodo('Preparar autenticacion').parameters.jsCode.includes(prepararAutenticacionNodo.toString()));
+  assert.ok(normalizarCodigo(nodo('Preparar autenticacion').parameters.jsCode).includes(normalizarCodigo(prepararAutenticacionNodo.toString())));
   const ejecutar = (name, inputs, linked = {}) => JSON.parse(JSON.stringify(vm.runInNewContext('(function(){' + nodo(name).parameters.jsCode + '})()',
     { $input: { all: () => inputs.map(json => ({ json })) }, $: n => ({ itemMatching: i => ({ json: linked[n][i] }) }), Buffer })));
   const bueno = lote(), ajeno = lote('agv-dht22-01');

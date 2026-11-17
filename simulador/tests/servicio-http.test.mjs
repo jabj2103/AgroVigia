@@ -52,7 +52,7 @@ test('opciones: --http y AGROVIGIA_INGESTA_URL eligen el transporte HTTP; PORT o
     assert.throws(() => claveIngesta(entorno, '/no/existe'), /clave de ingesta HTTP/);
 });
 
-test('transporte HTTP: POST con la clave en la cabecera y el mismo topico y JSON del lote; 200 confirma', async () => {
+test('transporte HTTP: POST con la clave en la cabecera y el mismo topico y JSON del lote; 200 insertado confirma', async () => {
   const r = await receptor();
   try {
     const l = lote(), resultado = await transporteHttp({ url: r.url, clave: CLAVE }).enviar(l);
@@ -66,6 +66,15 @@ test('transporte HTTP: POST con la clave en la cabecera y el mismo topico y JSON
       { acl_verificada: true, retencion_broker_desactivada: true }, new Date().toISOString());
     assert.equal(previo.estado, 'prevalidado', previo.codigo);
   } finally { await r.cerrar(); }
+});
+
+test('transporte HTTP: 200 vacio, malformado o rechazado queda sin confirmacion', async () => {
+  const casos = ['', '<html>OK</html>', '{}', '{"estado":"rechazado","codigo":"NO_GUARDADO"}', '{"estado":"pendiente"}'];
+  const captura = lote();
+  for (const cuerpo of casos) {
+    const t = transporteHttp({ url: 'http://localhost/webhook', clave: CLAVE, fetchImpl: async () => new Response(cuerpo) });
+    assert.deepEqual(await t.enviar(captura), { ok: false, definitivo: false, motivo: 'HTTP 200 sin confirmación de guardado' }, cuerpo);
+  }
 });
 
 test('transporte HTTP: 400 y clave rechazada son definitivos; 503, 429 y sin respuesta se reintentan; nunca devuelve la clave', async () => {
@@ -106,11 +115,14 @@ test('proceso completo por HTTP: un ciclo con ajuste manual entrega 17 lotes v3 
   const dir = mkdtempSync(path.join(tmpdir(), 'agv-http-')), archivo = path.join(dir, 'estado.json');
   const estado = estadoFicticio({ ajustes: { temperatura_aire: 3, humedad_suelo_vwc: -9 } });
   writeFileSync(archivo, JSON.stringify(estado));
-  // El primer intento de cada lote del nodo 02 falla con 503: el servicio debe reintentarlo con el mismo mensaje_id.
+  // El primer intento del nodo 02 devuelve 200 sin estado: se reintenta con el mismo mensaje_id.
   const vistos = new Map();
   const r = await receptor(entrada => {
     const cuerpo = JSON.parse(entrada.texto), n = (vistos.get(cuerpo.payload.mensaje_id) ?? 0) + 1; vistos.set(cuerpo.payload.mensaje_id, n);
-    if (cuerpo.topico.endsWith('sim-52ea4628c470-02/telemetria') && n === 1) return { codigo: 503, cuerpo: { estado: 'pendiente', codigo: 'RPC_SIN_CONFIRMACION' } };
+    if (cuerpo.topico.endsWith('sim-52ea4628c470-02/telemetria')) {
+      if (n === 1) return { codigo: 200, cuerpo: {} };
+      return { codigo: 200, cuerpo: { estado: 'duplicado', codigo: 'LOTE_YA_GUARDADO' } };
+    }
     return { codigo: 200, cuerpo: { estado: 'insertado', codigo: 'LOTE_GUARDADO' } };
   });
   try {

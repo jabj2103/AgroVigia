@@ -40,7 +40,9 @@ Por MQTT el broker separa los orígenes con usuarios y permisos por tópico. Por
 
 ### Historial de ejecuciones
 
-03g y 03h no guardan las ejecuciones correctas: son muchas (una por lote, y una cada 30 s) y la de 03g incluiría la cabecera con la clave. Las ejecuciones con error sí se guardan. El resultado de cada lote está en la respuesta HTTP y en Supabase; el de cada solicitud, en `solicitudes_ia` y `sugerencias_ia`.
+03g y 03i desactivan el historial de ejecuciones correctas, fallidas y manuales, además del guardado de progreso por nodo. Sus entradas contienen claves de ingesta. Al instalar o actualizar estos flujos, comprueba los cuatro ajustes en **Settings** antes de publicar. Para diagnosticar el guardado, consulta el estado y código que devuelve el webhook y verifica el `mensaje_id` en Supabase.
+
+03h conserva las ejecuciones fallidas. El resultado de cada solicitud se consulta en `solicitudes_ia` y `sugerencias_ia`.
 
 ## Nodos físicos por HTTPS con clave propia (03i)
 
