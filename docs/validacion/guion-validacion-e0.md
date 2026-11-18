@@ -44,7 +44,7 @@ Cada pregunta se responde con una o más tareas de la sección 5.
 - [ ] Un teléfono Android con Chrome. Preferiblemente uno de gama media, parecido al que usarían los participantes. Brillo automático.
 - [ ] La cuenta de prueba con sesión iniciada. **No usar la cuenta personal del participante.**
 - [ ] Desactivar notificaciones del teléfono (modo No molestar).
-- [ ] Wireframes impresos de Inicio actual, Inicio propuesto, Detalle de nodo y Alertas (sección 3 de la auditoría). Ver la nota al final sobre cómo prepararlos.
+- [ ] Pantallas impresas: [wireframes-e0.html](wireframes-e0.html), abierto en Chrome e impreso en A4 horizontal al 100 % con gráficos de fondo (5 hojas). Las hojas 1 a 4 llevan las pantallas A–E; la hoja 5 es la clave para quien modera y **no se muestra** a los participantes.
 - [ ] Hojas de registro impresas (Anexo A), una por participante, y un cronómetro.
 
 ### Servicios (en la terminal de Juan)
@@ -171,11 +171,17 @@ Señalar cada palabra en la pantalla y preguntar **«¿Qué significa esto para 
 | Escenario | Navegación | (Anotar qué espera encontrar ahí) |
 
 ### 5.5 Comparación con los wireframes (5 min)
-Mostrar en papel el **Inicio actual** (captura) y el **Inicio propuesto**, uno al lado del otro.
-1. «En este dibujo, ¿dónde hay un problema?» (Con el propuesto.) Anotar si lo encuentra y cuánto tarda.
-2. «Toca dónde verías los datos de ese punto.» (Sobre el papel.)
-3. «¿Cuál de las dos pantallas preferirías ver cada mañana? ¿Por qué?»
-4. Mostrar el detalle de alerta propuesto y preguntar: «¿Qué harías después de ver esto?»
+Usar las hojas impresas. La pantalla **A** es el Inicio de hoy y la **B** el Inicio propuesto, dibujadas con el mismo nivel de detalle y los mismos datos de ejemplo para que la comparación sea justa. Llamarlas siempre «pantalla A» y «pantalla B», nunca «actual» o «nueva».
+
+**Orden:** P1, P3 y P5 empiezan con A; P2 y P4 empiezan con B.
+
+1. Mostrar la primera pantalla **sola** (doblar la hoja o tapar la otra) y preguntar: «En esta pantalla, ¿dónde hay un problema?». Cronometrar. Repetir con la otra pantalla.
+2. Con B: «Toca dónde verías los datos de ese punto». Si toca bien, mostrar C (detalle del punto).
+3. Poner A y B juntas: «¿Cuál de las dos preferirías ver cada mañana? ¿Por qué?».
+4. Mostrar E (detalle de alerta) y preguntar: «¿Qué harías después de ver esto?».
+5. Opcional, si hay tiempo: mostrar D (lista de alertas) y preguntar: «¿Qué diferencia hay entre estas dos alertas?».
+
+Las respuestas esperadas están en la hoja 5.
 
 > La preferencia declarada vale menos que lo observado en las tareas. Si alguien prefiere una pantalla pero falla en ella, gana lo observado.
 
@@ -255,7 +261,7 @@ Son orientativas: con 3–5 personas, un patrón repetido pesa más que un caso 
 **Vocabulario** (✓ entiende · ~ a medias · ✗ no entiende, con su respuesta textual):
 Nodo __ · Sector/Zona __ · Simulado __ · % relativo __ · Revisada __ · Cerrada __ · IA __ · Escenario __
 
-**Wireframes:** encontró el problema en el propuesto ☐ Sí ☐ No (tiempo ____) · Prefiere ☐ Actual ☐ Propuesto · Motivo: ____
+**Pantallas impresas:** empezó por ☐ A ☐ B · problema encontrado en A ☐ Ninguno ☐ Uno ☐ Los dos (tiempo ____) · en B ☐ Ninguno ☐ Uno ☐ Los dos (tiempo ____) · Prefiere ☐ A ☐ B · Motivo: ____
 
 **Cierre:** lo más difícil: ____ · cambiaría: ____
 
@@ -263,5 +269,5 @@ Nodo __ · Sector/Zona __ · Simulado __ · % relativo __ · Revisada __ · Cerr
 
 ---
 
-### Nota sobre los wireframes impresos
-Los wireframes de la auditoría están en texto (ASCII) y no son adecuados para mostrarlos a participantes. Antes de las sesiones hay que convertirlos en pantallas imprimibles a tamaño de teléfono, con el mismo contenido de ejemplo para el Inicio actual (captura de la app preparada) y el propuesto.
+### Nota sobre las pantallas impresas
+[wireframes-e0.html](wireframes-e0.html) contiene las pantallas A–E y la clave. La pantalla A reproduce el Inicio de la rama `juan/integracion-camilo` (commit 77d8661), dibujado desde el código y no desde una captura, para que tenga el mismo nivel de detalle que B. Si la web cambia antes de las sesiones, hay que revisar A. Los datos son de ejemplo y no corresponden a mediciones reales.

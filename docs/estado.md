@@ -4,6 +4,15 @@ Actualización: 25 de octubre de 2026. Fuentes: decisiones del chat, archivos lo
 
 ## Preparado en esta carpeta
 
+17 de noviembre de 2026 (Bogotá): en la rama `juan/auditoria-ux` se prepararon las pantallas imprimibles de la validación E0 en [validacion/wireframes-e0.html](validacion/wireframes-e0.html). Contenido:
+- Pantalla A: Inicio de hoy, dibujado desde el código de 77d8661 con el mismo nivel de detalle que las propuestas.
+- Pantallas B–E: Inicio propuesto, detalle de un punto, lista de alertas y detalle de alerta.
+- Hoja 5: clave para quien modera, con orden alternado A/B y respuestas esperadas.
+
+Todo usa los mismos datos de ejemplo, no reales: alerta simulada en sim-03 y nodo real sin enviar. Las letras son neutras para no sugerir cuál es la propuesta. El guion E0 se ajustó para usar estas hojas.
+
+Comprobaciones: revisión visual en el navegador integrado e impresión a PDF con Chrome sin ventana. Salen 5 páginas A4 horizontales y caben tres teléfonos por hoja. No se imprimió en papel ni se mostró a participantes.
+
 17 de noviembre de 2026 (Bogotá): preparado el guion de validación E0 de la auditoría UX en [validacion/guion-validacion-e0.md](validacion/guion-validacion-e0.md). Contenido:
 - Nueve preguntas de investigación ligadas a las etapas E1–E6.
 - Perfil de 3–5 participantes, identificados por código y sin datos personales, y texto de consentimiento.

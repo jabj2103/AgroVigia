@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireframes E0 AgroVigía</title>
+<!-- Pantallas imprimibles para la validación E0 (docs/validacion/guion-validacion-e0.md).
+     Imprimir en A4 horizontal, escala 100 %, con gráficos de fondo. Datos de ejemplo, no reales.
+     Las pantallas llevan letras neutras (A–E); la clave para quien modera está en la última hoja. -->
+<style>
+:root {
+  --tinta: #111; --tinta-2: #474747; --papel: #f4f6f1; --papel-2: #edf1e8; --blanco: #fff;
+  --raya: #dfe5dc; --raya-fuerte: #76897c; --verde: #174d3d; --verde-600: #1f7a4d; --verde-500: #2f9e63;
+  --verde-suave: #e6f0dc; --lima: #d5e9a7; --naranja: #f59e2e; --naranja-700: #c9730f; --naranja-suave: #fdf0dc;
+  --rojo: #b3372b; --rojo-suave: #fbe9e6; --violeta: #7e679e; --violeta-suave: #ece6f7; --gris: #7b8780; --gris-suave: #e4e7e5;
+  --azul: #0f6485; --azul-suave: #e3eef7;
+  --fuente: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; background: #d9ddd5; color: var(--tinta); font-family: var(--fuente); }
+p, h1, h2, h3, h4, dl, dd, ul, ol { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+/* Hojas A4 horizontales */
+@page { size: A4 landscape; margin: 8mm; }
+.hoja { width: 281mm; min-height: 194mm; margin: 6mm auto; padding: 4mm 6mm; background: var(--blanco); box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  display: flex; flex-direction: column; gap: 3mm; break-after: page; }
+.hoja:last-child { break-after: auto; }
+.hoja-cabecera { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; color: var(--tinta-2); }
+.hoja-cabecera strong { font-size: 13px; color: var(--tinta); }
+.par { flex: 1; display: flex; justify-content: center; align-items: flex-start; gap: 8mm; }
+.marco { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.marco > .rotulo { font-size: 15px; font-weight: 700; letter-spacing: .02em; }
+.marco > .rotulo span { font-weight: 400; color: var(--tinta-2); }
+.telefono { width: 376px; padding: 8px; border-radius: 30px; background: #1d1f1e; zoom: .85; }
+.ventana { position: relative; width: 360px; height: 680px; overflow: hidden; border-radius: 22px; background: var(--papel); }
+.desplazable { position: absolute; inset: 0 0 auto 0; }
+.continua { font-size: 11px; color: var(--tinta-2); min-height: 14px; }
+@media print { body { background: none; } .hoja { margin: 0; box-shadow: none; padding: 0; } .ayuda-pantalla { display: none; } }
+.ayuda-pantalla { max-width: 281mm; margin: 6mm auto 0; padding: 10px 14px; border-radius: 8px; background: #fff8e1; font-size: 14px; line-height: 1.5; }
+
+/* Iconos */
+.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+
+/* ===================== APP ACTUAL (fiel a los estilos de la web hoy) ===================== */
+.actual { font-size: 16px; line-height: 1.5; }
+.actual .tira { display: flex; gap: 4px; padding: 8px 12px; background: var(--blanco); border-bottom: 1px solid var(--raya); overflow: hidden; white-space: nowrap; }
+.actual .tira span { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border-radius: 8px; font-size: 14px; flex: none; }
+.actual .tira span.sel { background: var(--verde); color: var(--blanco); font-weight: 600; }
+.actual .tira.fija { position: absolute; top: 0; left: 0; right: 0; z-index: 3; }
+.actual .cuerpo { padding: 0 16px 16px; }
+.actual .enc { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 16px; }
+.actual .enc .izq { display: flex; align-items: center; gap: 10px; }
+.actual .boton-cuadro { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--raya-fuerte); border-radius: 8px; background: var(--blanco); position: relative; }
+.actual .sobre { display: block; font-size: 12px; font-weight: 600; letter-spacing: .08em; color: var(--tinta-2); }
+.actual h1 { font-size: 24px; line-height: 1.2; }
+.actual .burbuja { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: var(--rojo); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 2px solid #fff; }
+.actual .acc { display: flex; gap: 8px; }
+.actual .btn-sec { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 12px; border: 1px solid var(--raya-fuerte); border-radius: 8px; background: var(--blanco); font-size: 14px; font-weight: 600; }
+.actual .desc { margin-top: 12px; color: var(--tinta-2); font-size: 15px; }
+.actual .seg { display: flex; margin-top: 16px; border: 1px solid var(--raya-fuerte); border-radius: 8px; overflow: hidden; }
+.actual .seg span { flex: 1; text-align: center; padding: 10px 6px; font-size: 14px; background: var(--blanco); }
+.actual .seg span.on { background: var(--verde); color: #fff; font-weight: 600; }
+.actual .ctx { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; font-size: 12px; color: var(--tinta-2); }
+.actual .pill { display: inline-block; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--tinta); }
+.actual .pill.real { background: var(--verde-suave); }
+.actual .pill.sim { background: var(--violeta-suave); }
+.actual .pill.antiguo { background: var(--naranja-suave); }
+.actual .selcult { margin-top: 16px; padding: 16px; border-radius: 12px; background: var(--blanco); border: 1px solid var(--raya); }
+.actual .select { margin-top: 6px; display: flex; justify-content: space-between; align-items: center; height: 48px; padding: 0 12px; border: 1px solid var(--raya-fuerte); border-radius: 8px; background: #fff; font-size: 16px; }
+.actual .selcult p { margin-top: 12px; font-size: 12px; }
+.actual .panel { margin-top: 16px; border-radius: 12px; background: var(--blanco); border: 1px solid var(--raya); overflow: hidden; }
+.actual .panel-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 16px 16px 8px; }
+.actual .panel-cab h3 { font-size: 20px; }
+.actual .medidas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 16px; }
+.actual .medida { padding: 12px; border-radius: 10px; background: var(--papel-2); }
+.actual .medida h4 { font-size: 12px; font-weight: 600; }
+.actual .medida .valor { font-size: 26px; font-weight: 700; line-height: 1.3; }
+.actual .medida .valor small { font-size: 14px; font-weight: 500; }
+.actual .medida p { font-size: 12px; color: var(--tinta-2); }
+.actual .medida.luz { margin: 0 16px 8px; }
+.actual .medida.luz p + p { margin-top: 4px; }
+.actual .fechas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 16px 12px; font-size: 12px; }
+.actual .fechas span { display: block; color: var(--tinta-2); }
+.actual .ident { padding: 12px 16px; border-top: 1px solid var(--raya); font-size: 12px; color: var(--tinta-2); }
+.actual .pie { margin: 16px 0; font-size: 12px; color: var(--tinta-2); }
+.actual .sim-cab { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; margin-top: 8px; }
+.actual .sim-cab h2 { font-size: 20px; margin-top: 6px; }
+.actual .sim-cab p { font-size: 14px; color: var(--tinta-2); }
+.actual .sim-cab .btn-sec { height: auto; padding: 8px 10px; text-align: center; max-width: 120px; line-height: 1.3; }
+.actual .sim-nodo { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--blanco); border: 1px solid var(--raya); }
+.actual .sim-nodo-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.actual .sim-nodo-cab span { color: var(--tinta-2); }
+.actual .tono { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--verde-suave); color: var(--tinta) !important; }
+.actual .tono i { width: 8px; height: 8px; border-radius: 50%; background: var(--verde-500); }
+.actual .sim-valores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 10px; margin-top: 8px; }
+.actual .sim-valores dt { font-size: 12px; color: var(--tinta-2); }
+.actual .sim-valores dd { font-size: 16px; font-weight: 700; }
+.actual .sim-valores dd small { font-size: 12px; font-weight: 500; color: var(--tinta-2); }
+.actual .sim-pie { margin-top: 6px; font-size: 12px; color: var(--tinta-2); }
+
+/* ===================== PROPUESTA (texto mínimo 14 px, áreas táctiles 44 px) ===================== */
+.prop { font-size: 15px; line-height: 1.45; padding-bottom: 72px; }
+.prop .barra { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 4px; }
+.prop .marca { font-size: 18px; font-weight: 700; color: var(--verde); }
+.prop .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--raya-fuerte); background: #fff; font-size: 15px; font-weight: 600; }
+.prop .fresco { padding: 0 16px 10px; font-size: 14px; color: var(--tinta-2); }
+.prop .fresco b { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--verde-500); margin-right: 6px; vertical-align: 1px; }
+.prop .bloque { margin: 0 12px 12px; border-radius: 14px; background: #fff; border: 1px solid var(--raya); }
+.prop .titulo-bloque { font-size: 14px; font-weight: 700; letter-spacing: .04em; color: var(--tinta-2); margin: 16px 16px 8px; }
+.prop .fila { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 14px; border-top: 1px solid var(--raya); }
+.prop .fila:first-child { border-top: 0; }
+.prop .fila .txt { flex: 1; }
+.prop .fila .txt small { display: block; font-size: 14px; color: var(--tinta-2); }
+.prop .fila .flecha { color: var(--tinta-2); font-size: 22px; line-height: 1; }
+.prop .ico-alerta { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--rojo-suave); color: var(--rojo); flex: none; }
+.prop .ico-aviso { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--naranja-suave); color: var(--naranja-700); flex: none; }
+.prop .ico-info { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--gris-suave); color: var(--tinta-2); flex: none; }
+.prop .visor { margin: 0 12px 12px; border-radius: 14px; border: 1px solid var(--raya); background: radial-gradient(circle at 50% 35%, #fff 0%, var(--papel-2) 75%); overflow: hidden; }
+.prop .visor > svg { display: block; width: 100%; height: auto; }
+.prop .visor-acciones { display: flex; gap: 8px; padding: 8px 10px 10px; }
+.prop .boton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--raya-fuerte); background: #fff; font-size: 15px; font-weight: 600; }
+.prop .boton.principal { background: var(--verde); border-color: var(--verde); color: #fff; }
+.prop .boton.ancho { width: 100%; }
+.prop .leyenda { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 12px 10px; font-size: 14px; color: var(--tinta-2); }
+.prop .origen { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; letter-spacing: .03em; }
+.prop .origen.sim { background: var(--violeta-suave); color: #4f3d6b; }
+.prop .origen.real { background: var(--verde-suave); color: var(--verde); }
+.prop .estado { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.prop .estado i { width: 10px; height: 10px; border-radius: 50%; background: var(--verde-500); }
+.prop .estado.no i { background: #fff; border: 2px solid var(--naranja-700); }
+.prop .hoja-sel { padding: 14px; }
+.prop .hoja-sel h3 { font-size: 17px; }
+.prop .hoja-sel .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 14px; color: var(--tinta-2); }
+.prop .valores { display: flex; gap: 16px; margin-top: 10px; }
+.prop .valores div { font-size: 14px; color: var(--tinta-2); }
+.prop .valores strong { display: block; font-size: 22px; color: var(--tinta); line-height: 1.2; }
+.prop .valores strong.mal { color: var(--rojo); }
+.prop .linea-alerta { display: flex; gap: 8px; align-items: center; margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--rojo-suave); font-size: 14px; }
+.prop .sector { margin: 14px 16px 4px; font-size: 14px; font-weight: 700; color: var(--tinta-2); }
+.prop .nodo { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 14px; border-top: 1px solid var(--raya); }
+.prop .nodo:first-child { border-top: 0; }
+.prop .marcador { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; font-size: 14px; font-weight: 800; flex: none; }
+.prop .marcador.real { background: var(--verde-suave); color: var(--verde); border: 2px solid var(--verde); }
+.prop .marcador.sim { background: var(--violeta-suave); color: #4f3d6b; border: 2px solid var(--violeta); }
+.prop .nodo .txt { flex: 1; min-width: 0; }
+.prop .nodo .txt strong { font-size: 15px; }
+.prop .nodo .txt small { display: block; font-size: 14px; color: var(--tinta-2); }
+.prop .nodo .dato { text-align: right; font-size: 17px; font-weight: 700; }
+.prop .nodo .dato small { display: block; font-size: 13px; font-weight: 500; color: var(--tinta-2); }
+.prop .nodo .dato.viejo { color: var(--tinta-2); font-weight: 600; }
+.prop .nodo.sel { background: var(--verde-suave); }
+.prop .sug { padding: 14px; }
+.prop .sug small { font-size: 14px; color: var(--tinta-2); }
+.prop .sug p { margin-top: 6px; font-size: 15px; }
+.prop .ia { display: inline-flex; gap: 4px; align-items: center; font-size: 14px; font-weight: 700; color: var(--azul); }
+.prop .nav { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px 4px 10px; background: #fff; border-top: 1px solid var(--raya); }
+.prop .nav span { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px; justify-content: center; font-size: 12.5px; color: var(--tinta-2); position: relative; }
+.prop .nav span.sel { color: var(--verde); font-weight: 700; }
+.prop .nav span.sel .i { stroke-width: 2.2; }
+.prop .nav .cuenta { position: absolute; top: 2px; left: 50%; margin-left: 6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: var(--rojo); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.prop .volver { display: flex; align-items: center; gap: 4px; min-height: 48px; padding: 6px 12px 0; font-size: 16px; font-weight: 600; color: var(--verde); }
+.prop .cab-detalle { padding: 2px 16px 12px; }
+.prop .cab-detalle h1 { font-size: 22px; line-height: 1.25; }
+.prop .cab-detalle .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 6px; font-size: 14px; color: var(--tinta-2); }
+.prop .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 12px 8px; }
+.prop .celda { padding: 12px; border-radius: 12px; background: #fff; border: 1px solid var(--raya); }
+.prop .celda span { font-size: 14px; color: var(--tinta-2); }
+.prop .celda strong { display: block; font-size: 24px; line-height: 1.25; }
+.prop .celda strong small { font-size: 15px; font-weight: 500; }
+.prop .celda.mal { border-color: var(--rojo); background: var(--rojo-suave); }
+.prop .celda.mal strong { color: var(--rojo); }
+.prop .enlace { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin: 0 12px; padding: 0 4px; font-size: 15px; font-weight: 600; color: var(--verde); }
+.prop .plegado { display: flex; align-items: center; gap: 8px; min-height: 48px; margin: 0 12px; padding: 0 4px; border-top: 1px solid var(--raya); font-size: 15px; color: var(--tinta-2); }
+.prop .grafica { padding: 10px 12px 12px; }
+.prop .grafica small { font-size: 14px; color: var(--tinta-2); }
+.prop .chips-estado { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.prop .ce { display: inline-flex; gap: 4px; align-items: center; padding: 4px 10px; border-radius: 99px; font-size: 14px; font-weight: 600; border: 1px solid var(--raya-fuerte); background: #fff; }
+.prop .ce.activa { background: var(--rojo-suave); border-color: var(--rojo); color: var(--rojo); }
+.prop .ce.pend { background: var(--naranja-suave); border-color: var(--naranja-700); }
+.prop .ce.ok { background: var(--verde-suave); border-color: var(--verde-600); }
+.prop .segmento { display: flex; margin: 4px 12px 10px; padding: 4px; border-radius: 12px; background: var(--papel-2); }
+.prop .segmento span { flex: 1; text-align: center; min-height: 40px; display: grid; place-items: center; border-radius: 9px; font-size: 15px; }
+.prop .segmento span.on { background: #fff; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.prop .nota { display: flex; gap: 8px; align-items: flex-start; margin: 0 12px 10px; font-size: 14px; color: var(--tinta-2); }
+.prop .tarjeta-alerta { padding: 14px; }
+.prop .tarjeta-alerta h3 { font-size: 17px; }
+.prop .tarjeta-alerta .grande { margin-top: 4px; font-size: 15px; }
+.prop .tarjeta-alerta .grande strong { font-size: 22px; color: var(--rojo); }
+.prop .tarjeta-alerta .donde { margin-top: 4px; font-size: 14px; color: var(--tinta-2); }
+.prop .acciones { display: flex; gap: 8px; margin-top: 12px; }
+.prop .acciones .boton { flex: 1; }
+.prop .grupo-plegado { display: flex; justify-content: space-between; align-items: center; min-height: 52px; margin: 0 12px 8px; padding: 0 14px; border-radius: 12px; background: #fff; border: 1px solid var(--raya); font-size: 15px; font-weight: 600; }
+.prop .texto { padding: 12px 14px; font-size: 15px; }
+.prop .texto + .texto { padding-top: 0; }
+.prop .limites { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--papel-2); font-size: 14px; color: var(--tinta-2); }
+.prop .fija-abajo { position: absolute; left: 0; right: 0; bottom: 64px; z-index: 2; padding: 10px 12px; background: linear-gradient(transparent, var(--papel) 30%); }
+
+/* ===================== Clave para quien modera ===================== */
+.clave { font-size: 13px; line-height: 1.5; column-count: 2; column-gap: 10mm; }
+.clave h2 { font-size: 16px; margin: 0 0 4px; break-after: avoid; }
+.clave h3 { font-size: 14px; margin: 10px 0 2px; break-after: avoid; }
+.clave p, .clave li { margin: 0 0 4px; }
+.clave ul { list-style: disc; padding-left: 18px; }
+.clave table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; break-inside: avoid; }
+.clave th, .clave td { text-align: left; padding: 3px 5px; border: 1px solid #c9cfc6; vertical-align: top; }
+.clave th { background: var(--papel-2); }
+</style>
+</head>
+<body>
+
+<p class="ayuda-pantalla"><strong>Cómo imprimir:</strong> Ctrl+P → Destino «Guardar como PDF» o la impresora → Diseño <em>Horizontal</em>, Papel <em>A4</em>, Escala <em>100 %</em> (o «Predeterminada»), Márgenes <em>Predeterminados</em>, activar <em>Gráficos de fondo</em>. Salen 5 hojas. Este recuadro no se imprime. La última hoja es para quien modera: no se muestra a los participantes.</p>
+
+<!-- ============ Iconos ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-casa" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v11h-6v-7H9v7H3Z"/></symbol>
+  <symbol id="i-chispa" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8ZM18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9Z"/></symbol>
+  <symbol id="i-hex" viewBox="0 0 24 24"><path d="M12 2.5 20.2 7.25v9.5L12 21.5 3.8 16.75v-9.5Z"/><circle cx="12" cy="12" r="2.2"/></symbol>
+  <symbol id="i-campana" viewBox="0 0 24 24"><path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5ZM10 21h4"/></symbol>
+  <symbol id="i-grafica" viewBox="0 0 24 24"><path d="M4 3v17h17M8 15l4-6 4 3 5-7"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+  <symbol id="i-act" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.7-6L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.7 6L3 16M3 21v-5h5"/></symbol>
+  <symbol id="i-hoja" viewBox="0 0 24 24"><path d="M12 22V11M12 14C3 15 2 8 3 5c6-1 10 2 9 9ZM12 11c-1-7 4-9 9-8 0 5-3 9-9 8Z"/></symbol>
+  <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19Z"/><path d="M12 10v4.5M12 17.3v.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.2"/></symbol>
+  <symbol id="i-senal" viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5v.1"/><path d="M3 3l18 18"/></symbol>
+  <symbol id="i-cubo" viewBox="0 0 24 24"><path d="M12 2.8 20 7v10l-8 4.2L4 17V7Z"/><path d="M4 7l8 4.2L20 7M12 11.2v10"/></symbol>
+  <symbol id="i-plano" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 12h17M12 3.5v17"/></symbol>
+  <symbol id="i-abajo" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-derecha" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-izq" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-mapa" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</svg>
+
+<!-- ======================================================================
+     PANTALLA A · Inicio actual («Lecturas reales»), fiel al código de hoy
+     ====================================================================== -->
+<template id="t-tira">
+  <nav class="tira">
+    <span class="sel"><svg class="i"><use href="#i-casa"/></svg>Inicio</span>
+    <span><svg class="i"><use href="#i-chispa"/></svg>IA</span>
+    <span><svg class="i"><use href="#i-hex"/></svg>Escenario</span>
+    <span><svg class="i"><use href="#i-campana"/></svg>Alertas</span>
+    <span><svg class="i"><use href="#i-grafica"/></svg>Historial</span>
+  </nav>
+</template>
+<template id="t-actual">
+  <div class="actual">
+    <nav class="tira">
+      <span class="sel"><svg class="i"><use href="#i-casa"/></svg>Inicio</span>
+      <span><svg class="i"><use href="#i-chispa"/></svg>IA</span>
+      <span><svg class="i"><use href="#i-hex"/></svg>Escenario</span>
+      <span><svg class="i"><use href="#i-campana"/></svg>Alertas</span>
+      <span><svg class="i"><use href="#i-grafica"/></svg>Historial</span>
+    </nav>
+    <div class="cuerpo">
+      <header class="enc">
+        <div class="izq"><span class="boton-cuadro"><svg class="i"><use href="#i-menu"/></svg></span>
+          <div><span class="sobre">AGROVIGÍA</span><h1>Panel</h1></div></div>
+        <div class="acc"><span class="boton-cuadro"><svg class="i"><use href="#i-campana"/></svg><b class="burbuja">0</b></span>
+          <span class="btn-sec"><svg class="i"><use href="#i-act"/></svg>Actualizar</span></div>
+      </header>
+      <p class="desc">Consulta las lecturas reales o explora los puntos del cultivo por zona.</p>
+      <div class="seg"><span class="on">Lecturas reales</span><span>Zonas y nodos</span></div>
+      <div class="ctx"><span class="pill real">Datos reales</span><span>Consulta automática cada 30 s</span></div>
+      <section class="selcult"><span class="sobre" style="color:var(--tinta)">CULTIVO SELECCIONADO</span>
+        <div class="select">Lote Norte <svg class="i"><use href="#i-abajo"/></svg></div><p>Tomate · 0,5 ha</p></section>
+      <article class="panel">
+        <div class="panel-cab"><div><span class="sobre">NODO DHT22 + LDR</span><h3>agv-dht22-01</h3></div><span class="pill antiguo">Datos desactualizados</span></div>
+        <div class="medidas">
+          <div class="medida"><h4>Temperatura del aire</h4><div class="valor">27,5 <small>°C</small></div><p>Captura: Hace 14 min</p></div>
+          <div class="medida"><h4>Humedad del aire</h4><div class="valor">61,0 <small>% HR</small></div><p>Captura: Hace 14 min</p></div>
+        </div>
+        <div class="medida luz"><h4>Iluminacion relativa</h4><div class="valor">48,0 <small>% relativo</small></div>
+          <p>Indice del ADC; no mide lux.</p><p>Lectura ADC: 1966 / 4095</p><p>Las diferencias entre sensores requieren comprobarse antes de comparar ubicaciones.</p></div>
+        <div class="fechas"><div><span>Fecha de captura</span><strong>17/11/2026, 10:28:05 a. m.</strong></div><div><span>Recepción de aplicación · aprox.</span><strong>17/11/2026, 10:28:06 a. m.</strong></div></div>
+        <div class="ident">▸ Identificación de la captura</div>
+      </article>
+      <p class="pie">Última consulta correcta: 17/11/2026, 10:42:10 a. m.</p>
+      <section>
+        <div class="sim-cab"><div><span class="pill sim">Datos simulados</span><h2>Nodos simulados</h2><p>4 de 4 recibiendo. Valores del último envío de cada nodo.</p></div>
+          <span class="btn-sec">Cambiar clima o ajuste</span></div>
+        <div class="sim-nodo"><div class="sim-nodo-cab"><strong>sim-01</strong><span>Norte</span><span class="tono"><i></i>Recibiendo</span></div>
+          <dl class="sim-valores"><div><dt>Temperatura</dt><dd>26,1 <small>°C</small></dd></div><div><dt>Humedad del aire</dt><dd>64 <small>% HR</small></dd></div><div><dt>Humedad del suelo</dt><dd>31 <small>% VWC</small></dd></div>
+            <div><dt>Lluvia 60 min</dt><dd>0 <small>mm</small></dd></div><div><dt>pH del suelo</dt><dd>6,4 <small>pH</small></dd></div><div><dt>Viento</dt><dd>1,8 <small>m/s</small></dd></div></dl>
+          <p class="sim-pie">Captura: hace 40 s</p></div>
+        <div class="sim-nodo"><div class="sim-nodo-cab"><strong>sim-02</strong><span>Sur</span><span class="tono"><i></i>Recibiendo</span></div>
+          <dl class="sim-valores"><div><dt>Temperatura</dt><dd>27,0 <small>°C</small></dd></div><div><dt>Humedad del aire</dt><dd>58 <small>% HR</small></dd></div><div><dt>Humedad del suelo</dt><dd>21 <small>% VWC</small></dd></div>
+            <div><dt>Lluvia 60 min</dt><dd>0 <small>mm</small></dd></div><div><dt>pH del suelo</dt><dd>6,6 <small>pH</small></dd></div><div><dt>Viento</dt><dd>2,1 <small>m/s</small></dd></div></dl>
+          <p class="sim-pie">Captura: hace 38 s</p></div>
+        <div class="sim-nodo"><div class="sim-nodo-cab"><strong>sim-03</strong><span>Central</span><span class="tono"><i></i>Recibiendo</span></div>
+          <dl class="sim-valores"><div><dt>Temperatura</dt><dd>34,2 <small>°C</small></dd></div><div><dt>Humedad del aire</dt><dd>41 <small>% HR</small></dd></div><div><dt>Humedad del suelo</dt><dd>22 <small>% VWC</small></dd></div>
+            <div><dt>Lluvia 60 min</dt><dd>0 <small>mm</small></dd></div><div><dt>pH del suelo</dt><dd>6,5 <small>pH</small></dd></div><div><dt>Viento</dt><dd>1,2 <small>m/s</small></dd></div></dl>
+          <p class="sim-pie">Captura: hace 35 s</p></div>
+        <div class="sim-nodo"><div class="sim-nodo-cab"><strong>sim-04</strong><span>Drenaje</span><span class="tono"><i></i>Recibiendo</span></div>
+          <dl class="sim-valores"><div><dt>Temperatura</dt><dd>29,4 <small>°C</small></dd></div><div><dt>Humedad del aire</dt><dd>52 <small>% HR</small></dd></div><div><dt>Humedad del suelo</dt><dd>35 <small>% VWC</small></dd></div>
+            <div><dt>Lluvia 60 min</dt><dd>0 <small>mm</small></dd></div><div><dt>pH del suelo</dt><dd>6,8 <small>pH</small></dd></div><div><dt>Viento</dt><dd>1,5 <small>m/s</small></dd></div></dl>
+          <p class="sim-pie">Captura: hace 33 s</p></div>
+      </section>
+    </div>
+  </div>
+</template>
+
+<!-- ======================================================================
+     Barra inferior de la propuesta (se repite en cada pantalla)
+     ====================================================================== -->
+<template id="t-nav-inicio"><div class="prop"><nav class="nav">
+  <span class="sel"><svg class="i"><use href="#i-casa"/></svg>Inicio</span>
+  <span><svg class="i"><use href="#i-campana"/></svg>Alertas<b class="cuenta">1</b></span>
+  <span><svg class="i"><use href="#i-chispa"/></svg>Sugerencias</span>
+  <span><svg class="i"><use href="#i-grafica"/></svg>Historial</span>
+  <span><svg class="i"><use href="#i-menu"/></svg>Más</span></nav></div></template>
+<template id="t-nav-alertas"><div class="prop"><nav class="nav">
+  <span><svg class="i"><use href="#i-casa"/></svg>Inicio</span>
+  <span class="sel"><svg class="i"><use href="#i-campana"/></svg>Alertas<b class="cuenta">1</b></span>
+  <span><svg class="i"><use href="#i-chispa"/></svg>Sugerencias</span>
+  <span><svg class="i"><use href="#i-grafica"/></svg>Historial</span>
+  <span><svg class="i"><use href="#i-menu"/></svg>Más</span></nav></div></template>
+
+<!-- ======================================================================
+     PANTALLA B · Inicio propuesto
+     ====================================================================== -->
+<template id="t-inicio">
+  <div class="prop">
+    <div class="barra"><span class="marca">AgroVigía</span><span class="chip">Lote Norte <svg class="i"><use href="#i-abajo"/></svg></span></div>
+    <p class="fresco"><b></b>Actualizado hace 12 s · se actualiza solo</p>
+
+    <section class="bloque">
+      <div class="fila"><span class="ico-alerta"><svg class="i"><use href="#i-alerta"/></svg></span>
+        <span class="txt"><strong>1 alerta sin revisar</strong><small>Datos simulados · sim-03, sector Central</small></span><span class="flecha">›</span></div>
+      <div class="fila"><span class="ico-aviso"><svg class="i"><use href="#i-senal"/></svg></span>
+        <span class="txt"><strong>agv-dht22-01 no envía datos</strong><small>Última lectura real hace 14 min</small></span><span class="flecha">›</span></div>
+      <div class="fila"><span class="ico-info"><svg class="i"><use href="#i-info"/></svg></span>
+        <span class="txt"><small>Alertas con datos reales: ninguna activa. Eso no confirma que el cultivo esté sano.</small></span></div>
+    </section>
+
+    <section class="visor" aria-label="Dibujo del lote">
+      <svg viewBox="0 0 360 230" role="img" aria-label="Lote con cuatro sectores y cinco puntos de medición">
+        <!-- Terreno en perspectiva, dividido en cuatro sectores -->
+        <polygon points="72,22 288,22 336,200 24,200" fill="#e8f1e0" stroke="#9fbf8f" stroke-width="2"/>
+        <polygon points="72,22 180,22 180,104 50,104" fill="#d5e9a7" fill-opacity=".45"/>
+        <polygon points="180,22 288,22 310,104 180,104" fill="#d5e9a7" fill-opacity=".45"/>
+        <polygon points="50,104 180,104 180,200 24,200" fill="#f6d7d1" fill-opacity=".85" stroke="#b3372b" stroke-width="2.5"/>
+        <polygon points="180,104 310,104 336,200 180,200" fill="#d5e9a7" fill-opacity=".45"/>
+        <path d="M180 22V200M50 104H310" stroke="#174d3d" stroke-opacity=".5" stroke-width="1.5"/>
+        <g font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#174d3d">
+          <text x="58" y="98">Norte</text><text x="188" y="98">Sur</text><text x="32" y="193" fill="#93291f">Central</text><text x="188" y="193">Drenaje</text>
+        </g>
+        <!-- Nodos: R = real (con antena), S = simulado -->
+        <g font-family="system-ui, sans-serif" font-size="13" font-weight="800" text-anchor="middle">
+          <!-- R1: sin recibir (anillo naranja vacío) -->
+          <line x1="104" y1="52" x2="104" y2="36" stroke="#7d8c84" stroke-width="2"/><circle cx="104" cy="34" r="3" fill="#9ccb61"/>
+          <rect x="88" y="52" width="32" height="26" rx="7" fill="#fff" stroke="#c9730f" stroke-width="2.5" stroke-dasharray="4 3"/><text x="104" y="70" fill="#174d3d">R1</text>
+          <!-- S1 -->
+          <rect x="138" y="58" width="32" height="26" rx="13" fill="#ece6f7" stroke="#2f9e63" stroke-width="2.5"/><text x="154" y="76" fill="#4f3d6b">S1</text>
+          <!-- S2 -->
+          <rect x="226" y="62" width="32" height="26" rx="13" fill="#ece6f7" stroke="#2f9e63" stroke-width="2.5"/><text x="242" y="80" fill="#4f3d6b">S2</text>
+          <!-- S3: alerta, seleccionado -->
+          <ellipse cx="112" cy="170" rx="30" ry="9" fill="none" stroke="#174d3d" stroke-width="2.5"/>
+          <rect x="96" y="140" width="32" height="26" rx="13" fill="#ece6f7" stroke="#2f9e63" stroke-width="2.5"/><text x="112" y="158" fill="#4f3d6b">S3</text>
+          <path d="M132 124 146 148H118Z" fill="#b3372b" stroke="#fff" stroke-width="1.5"/><text x="132" y="145" fill="#fff" font-size="13">!</text>
+          <!-- S4 -->
+          <rect x="246" y="142" width="32" height="26" rx="13" fill="#ece6f7" stroke="#2f9e63" stroke-width="2.5"/><text x="262" y="160" fill="#4f3d6b">S4</text>
+        </g>
+      </svg>
+      <div class="leyenda"><span>Borde verde: envía datos</span><span>Borde naranja punteado: no envía</span><span><b style="color:var(--rojo)">▲</b> alerta</span><span>R real · S simulado</span></div>
+      <div class="visor-acciones"><span class="boton" style="flex:1"><svg class="i"><use href="#i-cubo"/></svg>Explorar en 3D</span><span class="boton" style="flex:1"><svg class="i"><use href="#i-plano"/></svg>Vista plana</span></div>
+    </section>
+
+    <section class="bloque hoja-sel" aria-label="Punto seleccionado">
+      <h3>S3 · sim-03 · Central</h3>
+      <div class="meta"><span class="origen sim">SIMULADA</span><span class="estado"><i></i>Envía datos</span><span>· hace 35 s</span></div>
+      <div class="valores"><div><strong class="mal">34,2 °C</strong>Temperatura</div><div><strong>41 %</strong>Humedad aire</div><div><strong>22 %</strong>Humedad suelo</div></div>
+      <div class="linea-alerta"><svg class="i" style="color:var(--rojo)"><use href="#i-alerta"/></svg>Temperatura por encima de 32 °C</div>
+      <div style="margin-top:10px"><span class="boton principal ancho">Ver detalle de este punto</span></div>
+    </section>
+
+    <h2 class="titulo-bloque">PUNTOS POR SECTOR</h2>
+    <p class="sector">Norte</p>
+    <section class="bloque">
+      <div class="nodo"><span class="marcador real">R1</span><span class="txt"><strong>agv-dht22-01</strong> <span class="origen real">REAL</span><small><span class="estado no"><i></i>No envía · hace 14 min</span></small></span><span class="dato viejo">27,5 °C<small>a las 10:28</small></span></div>
+      <div class="nodo"><span class="marcador sim">S1</span><span class="txt"><strong>sim-01</strong> <span class="origen sim">SIMULADA</span><small><span class="estado"><i></i>Envía · hace 40 s</span></small></span><span class="dato">26,1 °C</span></div>
+    </section>
+    <p class="sector">Sur</p>
+    <section class="bloque">
+      <div class="nodo"><span class="marcador sim">S2</span><span class="txt"><strong>sim-02</strong> <span class="origen sim">SIMULADA</span><small><span class="estado"><i></i>Envía · hace 38 s</span></small></span><span class="dato">27,0 °C</span></div>
+    </section>
+    <p class="sector">Central</p>
+    <section class="bloque">
+      <div class="nodo sel"><span class="marcador sim">S3</span><span class="txt"><strong>sim-03</strong> <span class="origen sim">SIMULADA</span><small><span class="estado"><i></i>Envía · hace 35 s</span></small></span><span class="dato" style="color:var(--rojo)">▲ 34,2 °C</span></div>
+    </section>
+    <p class="sector">Drenaje</p>
+    <section class="bloque">
+      <div class="nodo"><span class="marcador sim">S4</span><span class="txt"><strong>sim-04</strong> <span class="origen sim">SIMULADA</span><small><span class="estado"><i></i>Envía · hace 33 s</span></small></span><span class="dato">29,4 °C</span></div>
+    </section>
+
+    <h2 class="titulo-bloque">ÚLTIMA SUGERENCIA</h2>
+    <section class="bloque sug">
+      <span class="ia"><svg class="i"><use href="#i-chispa"/></svg>Generada por IA</span> <small>· hoy 10:15 · datos simulados</small>
+      <p>«Revisar la ventilación y el riego en el sector Central; la temperatura del aire supera el límite.»</p>
+      <div style="margin-top:10px"><span class="boton ancho">Ver sugerencia completa</span></div>
+    </section>
+  </div>
+</template>
+
+<!-- ======================================================================
+     PANTALLA C · Detalle de un punto (nodo) propuesto
+     ====================================================================== -->
+<template id="t-nodo">
+  <div class="prop">
+    <div class="volver"><svg class="i"><use href="#i-izq"/></svg>Inicio</div>
+    <div class="cab-detalle">
+      <h1>S3 · sim-03</h1>
+      <div class="meta"><span class="origen sim">SIMULADA</span><span>Sector Central</span><span class="estado"><i></i>Envía datos</span></div>
+      <div class="meta">Última lectura: hoy 10:42:05 · hace 35 s</div>
+    </div>
+    <h2 class="titulo-bloque" style="margin-top:4px">AHORA</h2>
+    <div class="rejilla">
+      <div class="celda mal"><span>Temperatura del aire</span><strong>34,2 <small>°C</small></strong><span style="color:var(--rojo)">▲ sobre 32 °C</span></div>
+      <div class="celda"><span>Humedad del aire</span><strong>41 <small>% HR</small></strong></div>
+      <div class="celda"><span>Humedad del suelo</span><strong>22 <small>% VWC</small></strong></div>
+      <div class="celda"><span>Viento</span><strong>1,2 <small>m/s</small></strong></div>
+    </div>
+    <div class="enlace">Ver las 10 variables <svg class="i"><use href="#i-abajo"/></svg></div>
+
+    <h2 class="titulo-bloque">ALERTAS DE ESTE PUNTO</h2>
+    <section class="bloque">
+      <div class="fila"><span class="ico-alerta"><svg class="i"><use href="#i-alerta"/></svg></span>
+        <span class="txt"><strong>Temperatura por encima de 32 °C</strong><small>Desde hoy 10:12 · Activa · Sin revisar</small></span><span class="flecha">›</span></div>
+    </section>
+
+    <h2 class="titulo-bloque">TEMPERATURA · ÚLTIMAS 24 HORAS</h2>
+    <section class="bloque grafica">
+      <svg viewBox="0 0 320 120" width="100%" role="img" aria-label="Gráfica de temperatura de 24 horas">
+        <g font-family="system-ui, sans-serif" font-size="11" fill="#474747">
+          <text x="0" y="24">35</text><text x="0" y="64">28</text><text x="0" y="104">21</text>
+          <text x="26" y="118">11:00 ayer</text><text x="150" y="118">23:00</text><text x="276" y="118">ahora</text>
+        </g>
+        <path d="M24 20H318M24 60H318M24 100H318" stroke="#dfe5dc"/>
+        <path d="M24 37H318" stroke="#b3372b" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="30" y="33" font-family="system-ui, sans-serif" font-size="11" fill="#b3372b">límite 32 °C</text>
+        <path d="M24 70 C50 66 70 60 90 64 S130 86 160 92 S210 94 230 80 S270 44 290 30 S310 22 318 24" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+      </svg>
+      <small>Datos simulados · 1.440 lecturas</small>
+    </section>
+    <div class="enlace">Ver historial completo <svg class="i"><use href="#i-derecha"/></svg></div>
+    <div class="plegado"><svg class="i"><use href="#i-derecha"/></svg>Datos técnicos de la lectura</div>
+    <div class="plegado"><svg class="i"><use href="#i-derecha"/></svg>Configurar dispositivo</div>
+  </div>
+</template>
+
+<!-- ======================================================================
+     PANTALLA D · Lista de alertas propuesta
+     ====================================================================== -->
+<template id="t-alertas">
+  <div class="prop">
+    <div class="barra"><span class="marca" style="color:var(--tinta);font-size:22px">Alertas</span><span class="chip">Lote Norte <svg class="i"><use href="#i-abajo"/></svg></span></div>
+    <div class="segmento"><span>Datos reales</span><span class="on">Datos simulados</span></div>
+    <p class="nota"><svg class="i"><use href="#i-info"/></svg>Que no haya alertas no confirma que el cultivo esté sano.</p>
+
+    <h2 class="titulo-bloque" style="margin-top:6px">POR REVISAR (1)</h2>
+    <section class="bloque tarjeta-alerta">
+      <h3>Temperatura por encima del máximo</h3>
+      <p class="grande"><strong>34,2 °C</strong> · límite 32 °C</p>
+      <p class="donde">S3 · sim-03 · sector Central · desde hoy 10:12</p>
+      <div class="chips-estado"><span class="ce activa">Condición: activa</span><span class="ce pend">Sin revisar</span></div>
+      <div class="acciones"><span class="boton">Marcar revisada</span><span class="boton principal">Ver qué pasó</span></div>
+    </section>
+
+    <h2 class="titulo-bloque">SIGUEN ACTIVAS, YA REVISADAS (1)</h2>
+    <section class="bloque tarjeta-alerta">
+      <h3>Humedad del suelo por debajo del mínimo</h3>
+      <p class="grande"><strong>21 % VWC</strong> · límite 25 % VWC</p>
+      <p class="donde">S2 · sim-02 · sector Sur · desde hoy 09:50</p>
+      <div class="chips-estado"><span class="ce activa">Condición: activa</span><span class="ce ok"><svg class="i" style="width:16px;height:16px"><use href="#i-ok"/></svg>Revisada 10:20</span></div>
+    </section>
+
+    <div class="grupo-plegado"><span>Cerradas (3)</span><svg class="i"><use href="#i-abajo"/></svg></div>
+  </div>
+</template>
+
+<!-- ======================================================================
+     PANTALLA E · Detalle de una alerta propuesto
+     ====================================================================== -->
+<template id="t-alerta">
+  <div class="prop">
+    <div class="volver"><svg class="i"><use href="#i-izq"/></svg>Alertas</div>
+    <div class="cab-detalle">
+      <h1>Temperatura por encima del máximo</h1>
+      <div class="meta"><span class="origen sim">SIMULADA</span><span>S3 · sim-03 · sector Central</span></div>
+      <div class="chips-estado"><span class="ce activa">Condición: activa</span><span class="ce pend">Sin revisar</span></div>
+    </div>
+
+    <h2 class="titulo-bloque">QUÉ PASÓ</h2>
+    <section class="bloque">
+      <p class="texto">Empezó hoy a las <strong>10:12</strong> con <strong>32,8 °C</strong>. La última lectura fuera del límite fue a las <strong>10:42</strong> con <strong>34,2 °C</strong> (hace 35 s).</p>
+      <div style="padding:0 12px 10px">
+        <svg viewBox="0 0 320 110" width="100%" role="img" aria-label="Gráfica de la temperatura durante la alerta">
+          <g font-family="system-ui, sans-serif" font-size="11" fill="#474747"><text x="0" y="20">35</text><text x="0" y="92">29</text><text x="30" y="108">9:40</text><text x="128" y="108">10:12</text><text x="282" y="108">10:42</text></g>
+          <rect x="146" y="8" width="172" height="86" fill="#fbe9e6"/>
+          <path d="M24 44H318" stroke="#b3372b" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text x="30" y="39" font-family="system-ui, sans-serif" font-size="11" fill="#b3372b">límite 32 °C</text>
+          <path d="M24 86 C60 80 100 66 146 42 S220 26 260 22 S300 18 318 16" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div class="acciones" style="padding:0 12px 12px;margin-top:0"><span class="boton"><svg class="i"><use href="#i-mapa"/></svg>Ver en el lote</span><span class="boton"><svg class="i"><use href="#i-grafica"/></svg>Historial</span></div>
+    </section>
+
+    <h2 class="titulo-bloque">SUGERENCIA RELACIONADA</h2>
+    <section class="bloque sug">
+      <span class="ia"><svg class="i"><use href="#i-chispa"/></svg>Generada por IA</span> <small>· hoy 10:15, con datos de las 10:14</small>
+      <p>«Revisar la ventilación del sector Central y regar temprano en la mañana o al final de la tarde. Volver a mirar la temperatura en una hora.»</p>
+      <p class="limites"><strong>Limitaciones:</strong> son datos simulados; el análisis no ve el cultivo ni el estado de las plantas. Es una orientación, no reemplaza la asistencia técnica.</p>
+      <div style="margin-top:10px"><span class="boton ancho">Ver sugerencia completa</span></div>
+    </section>
+    <div class="plegado"><svg class="i"><use href="#i-derecha"/></svg>Evidencia: lecturas que abrieron esta alerta</div>
+    <p class="nota" style="margin-top:6px">Límite configurado: 32 °C · se cambia en Más › Mi cultivo › Límites.</p>
+    <div style="height:70px"></div>
+  </div>
+</template>
+<template id="t-boton-revisar"><div class="prop"><div class="fija-abajo"><span class="boton principal ancho">Marcar como revisada</span></div></div></template>
+
+<!-- ============================== HOJAS ============================== -->
+<section class="hoja">
+  <div class="hoja-cabecera"><strong>Pantalla A</strong><span>AgroVigía · validación E0 · datos de ejemplo, no reales · hoja 1 de 5</span></div>
+  <div class="par">
+    <div class="marco"><p class="rotulo">A <span>· al abrir</span></p><div class="telefono"><div class="ventana" data-plantilla="t-actual" data-desde="0"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">A <span>· al bajar</span></p><div class="telefono"><div class="ventana" data-plantilla="t-actual" data-desde="600" data-arriba="t-tira"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">A <span>· más abajo</span></p><div class="telefono"><div class="ventana" data-plantilla="t-actual" data-desde="1200" data-arriba="t-tira"></div></div><p class="continua"></p></div>
+  </div>
+</section>
+
+<section class="hoja">
+  <div class="hoja-cabecera"><strong>Pantalla B</strong><span>AgroVigía · validación E0 · datos de ejemplo, no reales · hoja 2 de 5</span></div>
+  <div class="par">
+    <div class="marco"><p class="rotulo">B <span>· al abrir</span></p><div class="telefono"><div class="ventana" data-plantilla="t-inicio" data-desde="0" data-abajo="t-nav-inicio"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">B <span>· al bajar</span></p><div class="telefono"><div class="ventana" data-plantilla="t-inicio" data-desde="556" data-abajo="t-nav-inicio"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">B <span>· más abajo</span></p><div class="telefono"><div class="ventana" data-plantilla="t-inicio" data-desde="1140" data-abajo="t-nav-inicio"></div></div><p class="continua"></p></div>
+  </div>
+</section>
+
+<section class="hoja">
+  <div class="hoja-cabecera"><strong>Pantallas C y D</strong><span>AgroVigía · validación E0 · datos de ejemplo, no reales · hoja 3 de 5</span></div>
+  <div class="par">
+    <div class="marco"><p class="rotulo">C <span>· al abrir</span></p><div class="telefono"><div class="ventana" data-plantilla="t-nodo" data-desde="0" data-abajo="t-nav-inicio"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">C <span>· al bajar</span></p><div class="telefono"><div class="ventana" data-plantilla="t-nodo" data-desde="560" data-abajo="t-nav-inicio"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">D <span>· al abrir</span></p><div class="telefono"><div class="ventana" data-plantilla="t-alertas" data-desde="0" data-abajo="t-nav-alertas"></div></div><p class="continua"></p></div>
+  </div>
+</section>
+
+<section class="hoja">
+  <div class="hoja-cabecera"><strong>Pantallas D y E</strong><span>AgroVigía · validación E0 · datos de ejemplo, no reales · hoja 4 de 5</span></div>
+  <div class="par">
+    <div class="marco"><p class="rotulo">D <span>· al bajar</span></p><div class="telefono"><div class="ventana" data-plantilla="t-alertas" data-desde="300" data-abajo="t-nav-alertas"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">E <span>· al abrir</span></p><div class="telefono"><div class="ventana" data-plantilla="t-alerta" data-desde="0" data-abajo="t-nav-alertas" data-extra="t-boton-revisar"></div></div><p class="continua"></p></div>
+    <div class="marco"><p class="rotulo">E <span>· al bajar</span></p><div class="telefono"><div class="ventana" data-plantilla="t-alerta" data-desde="540" data-abajo="t-nav-alertas" data-extra="t-boton-revisar"></div></div><p class="continua"></p></div>
+  </div>
+</section>
+
+<section class="hoja">
+  <div class="hoja-cabecera"><strong>Clave para quien modera · no mostrar a participantes</strong><span>hoja 5 de 5</span></div>
+  <div class="clave">
+    <h2>Qué es cada pantalla</h2>
+    <table>
+      <tr><th>Letra</th><th>Qué es</th><th>Se usa en</th></tr>
+      <tr><td>A</td><td>Inicio <strong>actual</strong> («Lecturas reales»), copiado del código de hoy con los mismos datos de ejemplo</td><td>Guion 5.5, preguntas 1 a 3</td></tr>
+      <tr><td>B</td><td>Inicio <strong>propuesto</strong>: resumen de atención, dibujo del lote, punto elegido y lista por sector</td><td>Guion 5.5, preguntas 1 a 3</td></tr>
+      <tr><td>C</td><td>Detalle de un punto propuesto (S3), de solo lectura</td><td>Si en B toca «Ver detalle» o un punto</td></tr>
+      <tr><td>D</td><td>Lista de alertas propuesta: por revisar, activas ya revisadas, cerradas</td><td>Opcional: preguntar qué diferencia hay entre las dos tarjetas</td></tr>
+      <tr><td>E</td><td>Detalle de alerta propuesto, con gráfica y sugerencia relacionada</td><td>Guion 5.5, pregunta 4</td></tr>
+    </table>
+    <p>Las letras son neutras a propósito: <strong>no decir «actual», «nueva» ni «propuesta»</strong>. Decir «pantalla A» y «pantalla B».</p>
+
+    <h3>Orden (para evitar que influya)</h3>
+    <ul>
+      <li>P1, P3 y P5: mostrar primero <strong>A</strong> y luego B.</li>
+      <li>P2 y P4: mostrar primero <strong>B</strong> y luego A.</li>
+      <li>Para la pregunta «¿dónde hay un problema?», mostrar cada pantalla sola (doblar la hoja o tapar la otra mitad) y cronometrar.</li>
+      <li>Al final, poner A y B juntas para la pregunta de preferencia.</li>
+    </ul>
+
+    <h3>Respuestas esperadas</h3>
+    <ul>
+      <li><strong>¿Dónde hay un problema?</strong> Hay dos: sim-03 / S3 en el sector Central (temperatura de 34,2 °C, sobre el límite de 32 °C), y el nodo real agv-dht22-01 / R1, que no envía datos desde hace 14 min.</li>
+      <li>En <strong>A</strong> la alerta no se ve: el valor 34,2 °C está en la tarjeta de sim-03, abajo y sin ninguna marca, y la campana muestra «0» porque solo cuenta alertas reales. Anotar si la persona deduce el problema por el número.</li>
+      <li>En <strong>B</strong> se ve en el resumen, en el dibujo (triángulo rojo y sector marcado) y en la lista.</li>
+      <li><strong>¿Dónde verías los datos de ese punto?</strong> En B: «Ver detalle de este punto», tocar S3 en el dibujo o la fila S3 de la lista. Todo lleva a C.</li>
+      <li><strong>D, dos tarjetas:</strong> las dos siguen activas; la segunda ya fue revisada. «Revisada» no significa que se haya solucionado.</li>
+      <li><strong>E, ¿qué harías después?</strong> Respuestas útiles: revisar la ventilación o el riego del sector Central, ver el lote, ver el historial, marcar como revisada. Anotar si lee las limitaciones y si confía en la sugerencia.</li>
+    </ul>
+
+    <h3>Qué anotar en la hoja de registro</h3>
+    <ul>
+      <li>Tiempo hasta señalar el problema en A y en B, y si señaló uno, los dos o ninguno.</li>
+      <li>Si toca los botones «Explorar en 3D» o «Vista plana» del papel y qué espera que hagan.</li>
+      <li>Palabras que no entiende o lee mal (sobre todo SIMULADA, REAL, «no envía», «sin revisar»).</li>
+      <li>Si alguien dice que el cultivo «está bien» o «sano» en algún momento.</li>
+    </ul>
+
+    <h3>Límites de este material</h3>
+    <ul>
+      <li>Es papel: no prueba gestos, tiempos de carga ni lectura con sol directo.</li>
+      <li>B, C, D y E son una propuesta; los textos y la forma pueden cambiar con lo que se observe.</li>
+      <li>Los valores, horas y nombres son de ejemplo. No son mediciones reales del proyecto.</li>
+      <li>La pantalla A se dibujó desde el código de la rama <code>juan/integracion-camilo</code> (commit 77d8661). Si la web cambia antes de las sesiones, hay que revisarla.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+// Cada ventana muestra la misma pantalla desplazada a la altura indicada (data-desde),
+// con las barras fijas encima (data-arriba / data-abajo / data-extra).
+document.querySelectorAll('.ventana[data-plantilla]').forEach(ventana => {
+  const contenido = document.createElement('div');
+  contenido.className = 'desplazable';
+  contenido.append(document.getElementById(ventana.dataset.plantilla).content.cloneNode(true));
+  const desde = Number(ventana.dataset.desde || 0);
+  contenido.style.top = -desde + 'px';
+  ventana.append(contenido);
+  for (const clave of ['arriba', 'abajo', 'extra']) {
+    const id = ventana.dataset[clave];
+    if (!id) continue;
+    const capa = document.getElementById(id).content.cloneNode(true);
+    if (clave === 'arriba') {
+      // La tira superior usa los estilos de la app actual.
+      capa.firstElementChild.classList.add('fija');
+      const envoltura = document.createElement('div');
+      envoltura.className = 'actual';
+      envoltura.append(capa);
+      ventana.append(envoltura);
+    } else ventana.append(capa);
+  }
+  const resto = contenido.scrollHeight - desde - ventana.clientHeight;
+  ventana.closest('.marco').querySelector('.continua').textContent = resto > 40 ? '↓ la pantalla continúa al desplazar' : '';
+});
+</script>
+</body>
+</html>
