@@ -37,10 +37,11 @@ try {
 
   const P = 'sim-bbbbbbbbbbbb-', Y = 'sim-cccccccccccc-', H = 'sim-dddddddddddd-';
   // Inicio muestra cada nodo simulado con sus valores; el que aun no envia queda sin dato.
-  const notasVirtuales = () => page.waitForFunction(() => document.querySelectorAll('.sim-nodo').length === 6 && [...document.querySelectorAll('.sim-nodo')].filter(x => /\d/.test(x.querySelector('dd')?.textContent ?? '')).length === 6);
+  // E2: Inicio lista cada nodo con su procedencia y su ultima temperatura (antes, tarjetas .sim-nodo).
+  const notasVirtuales = () => page.waitForFunction(() => document.querySelectorAll('.fila-nodo .procedencia-zona.simulada').length === 6 && [...document.querySelectorAll('.fila-nodo')].filter(x => /\d/.test(x.querySelector('.dato-nodo')?.textContent ?? '')).length === 6);
   const visibles = sel => page.evaluate(q => [...document.querySelectorAll(q)].filter(e => e.style.display !== 'none').length, sel);
 
-  // 1. Cultivo de nodos virtuales: Inicio > Lecturas reales lista cada nodo simulado con sus seis valores principales.
+  // 1. Cultivo de nodos virtuales: Inicio lista cada nodo simulado con su procedencia y su ultima temperatura.
   await elegir(page, '#cultivo', { label: 'Simulado · Yuca' });
   await notasVirtuales();
 

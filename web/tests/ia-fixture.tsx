@@ -24,6 +24,8 @@ const zonasQA=[cropReal,cropYuca,cropHort].flatMap(c=>CODIGOS_ZONA.map((_,i)=>nu
 const nodos=[{id:real,codigo:'agv-dht22-01',cultivo_id:cropReal,habilitado:true,tipo_nodo:'fisico',zona_id:null as string|null,posicion_x:null as number|null,posicion_y:null as number|null},
  ...Array.from({length:17},(_,k)=>({id:id(201+k),codigo:prefijo(cultivoDe(k+1))+String(ordinal(k+1)).padStart(2,'0'),cultivo_id:cultivoDe(k+1),habilitado:true,tipo_nodo:'virtual',
    zona_id:zonaId(cultivoDe(k+1),(ordinal(k+1)-1)%4) as string|null,posicion_x:(ordinal(k+1)>4?0.75:0.25) as number|null,posicion_y:0.5 as number|null}))];
+const igual=(u:URL,k:string)=>u.searchParams.get(k)?.startsWith('eq.')?u.searchParams.get(k)!.slice(3):null;
+const enLista=(u:URL,k:string)=>u.searchParams.get(k)?.startsWith('in.(')?u.searchParams.get(k)!.slice(4,-1).replaceAll('"','').split(','):null;
 const V3=['temperatura_aire','humedad_aire','iluminacion_relativa','radiacion_solar','humedad_suelo_vwc','temperatura_suelo','ph_suelo','conductividad_suelo_ece','precipitacion_60min','velocidad_viento'];
 const numeroNodo=(nodoId:string)=>nodoId===real?0:Number(nodoId.slice(-3))-200;
 const plantillas=[['yuca','Yuca',18,35,25,29,40,90,60,80,15,40,20,30],['platano','Plátano',18,35,26,30,60,95,75,85,25,50,30,40],['hortalizas','Hortalizas de clima cálido',15,32,20,28,50,85,60,75,20,45,25,35],
@@ -229,15 +231,16 @@ const client=createClient('https://fixture-no-remoto.supabase.co','sb_publishabl
   else return response({message:'RPC inesperada'},400);
  }else if(name==='perfiles')data={nombre:'Cuenta de prueba'};
  else if(name==='cultivos')data=cultivos;
- else if(name==='nodos')data=nodos;
- else if(name==='zonas')data=zonasQA;
+ // Croquis de Inicio (E2): nodos y zonas del cultivo pedido, con propietario y version de asignacion.
+ else if(name==='nodos')data=(igual(u,'cultivo_id')?nodos.filter(n=>n.cultivo_id===igual(u,'cultivo_id')):nodos).map(n=>({agricultor_id:owner,asignacion_version:n.id,...n}));
+ else if(name==='zonas')data=igual(u,'cultivo_id')?zonasQA.filter(z=>z.cultivo_id===igual(u,'cultivo_id')):zonasQA;
  else if(name==='tipos_dispositivo')data=TIPOS;
  else if(name==='preferencias_usuario')data=preferencias;
  else if(name==='cultivo_parametros'){const p=parametros.get(cultivo??'');data=p?{cultivo_id:cultivo,...p}:null;}
  else if(name==='clima_cultivo'||name==='ajustes_simulacion'){const ids=(u.searchParams.get('cultivo_id')??'').replace(/^in\.\(|\)$/g,'').replaceAll('"','').split(','),activas=u.searchParams.get('finalizado_en')==='is.null';
   data=registro.filter(r=>r.tipo===(name==='clima_cultivo'?'clima':'ajuste')&&ids.includes(r.cultivo_id)&&(!activas||!r.finalizado_en)).sort((p,q)=>q.iniciado_en.localeCompare(p.iniciado_en));}
  else if(name==='solicitudes_ia')data=solicitudes.filter(x=>x.cultivo_id===cultivo&&x.origen===origen).slice(-1);
- else if(name==='nodo_variables')data=nodos.flatMap(n=>n.tipo_nodo==='virtual'?V3.map(v=>({nodo_id:n.id,variable_codigo:v,sensor_modelo:'SIMULADOR_V3'}))
+ else if(name==='nodo_variables')data=nodos.filter(n=>!enLista(u,'nodo_id')||enLista(u,'nodo_id')!.includes(n.id)).flatMap(n=>n.tipo_nodo==='virtual'?V3.map(v=>({nodo_id:n.id,variable_codigo:v,sensor_modelo:'SIMULADOR_V3'}))
   :['temperatura_aire','humedad_aire','iluminacion_relativa'].map(v=>({nodo_id:n.id,variable_codigo:v,sensor_modelo:v==='iluminacion_relativa'?'LDR':'DHT22'})));
  else if(name==='mediciones'){
   const nodo=u.searchParams.get('nodo_id')?.slice(3)!;const t=sinMs(Date.now()-30_000);const select=u.searchParams.get('select');

@@ -21,14 +21,24 @@ interface Visual { grupo: THREE.Group; cuerpo: THREE.Mesh<THREE.CylinderGeometry
   particulas: THREE.Mesh[]; etiqueta: HTMLDivElement; objeto: CSS2DObject; pulso: { malla: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>; inicio: number } | null;
   conexion: Conexion; fisico: boolean; clave: string }
 interface Hexagono { raiz: THREE.Group; piso: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>; borde: THREE.LineLoop; etiqueta: HTMLDivElement; cultivo: string | null; efectos: Efecto[]; firma: string; rotulos: CSS2DObject[] }
-export interface Escena { actualizar: (filas: EstadoNodoRed[], nuevos: Set<string>, ahora: number, elegido: string, ajustes?: Map<string, Ajustes>, planos?: Map<string, Terreno>) => void; destruir: () => void }
+export interface Escena {
+  // alertas: nodos con alerta activa (solo Inicio); su etiqueta se marca en rojo con un triangulo.
+  actualizar: (filas: EstadoNodoRed[], nuevos: Set<string>, ahora: number, elegido: string, ajustes?: Map<string, Ajustes>, planos?: Map<string, Terreno>, alertas?: Set<string>) => void;
+  // Anillo bajo el nodo elegido (Inicio). null lo quita.
+  resaltar: (nodoId: string | null) => void;
+  destruir: () => void;
+}
+// modo 'inicio': un solo cultivo, sin giro automatico. Con raton, arrastrar gira y la rueda solo acerca con Ctrl;
+// con el dedo, un toque elige y la pagina se sigue desplazando (dos dedos acercan). 'simulacion' es el visor de siempre.
+export interface OpcionesEscena { modo?: 'simulacion' | 'inicio' }
 
 function liberar(o: THREE.Object3D) {
   o.traverse(x => { const m = x as THREE.Mesh; m.geometry?.dispose(); const mat = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mat) ? mat : mat ? [mat] : []).forEach(y => y.dispose()); });
   o.traverse(x => { if (x instanceof CSS2DObject) x.element.remove(); });
 }
 
-export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: string) => void, alElegirCultivo: (id: string) => void): Escena {
+export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: string) => void, alElegirCultivo: (id: string) => void, opciones: OpcionesEscena = {}): Escena {
+  const inicio = opciones.modo === 'inicio';
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.domElement.setAttribute('aria-hidden', 'true');
@@ -44,6 +54,14 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
   const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   Object.assign(controles, { enableDamping: true, enablePan: false, minDistance: 8, maxDistance: 90, maxPolarAngle: 1.35, autoRotate: !reducido, autoRotateSpeed: 0.35 });
   controles.addEventListener('start', () => { controles.autoRotate = false; });
+  // Inicio: la escena no secuestra el desplazamiento de la pagina.
+  const conCtrl = (e: WheelEvent) => { controles.enableZoom = e.ctrlKey; };
+  if (inicio) {
+    controles.autoRotate = false; controles.enableZoom = false;
+    controles.touches = { ONE: -1 as unknown as THREE.TOUCH, TWO: THREE.TOUCH.DOLLY_PAN }; // un dedo: tocar o desplazar la pagina
+    etiquetas.domElement.style.touchAction = 'pan-y';
+    etiquetas.domElement.addEventListener('wheel', conCtrl, { capture: true, passive: true });
+  }
   escena.add(new THREE.HemisphereLight(0xffffff, 0xc9d6c5, 1.25));
   const sol = new THREE.DirectionalLight(0xffffff, 1.4); sol.position.set(8, 20, 10); escena.add(sol);
 
@@ -82,7 +100,8 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
       area.rotation.x = -Math.PI / 2; area.position.set(s.x, 0.02, s.z); raiz.add(area);
       raiz.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(rectangulo(s.x, s.z, s.w, s.l, 0.04)), new THREE.LineBasicMaterial({ color: 0x174d3d, transparent: true, opacity: 0.55 })));
       const rotulo = document.createElement('div'); rotulo.className = 'etiqueta-sector'; rotulo.textContent = s.nombre;
-      const marca = new CSS2DObject(rotulo); marca.position.set(s.x - s.w / 2 + 0.25, 0.05, s.z - s.l / 2 + 0.3); marca.center.set(0, 0); raiz.add(marca); rotulos.push(marca);
+      // En Inicio el nombre del sector va en su borde delantero: la etiqueta del nodo (arriba del centro) no lo tapa.
+      const marca = new CSS2DObject(rotulo); marca.position.set(s.x - s.w / 2 + 0.25, 0.05, inicio ? s.z + s.l / 2 - 0.15 : s.z - s.l / 2 + 0.3); marca.center.set(0, inicio ? 1 : 0); raiz.add(marca); rotulos.push(marca);
     }
     // Centro del cultivo: punto de llegada de los datos de sus nodos.
     const nucleo = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.12, 6), new THREE.MeshStandardMaterial({ color: 0x9fbf8f, roughness: 0.6 }));
@@ -131,14 +150,23 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
     const mitad = Math.tan(THREE.MathUtils.degToRad(camara.fov / 2));
     // En pantallas angostas las etiquetas laterales necesitan mas margen que los propios nodos.
     const margen = camara.aspect < 1.2 ? 3.4 : 1.6;
-    const d = Math.min(85, Math.max(12, 1.1 * Math.max((semiAncho + margen) / (mitad * camara.aspect), (semiFondo * direccion.y + 1.8) / mitad)));
+    // En Inicio hay un solo cultivo: la camara se acerca para que el terreno ocupe el visor.
+    const d = Math.min(85, Math.max(inicio ? 8 : 12, (inicio ? 0.8 : 1.1) * Math.max((semiAncho + margen) / (mitad * camara.aspect), (semiFondo * direccion.y + (inicio ? 3 : 1.8)) / mitad)));
     controles.target.copy(centro);
     camara.position.copy(centro).addScaledVector(direccion, d);
     const niebla = escena.fog as THREE.Fog; niebla.near = d * 0.9; niebla.far = d * 2.4;
     camara.updateProjectionMatrix();
   }
 
-  function actualizar(filas: EstadoNodoRed[], nuevos: Set<string>, ahora: number, elegido: string, ajustes?: Map<string, Ajustes>, planos?: Map<string, Terreno>) {
+  // Anillo del nodo elegido en Inicio. Vive dentro del grupo del nodo, asi se libera con el.
+  let resaltado: string | null = null, anillo: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null = null;
+  function aplicarResaltado() {
+    if (anillo) { anillo.parent?.remove(anillo); anillo.geometry.dispose(); anillo.material.dispose(); anillo = null; }
+    const v = resaltado ? visuales.get(resaltado) : undefined; if (!v) return;
+    anillo = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.25, 6), new THREE.MeshBasicMaterial({ color: 0x174d3d, side: THREE.DoubleSide }));
+    anillo.rotation.x = -Math.PI / 2; anillo.position.y = 0.04; v.grupo.add(anillo);
+  }
+  function actualizar(filas: EstadoNodoRed[], nuevos: Set<string>, ahora: number, elegido: string, ajustes?: Map<string, Ajustes>, planos?: Map<string, Terreno>, alertas?: Set<string>) {
     const panal = panalRed(filas, planos);
     // La escena se rearma si cambian los nodos, su posicion real o los sectores del plano.
     const clave = panal.grupos.map(g => g.clave + ':' + g.nodos.map(n => { const p = panal.posiciones.get(n.nodo_id)!; return `${n.nodo_id}@${p.x},${p.z}`; }).join(',') + (g.plano ? '#' + g.plano.sectores.map(s => `${s.id}:${s.nombre}:${s.x},${s.z},${s.w},${s.l}`).join(';') : '')).join('|');
@@ -150,6 +178,7 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
         for (const f of g.nodos) { const p = panal.posiciones.get(f.nodo_id)!; visuales.set(f.nodo_id, crearVisual(p.x, p.z, p.fisico, destino, g.clave)); }
       }
       semiAncho = panal.semiAncho; semiFondo = panal.semiFondo; centro = new THREE.Vector3(panal.centro.x, 0, panal.centro.z); encuadrar();
+      anillo = null; aplicarResaltado(); // el anillo anterior se libero con su nodo
     }
     // En pantallas angostas solo el cultivo elegido muestra los nombres de sus nodos.
     const todas = ancho >= 900;
@@ -197,6 +226,7 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
         const e = document.createElement('span'); e.textContent = (v.fisico ? 'Físico · ' : '') + TEXTO_CONEXION[v.conexion];
         v.etiqueta.append(c, e); v.etiqueta.dataset.estado = v.conexion; v.etiqueta.dataset.tono = tono;
         v.etiqueta.classList.toggle('compacta', !!g.plano && !activo && !v.fisico);
+        v.etiqueta.classList.toggle('con-alerta', !!alertas?.has(f.nodo_id));
         if (nuevos.has(f.nodo_id)) {
           if (v.pulso) { v.grupo.remove(v.pulso.malla); v.pulso.malla.geometry.dispose(); v.pulso.malla.material.dispose(); }
           const malla = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.85, 6), new THREE.MeshBasicMaterial({ color: 0x2e9d63, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
@@ -211,7 +241,7 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
   const origen = new THREE.Vector3();
   function animar(instante?: number) {
     marco = requestAnimationFrame(animar);
-    if (document.hidden) return;
+    if (document.hidden || !enPantalla) return;
     reloj.update(instante);
     const t = reloj.getElapsed();
     for (const v of visuales.values()) {
@@ -230,11 +260,18 @@ export function crearEscena(contenedor: HTMLDivElement, alSeleccionar: (id: stri
     controles.update();
     renderer.render(escena, camara); etiquetas.render(escena, camara);
   }
+  // Inicio: sin dibujar mientras el visor esta fuera de la pantalla (ahorra bateria al bajar por la lista).
+  // Simulacion sigue dibujando siempre, como antes.
+  let enPantalla = true;
+  const vista = new IntersectionObserver(([e]) => { enPantalla = !inicio || !!e?.isIntersecting; });
+  vista.observe(contenedor);
   const observador = new ResizeObserver(encuadrar); observador.observe(contenedor); encuadrar(); animar();
   return {
     actualizar,
+    resaltar(id) { resaltado = id; aplicarResaltado(); },
     destruir() {
-      cancelAnimationFrame(marco); observador.disconnect(); controles.dispose(); reloj.dispose();
+      cancelAnimationFrame(marco); observador.disconnect(); vista.disconnect(); controles.dispose(); reloj.dispose();
+      etiquetas.domElement.removeEventListener('wheel', conCtrl, { capture: true });
       etiquetas.domElement.removeEventListener('pointerdown', presionar); etiquetas.domElement.removeEventListener('pointerup', soltar);
       quitarTodo(); liberar(escena);
       renderer.dispose(); renderer.domElement.remove(); etiquetas.domElement.remove();

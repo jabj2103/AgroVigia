@@ -4,6 +4,71 @@ Actualización: 25 de octubre de 2026. Fuentes: decisiones del chat, archivos lo
 
 ## Preparado en esta carpeta
 
+18 de noviembre de 2026 (Bogotá): tras revisar E2 en la vista de ordenador, Juan pide que el elemento principal de Inicio sea el visor 3D de Simulación en lugar del croquis plano, y señala iconos descentrados. Se adelanta parte de E3 en la rama `juan/auditoria-ux`.
+
+Visor 3D en Inicio:
+- `VisorCultivo.tsx` reutiliza `escena-3d.ts` con un nuevo modo `inicio`: un solo cultivo y sin giro automático.
+- Con ratón: arrastrar gira y la rueda solo acerca con Ctrl. Con el dedo: un toque elige y la página sigue desplazándose (`touch-action: pan-y`); dos dedos acercan.
+- Anillo bajo el nodo abierto y etiqueta roja con ▲ en los nodos con alerta activa.
+- Cámara más cercana. Nombres de sector en el borde delantero para que no los tapen las etiquetas de los nodos. En el teléfono se oculta la etiqueta del cultivo, porque su nombre ya está en el selector.
+- Deja de dibujar cuando sale de la pantalla (solo en Inicio; Simulación sigue igual).
+- Three.js se descarga aparte al abrir Inicio.
+- El terreno se arma con los sectores y nodos ya validados de Inicio, sin consultas nuevas.
+- Sin WebGL se muestra un aviso y el croquis plano como alternativa, con la misma selección.
+
+Corrección: el icono de «sin recibir» del resumen y los demás iconos usaban las clases `aviso`, `error` e `info`, que en la web ya son recuadros con relleno. Por eso se veían desplazados; ahora usan clases propias.
+
+Comprobaciones: 58 pruebas web, TypeScript, compilación y las siete suites de navegador con fixtures. La prueba de Inicio comprueba el visor (lienzo, cinco etiquetas de nodo, cuatro sectores, sin croquis plano y `pan-y`). Además, una segunda pasada con WebGL desactivado comprueba el croquis plano con marcadores y sectores por teclado. Capturas revisadas a 390 y 1440 px, también con 23 alertas reales y un nodo sin recibir.
+
+Pendientes:
+- Etiquetas que aún pueden superponerse en el teléfono, sin control de colisiones.
+- El nodo físico sin ubicar queda en el borde inferior del dibujo.
+- Sin vista a pantalla completa para explorar en el teléfono.
+- Sin elegir sectores tocando el dibujo 3D (sí en el croquis plano).
+- No se ha probado con la sesión real ni en un teléfono físico; el rendimiento en un Android de gama media está sin medir.
+
+17 de noviembre de 2026 (Bogotá): E2 de la auditoría UX implementado en la rama `juan/auditoria-ux`. No hubo cambios en Supabase, n8n ni el firmware: solo se usan consultas que la web ya tenía.
+
+Inicio nuevo (`Inicio.tsx`), sin el conmutador «Lecturas reales / Zonas y nodos», con una sola pantalla:
+- Indicador «Actualizado hace…» y aviso cuando alguna consulta falla, conservando los últimos datos con su fecha.
+- Resumen de atención:
+  - alertas activas sin revisar y alertas revisadas que siguen activas, separadas por origen real o simulado;
+  - nodos sin recibir o con reloj adelantado;
+  - «Sin alertas activas…» siempre acompañado de «Eso no confirma que el cultivo esté sano»;
+  - si falla la consulta de alertas, se dice que falló y no se muestra «sin alertas».
+- Croquis 2D extraído como `Croquis.tsx`, con marcas de alerta y de nodo sin recibir. Tocar un sector filtra la lista.
+- Lista de nodos por sector, con R1/S1, procedencia, estado y última temperatura y humedad.
+- Última sugerencia de IA, con su fecha, origen y aviso si tiene más de una hora.
+
+Detalle de nodo de solo lectura (`DetalleNodo.tsx`):
+- Pantalla completa en el teléfono y panel lateral desde 900 px (variante de `Dialogo`).
+- Reutiliza `cargarCapturaZona` y conserva todos sus avisos: error con la captura anterior, datos desactualizados, reloj adelantado, ubicación anterior y nodo sin datos.
+- Recupera los avisos de extremo del ADC de luz y del par 0/0 (la lectura ADC se añadió a `CapturaZona`).
+- Muestra las alertas activas del nodo, sin decir que el nodo está bien si no hay ninguna.
+- Enlaces: Historial abierto con ese nodo (nuevo parámetro `nodoInicial`) y Dispositivos.
+
+Otros cambios:
+- Desde Inicio, Alertas y Sugerencias se abren con el origen que se tocó.
+- El aviso flotante de alertas ya no aparece en Inicio ni en Alertas.
+- Retirados `Zonas.tsx`, `NodosSimulados.tsx` y el componente Lecturas de `App.tsx`.
+- Nueva consulta `cargarAlertasActivas` (alertas sin cerrar por cultivo y origen, con conteo exacto).
+- Corregido: los estilos de los diálogos se cargan con `Dialogo.tsx`. Antes, el detalle abierto desde Inicio salía con el estilo por defecto del navegador si no se había visitado Simulación, Cultivos ni Dispositivos.
+
+Fixtures de prueba:
+- Filtran nodos, zonas y capacidades por cultivo y simulan `estado_red_nodos`, alertas activas y sugerencias.
+- El fixture de cultivos archivaba el cultivo ante cualquier RPC desconocida; ahora atiende `estado_red_nodos` antes.
+- La prueba de zonas se reescribió para el nuevo Inicio, con las mismas comprobaciones de integridad más el panel lateral y el historial con el nodo elegido.
+
+Comprobaciones: 58 pruebas web, TypeScript, compilación (con el aviso existente de tamaño) y las siete suites de navegador con fixtures. Revisé a ojo capturas a 390 y 1440 px, también con 23 alertas reales.
+
+Pendientes y límites:
+- No se probó con la sesión real ni con usuarios.
+- El contador de la barra sigue contando solo alertas reales de todos los cultivos; el resumen de Inicio sí separa por origen.
+- Los botones Actualizar de Alertas y Sugerencias siguen.
+- La lista muestra el código completo de los nodos simulados.
+- La mini gráfica de 24 h del detalle queda para E4.
+- El estado de la lista usa la ventana del dispositivo (`estado_red_nodos`) y el detalle la antigüedad de 180 s de la captura. Pueden diferir unos segundos.
+
 17 de noviembre de 2026 (Bogotá): se unió `a84027f` (integración Windows de n8n, Gemini y simulador, de `juan/integracion-camilo`) en `juan/auditoria-ux`, para que E2 parta de la versión en uso. Ese commit no toca la web; el único conflicto fue `docs/estado.md` y se conservaron las entradas de ambas ramas, sin perder líneas. Comprobaciones tras la unión: 109 pruebas de n8n, 58 de la web, TypeScript, compilación y las suites de navegador de avisos y cultivos.
 
 17 de noviembre de 2026 (Bogotá): en la rama `juan/auditoria-ux` se añadió el diseño de escritorio y tablet a la auditoría UX: sección 6 de [revisiones/2026-11-17-auditoria-ux-movil.md](revisiones/2026-11-17-auditoria-ux-movil.md) y wireframes en [revisiones/wireframes-escritorio.html](revisiones/wireframes-escritorio.html). Contenido:

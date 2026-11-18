@@ -10,9 +10,13 @@ window.qaAlertsError=false;window.qaAlertMutationError=false;window.qaAlertCalls
 window.qaBadgeNueva=()=>{alertas.unshift({...alertas[0]!,id:id(1000),abierta_en:new Date(Date.now()+1000).toISOString(),ultima_tomada_en:new Date().toISOString(),revisada_en:null,cerrada_en:null,motivo_cierre:null});};
 window.qaBadgeCerrar=()=>{alertas=alertas.map(a=>({...a,cerrada_en:new Date().toISOString(),motivo_cierre:'dentro_de_rango'}));};
 let vacio=false;
+const igual=(u:URL,k:string)=>u.searchParams.get(k)?.startsWith('eq.')?u.searchParams.get(k)!.slice(3):null;
+const enLista=(u:URL,k:string)=>u.searchParams.get(k)?.startsWith('in.(')?u.searchParams.get(k)!.slice(4,-1).replaceAll('"','').split(','):null;
+
 const client=createClient('https://fixture-no-remoto.supabase.co','sb_publishable_ficticia',{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:async(input,init)=>{
  const u=new URL(String(input)),name=u.pathname.split('/').at(-1)!;let data:unknown=[],total:number|undefined;
  const response=(d:unknown,status=200,count?:number)=>new Response(JSON.stringify(d),{status,headers:{'Content-Type':'application/json',...(count!==undefined?{'Content-Range':'*/'+count}:{})}});
+ if(name==='estado_red_nodos')return response(vacio?[]:[{nodo_id:node,codigo:'agv-prueba-01',simulado:false,habilitado:true,cultivo_id:crop,cultivo_nombre:'Lote QA',plantilla_codigo:null,origen:null,mensaje_id:null,tomada_en:null,recibida_en:null,temperatura:null,humedad:null,iluminacion:null}]);
  if(u.pathname.includes('/rpc/')){
   const args=JSON.parse(String(init?.body));window.qaAlertCalls.push({name,args});if(window.qaAlertMutationError){window.qaAlertMutationError=false;return response({message:'Fallo inventado'},500);}
   if(name==='configurar_regla_alerta'){
@@ -34,7 +38,8 @@ const client=createClient('https://fixture-no-remoto.supabase.co','sb_publishabl
   }
  }else if(name==='perfiles')data={nombre:vacio?'Cuenta vacía':'Cuenta de prueba'};
  else if(name==='cultivos')data=vacio?[]:[{id:crop,nombre:'Lote QA',tipo:'Maíz',area:10,unidad_area:'m2',archivado_en:null},{id:archive,nombre:'Lote archivado',tipo:'Prueba',area:1,unidad_area:'m2',archivado_en:new Date().toISOString()}];
- else if(name==='nodos')data=vacio?[]:[{id:node,codigo:'agv-prueba-01',cultivo_id:crop,habilitado:true}];
+ else if(name==='nodos')data=vacio||(igual(u,'cultivo_id')&&igual(u,'cultivo_id')!==crop)?[]:[{id:node,codigo:'agv-prueba-01',cultivo_id:crop,habilitado:true,tipo_nodo:'fisico',agricultor_id:owner,zona_id:null,posicion_x:null,posicion_y:null,asignacion_version:id(77)}];
+ else if(name==='zonas'||name==='sugerencias_ia')data=[];
  else if(name==='nodo_variables')data=['temperatura_aire','humedad_aire','iluminacion_relativa'].map(v=>({nodo_id:node,variable_codigo:v,sensor_modelo:v==='iluminacion_relativa'?'LDR':'DHT22'}));
  else if(name==='mediciones')data=null;
  else throw new Error('Consulta QA inesperada');

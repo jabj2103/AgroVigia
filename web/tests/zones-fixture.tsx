@@ -24,6 +24,17 @@ let cuenta = owner;
 const client = createClient('https://fixture-no-remoto.supabase.co', 'sb_publishable_ficticia', { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: async (input, init) => {
   const u = new URL(String(input)), tabla = u.pathname.split('/').at(-1)!; window.qaZonas.requests.push(u.toString());
   if (init?.method === 'HEAD') return new Response(null, { status: 200, headers: { 'Content-Range': '*/0' } });
+  // Estado de los nodos para Inicio (E2), derivado de las mismas capturas que devuelve mediciones.
+  if (tabla === 'estado_red_nodos') {
+    const filas = cuenta !== owner ? [] : p.nodos.map(n => {
+      const rows = n.id === physical.id ? reales : registros.get(n.id) ?? [], f = window.qaZonas.vacio === n.id ? undefined : rows[0];
+      const valor = (v: string) => rows.find(r => r.variable_codigo === v)?.valor ?? null;
+      return { nodo_id: n.id, codigo: n.codigo, simulado: n.tipo_nodo === 'virtual', habilitado: n.habilitado, cultivo_id: n.cultivo_id, cultivo_nombre: 'Cultivo demostración QA', plantilla_codigo: null,
+        origen: f ? (n.tipo_nodo === 'virtual' ? 'simulado' : 'real') : null, mensaje_id: f?.mensaje_id ?? null, tomada_en: f?.tomada_en ?? null, recibida_en: f?.recibida_en ?? null,
+        temperatura: f ? valor('temperatura_aire') : null, humedad: f ? valor('humedad_aire') : null, iluminacion: f ? valor('iluminacion_relativa') : null };
+    });
+    return new Response(JSON.stringify(filas), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
   if (init?.method && init.method !== 'GET') throw new Error('QA de zonas no admite escrituras.');
   const enviar = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
   const otro = cuenta !== owner, cultivoVacio = u.searchParams.get('cultivo_id') === 'eq.' + emptyCrop;
@@ -32,6 +43,7 @@ const client = createClient('https://fixture-no-remoto.supabase.co', 'sb_publish
   if (tabla === 'nodos') return enviar(otro || cultivoVacio ? [] : u.searchParams.has('cultivo_id') ? p.nodos : [...p.nodos, libre]);
   if (tabla === 'zonas') return window.qaZonas.errorPlano ? enviar({ message: 'ERROR_QA' }, 400) : enviar(otro || cultivoVacio ? [] : p.zonas);
   if (tabla === 'nodo_variables') return enviar(otro ? [] : p.capacidades);
+  if (tabla === 'sugerencias_ia') return enviar([]);
   if (tabla === 'alertas') return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json', 'Content-Range': '*/0' } });
   if (tabla === 'mediciones') {
     if (window.qaZonas.errorLectura && u.searchParams.get('origen') === 'eq.simulado') return enviar({ message: 'ERROR_QA' }, 400);

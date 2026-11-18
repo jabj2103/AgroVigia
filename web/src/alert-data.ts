@@ -54,6 +54,20 @@ export async function cargarEpisodios(client:SupabaseClient,cultivo:string,filtr
   if(r.count===null||r.count<filas.length||(r.count>0&&!filas.length)||filas.some(a=>a.cultivo_id!==cultivo||a.origen!==origen||!uuid(a.id)||!Object.hasOwn(VARIABLES_ALERTA,a.variable_codigo)||!Number.isFinite(Date.parse(a.abierta_en))))throw new Error('Respuesta de alertas incompleta o inconsistente.');
   return {filas,hayMas:r.count>filas.length};
 }
+// Inicio (E2): alertas sin cerrar de un cultivo y un origen, para el resumen de atencion y las marcas por nodo.
+// Revisada o no, una alerta abierta sigue activa. Hasta 100 filas; total es el conteo exacto del servidor.
+export interface AlertaActiva {id:string;cultivo_id:string;nodo_id:string;variable_codigo:VariableAlerta;origen:string;limite:'inferior'|'superior';umbral:number;valor_ultimo:number;abierta_en:string;revisada_en:string|null}
+export async function cargarAlertasActivas(client:SupabaseClient,cultivo:string,origen:Origen,signal?:AbortSignal):Promise<{filas:AlertaActiva[];total:number}>{
+  if(!uuid(cultivo))throw new Error('Cultivo inválido.');
+  let q=client.from('alertas').select('id,cultivo_id,nodo_id,variable_codigo,origen,limite,umbral,valor_ultimo,abierta_en,revisada_en',{count:'exact'})
+    .eq('cultivo_id',cultivo).eq('origen',origen).is('cerrada_en',null).order('abierta_en',{ascending:false}).order('id',{ascending:false}).limit(100);
+  if(signal)q=q.abortSignal(signal);
+  const r=await q;if(r.error)throw new Error('No pudimos consultar las alertas activas.');
+  const filas=(r.data??[]) as AlertaActiva[];
+  if(r.count===null||r.count<filas.length||(r.count>0&&!filas.length)||filas.some(a=>a.cultivo_id!==cultivo||a.origen!==origen||typeof a.nodo_id!=='string'||!Object.hasOwn(VARIABLES_ALERTA,a.variable_codigo)||!['inferior','superior'].includes(a.limite)||!Number.isFinite(a.valor_ultimo)||!Number.isFinite(a.umbral)||!Number.isFinite(Date.parse(a.abierta_en))))
+    throw new Error('Respuesta de alertas activas incompleta o inconsistente.');
+  return {filas,total:r.count};
+}
 export async function guardarRegla(client:SupabaseClient,cultivo:string,variable:VariableAlerta,min:string,max:string,origen:Origen='real'){
   const valores=validarLimites(variable,min,max);
   const r=await client.rpc('configurar_regla_alerta',{p_cultivo_id:cultivo,p_variable_codigo:variable,...valores,p_origen:origen});

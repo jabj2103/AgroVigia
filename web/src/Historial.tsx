@@ -104,8 +104,8 @@ function ComparacionPlantilla({ rango, plantillaCodigo, aviso, filas, unidad }: 
     </ul>}
   </section>;
 }
-export default function Historial({ client, cultivoId, nodos, capacidades, plantillaCodigo = null }: {
-  client: SupabaseClient; cultivoId: string; nodos: Nodo[]; capacidades: Capacidad[]; plantillaCodigo?: string | null;
+export default function Historial({ client, cultivoId, nodos, capacidades, plantillaCodigo = null, nodoInicial = '' }: {
+  client: SupabaseClient; cultivoId: string; nodos: Nodo[]; capacidades: Capacidad[]; plantillaCodigo?: string | null; nodoInicial?: string;
 }) {
   // Primero los nodos que hoy pertenecen al cultivo; despues los demas de la cuenta (lecturas antiguas en este cultivo).
   // Fisicos DHT22/ambientales y virtuales v3 (diez variables simuladas) con capacidades registradas.
@@ -114,7 +114,9 @@ export default function Historial({ client, cultivoId, nodos, capacidades, plant
     .sort((a, b) => Number(b.cultivo_id === cultivoId) - Number(a.cultivo_id === cultivoId)), [nodos, capacidades, cultivoId]);
   const delCultivo = compatibles.filter(n => n.cultivo_id === cultivoId), otros = compatibles.filter(n => n.cultivo_id !== cultivoId);
   const grupos = (['real', 'simulado'] as const).map(o => ({ origen: o, nodos: delCultivo.filter(n => origenNodo(n) === o) })).filter(g => g.nodos.length > 1);
-  const [nodoId, setNodoId] = useState(compatibles[0]?.id ?? '');
+  // Desde el detalle de nodo de Inicio se abre con ese nodo; si no es compatible, con el primero.
+  const primero = compatibles.find(n => n.id === nodoInicial) ?? compatibles[0];
+  const [nodoId, setNodoId] = useState(primero?.id ?? '');
   const [plantilla, setPlantilla] = useState<PlantillaRangos | null>(null), [avisoPlantilla, setAvisoPlantilla] = useState('');
   // Rangos de referencia vigentes: el ajuste propio del cultivo o, si no tiene, su plantilla.
   useEffect(() => {
@@ -135,7 +137,7 @@ export default function Historial({ client, cultivoId, nodos, capacidades, plant
   const ultima = useRef<{ nodos: Nodo[]; variable: VariableHistorial; periodo: string } | null>(null);
   const [desde, setDesde] = useState(() => fechaLocalBogota(new Date(Date.now() - 3_600_000).toISOString()));
   const [hasta, setHasta] = useState(() => fechaLocalBogota(new Date().toISOString()));
-  const [solicitud, setSolicitud] = useState<FiltroHistorial | null>(() => compatibles[0] ? filtroInicial(cultivoId, compatibles[0]) : null);
+  const [solicitud, setSolicitud] = useState<FiltroHistorial | null>(() => primero ? filtroInicial(cultivoId, primero) : null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
@@ -143,7 +145,7 @@ export default function Historial({ client, cultivoId, nodos, capacidades, plant
   const [pagina, setPagina] = useState(0);
   const controlador = useRef<AbortController | null>(null);
   const variables = (Object.keys(VARIABLES_HISTORIAL) as VariableHistorial[]).filter(v => nodosConsulta.length > 0 && nodosConsulta.every(n => capacidades.some(c => c.nodo_id === n.id && c.variable_codigo === v)));
-  const [solicitudes, setSolicitudes] = useState<{ nodo: Nodo; filtro: FiltroHistorial }[] | null>(() => solicitud ? [{ nodo: compatibles[0]!, filtro: solicitud }] : null);
+  const [solicitudes, setSolicitudes] = useState<{ nodo: Nodo; filtro: FiltroHistorial }[] | null>(() => solicitud && primero ? [{ nodo: primero, filtro: solicitud }] : null);
   useEffect(() => {
     if (!solicitud || !solicitudes) return;
     let activo = true;

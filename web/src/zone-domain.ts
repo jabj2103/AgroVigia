@@ -15,6 +15,8 @@ export interface CapturaZona {
   mensajeId: string; tomadaEn: string; recibidaEn: string; origen: 'real' | 'simulado';
   zonaId: string | null; zonaNombre: string | null; asignacionVersion: string | null;
   posicionX: number | null; posicionY: number | null;
+  // Solo nodos fisicos con sensor de luz: promedio del ADC, para avisar si la lectura esta en un extremo.
+  adcLdr?: number;
   valores: { codigo: string; nombre: string; unidad: string; valor: number; ayuda: string }[];
 }
 export const VARIABLES_ZONA = [
@@ -78,8 +80,8 @@ export function formarCapturaZona(filas: MedicionZona[], nodo: NodoPlano, cultiv
   const contexto = primera.zona_contexto;
   if (!objeto(contexto) || (primera.zona_id !== null && (!uuid(primera.zona_id) || contexto.id !== primera.zona_id || typeof contexto.nombre !== 'string' ||
       !coordenada(contexto.posicion_nodo_x) || !coordenada(contexto.posicion_nodo_y)))) throw new Error('La ubicación histórica de la captura no es válida.');
-  let version: string | null = null;
-  if (origen === 'real') formarLote(filas, nodo.id, cultivoId, mensajeId, conLdr);
+  let version: string | null = null, adcLdr: number | undefined;
+  if (origen === 'real') adcLdr = formarLote(filas, nodo.id, cultivoId, mensajeId, conLdr).adcLdr;
   else {
     if (filas.length !== 10 || primera.zona_id === null || !uuid(mensajeId) || new Set(filas.map(f => f.variable_codigo)).size !== 10) throw new Error('La captura simulada debe contener diez variables.');
     const meta = primera.metadatos;
@@ -106,6 +108,7 @@ export function formarCapturaZona(filas: MedicionZona[], nodo: NodoPlano, cultiv
     zonaNombre: typeof contexto.nombre === 'string' ? contexto.nombre : null, asignacionVersion: version,
     posicionX: typeof contexto.posicion_nodo_x === 'number' ? contexto.posicion_nodo_x : null,
     posicionY: typeof contexto.posicion_nodo_y === 'number' ? contexto.posicion_nodo_y : null,
+    ...(adcLdr !== undefined ? { adcLdr } : {}),
     valores: VARIABLES_ZONA.filter(v => filas.some(f => f.variable_codigo === v.codigo)).map(v => ({ codigo: v.codigo, nombre: v.nombre, unidad: v.unidad, ayuda: v.ayuda, valor: filas.find(f => f.variable_codigo === v.codigo)!.valor })),
   };
 }

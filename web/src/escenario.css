@@ -157,3 +157,25 @@
   .pastilla-tono[data-tono=recibe] i { animation: none; }
   .dialogo-agv[open], .dialogo-agv[open]::backdrop { animation: none; }
 }
+
+/* Dialogo en panel (detalle de nodo): pantalla completa en el telefono y panel lateral derecho desde 900 px. */
+.dialogo-agv.dialogo-panel { inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; border-radius: 0; }
+.dialogo-agv.dialogo-panel::backdrop { background: rgba(18, 63, 50, 0.25); }
+@media (min-width: 56.25rem) {
+  .dialogo-agv.dialogo-panel { inset: 0 0 0 auto; width: min(30rem, 92vw); border-radius: var(--agv-r-dialogo) 0 0 var(--agv-r-dialogo); }
+}
+/* El cuerpo del panel se desplaza entero; sus secciones no se encogen ni recortan su contenido. */
+.dialogo-agv.dialogo-panel .dialogo-cuerpo { flex: 1; grid-auto-rows: max-content; }
+
+/* Visor 3D en Inicio: elemento principal. Más bajo en el teléfono para dejar ver la lista; amplio en escritorio. */
+.escena-red.escena-inicio { height: clamp(18rem, 48vh, 24rem); margin: 0; }
+.visor-cargando { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--agv-texto-2); font-size: var(--agv-t-sm); }
+.leyenda-visor { margin-top: var(--agv-sp-3); }
+.pastilla-tono.alerta-leyenda { background: var(--agv-error-suave); }
+.pastilla-tono.alerta-leyenda i { display: inline-grid; place-items: center; width: auto; height: auto; background: none; color: var(--agv-error); font-style: normal; font-size: var(--agv-t-xs); line-height: 1; }
+/* Nodo con alerta activa en el visor: borde rojo y triángulo delante del código (también en etiquetas compactas). */
+.etiqueta-nodo.con-alerta { border-color: var(--agv-error); border-width: var(--agv-linea-fuerte); background: var(--agv-error-suave); }
+.etiqueta-nodo.con-alerta strong::before { content: "▲ "; color: var(--agv-error); }
+@media (min-width: 56.25rem) { .escena-red.escena-inicio { height: clamp(24rem, 58vh, 36rem); } }
+/* Teléfono: el nombre del cultivo ya está en el selector; su etiqueta en el visor tapaba los nodos centrales. */
+@media (width < 37.5rem) { .escena-inicio .etiqueta-cultivo { display: none; } }

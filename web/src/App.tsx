@@ -3,18 +3,16 @@ import type { FormEvent } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { configuracion, supabase } from './client.ts';
 import { useAvisosAlertas } from './useAvisosAlertas.ts';
-import { IconoClima } from './iconos-clima.tsx';
-import NodosSimulados from './NodosSimulados.tsx';
 import { Selector } from './Filtros.tsx';
 import { CondicionesActivas, RegistroSimulacion } from './CondicionesSimuladas.tsx';
-import { cargarContexto, cargarUltimoLote } from './data.ts';
-import { antiguedad, esDht22, esAmbiental, estadoDatos, fechaBogota, origenesCultivo, origenNodo } from './domain.ts';
-import type { Capacidad, Contexto, LecturaNodo, Nodo } from './types.ts';
+import { cargarContexto } from './data.ts';
+import { origenesCultivo } from './domain.ts';
+import type { Contexto, Origen } from './types.ts';
+import Inicio from './Inicio.tsx';
 
 const Alertas = lazy(() => import('./Alertas.tsx'));
 const Dispositivos = lazy(() => import('./Dispositivos.tsx'));
 const Cultivos = lazy(() => import('./Cultivos.tsx'));
-const Zonas = lazy(() => import('./Zonas.tsx'));
 
 const Historial = lazy(() => import('./Historial.tsx'));
 const Sugerencias = lazy(() => import('./Sugerencias.tsx'));
@@ -78,95 +76,6 @@ function InicioSesion({ client }: { client: SupabaseClient }) {
   </main>;
 }
 
-function Lecturas({ client, cultivoId, nodos, capacidades, revision }: {
-  client: SupabaseClient; cultivoId: string; nodos: Nodo[]; capacidades: Capacidad[]; revision: number;
-}) {
-  const dht = useMemo(() => nodos.filter(n => esDht22(n.id, capacidades) || esAmbiental(n.id, capacidades)), [nodos, capacidades]);
-  const [lecturas, setLecturas] = useState<LecturaNodo[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [consulta, setConsulta] = useState<string | null>(null);
-  const [ahora, setAhora] = useState(Date.now());
-  useEffect(() => {
-    const reloj = window.setInterval(() => setAhora(Date.now()), 1000);
-    return () => window.clearInterval(reloj);
-  }, []);
-  useEffect(() => {
-    let activo = true; let pendiente = false;
-    async function actualizar() {
-      if (pendiente) return;
-      pendiente = true;
-      if (activo) setCargando(true);
-      const respuestas = await Promise.all(dht.map(async nodo => {
-        try {
-          return { nodo, lote: await cargarUltimoLote(client, cultivoId, nodo.id, esAmbiental(nodo.id, capacidades), origenNodo(nodo)), error: null };
-        } catch (e) {
-          return { nodo, lote: null, error: e instanceof Error ? e.message : 'No se pudo consultar este nodo.' };
-        }
-      }));
-      if (activo) {
-        setLecturas(previas => respuestas.map(r => r.error
-          ? { ...r, lote: previas.find(p => p.nodo.id === r.nodo.id)?.lote ?? null } : r));
-        if (respuestas.every(r => !r.error)) setConsulta(new Date().toISOString());
-        setCargando(false);
-      }
-      pendiente = false;
-    }
-    void actualizar();
-    const intervalo = window.setInterval(() => { void actualizar(); }, 30_000);
-    return () => { activo = false; window.clearInterval(intervalo); };
-  }, [client, cultivoId, dht, capacidades, revision]);
-
-  if (!nodos.length) return <div className="vacio"><h3>No hay nodos vinculados</h3>
-    <p>Este cultivo todavía no tiene un nodo asignado.</p></div>;
-  return <section aria-label="Lecturas del cultivo" aria-busy={cargando}>
-    {dht.map(nodo => {
-      const lectura = lecturas.find(l => l.nodo.id === nodo.id);
-      const lote = lectura?.lote ?? null;
-      const origen = origenNodo(nodo);
-      const estado = estadoDatos(lote, ahora, origen);
-      const textoEstado = lectura?.error ? 'Error de actualización' : !nodo.habilitado
-        ? 'Nodo deshabilitado' : cargando && !lote ? 'Consultando datos…' : estado.texto;
-      return <article className="panel-nodo" key={nodo.id}>
-        <div className="cabecera-nodo"><div><span className="sobre-titulo">{nodo.simulado ? 'NODO SIMULADO · DHT22 + LDR' : esAmbiental(nodo.id, capacidades) ? 'NODO DHT22 + LDR' : 'NODO DHT22'}</span>
-          <h3>{nodo.codigo}</h3></div>
-          <span className={'estado ' + (lectura?.error ? 'revisar' : !nodo.habilitado ? 'neutral' : estado.clase)}>{textoEstado}</span>
-        </div>
-        {lectura?.error && <p className="aviso error" role="alert">{lectura.error}</p>}
-        <div className="tarjetas-mediciones">
-          <div className="medicion"><div className="titulo-medicion"><span className="simbolo temperatura" aria-hidden="true">°</span><h4>Temperatura del aire</h4></div>
-            <div className="valor">{lote ? lote.temperatura.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 4 }) : '—'} <span>°C</span></div>
-            <p>{lote ? 'Captura: ' + antiguedad(lote.tomadaEn, ahora) : `Aún no hay una lectura ${origen === 'simulado' ? 'simulada' : 'real'} disponible.`}</p>
-          </div>
-          <div className="medicion"><div className="titulo-medicion"><span className="simbolo humedad" aria-hidden="true">%</span><h4>Humedad del aire</h4></div>
-            <div className="valor">{lote ? lote.humedad.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 4 }) : '—'} <span>% HR</span></div>
-            <p>{lote ? 'Captura: ' + antiguedad(lote.tomadaEn, ahora) : `Aún no hay una lectura ${origen === 'simulado' ? 'simulada' : 'real'} disponible.`}</p>
-          </div>
-        </div>
-        {esAmbiental(nodo.id, capacidades) && <div className="medicion medicion-luz">
-          <div className="titulo-medicion"><span className="simbolo" aria-hidden="true"><IconoClima evento="sol_fuerte" /></span><h4>Iluminación relativa</h4></div>
-          <div className="valor">{lote?.iluminacion !== undefined ? lote.iluminacion.toLocaleString('es-CO', { minimumFractionDigits: 1 }) : '—'} <span>% relativo</span></div>
-          <p>{lote?.iluminacion !== undefined ? 'Índice relativo del sensor; no mide lux. No compares sensores distintos sin comprobarlos antes.' : 'Esta captura todavía no incluye el sensor de luz.'}</p>
-          {lote?.adcLdr === 4095 && <p className="aviso advertencia">Límite superior del sensor: no distingue más luz en esta captura.</p>}
-          {lote?.adcLdr === 0 && <p className="aviso advertencia">Límite inferior del sensor; no equivale a una medición de lux.</p>}
-        </div>}
-        {lote && <div className="detalle-captura">
-          <div><span>Fecha de captura</span><strong>{fechaBogota(lote.tomadaEn)}</strong></div>
-          <div><span>Recepción de aplicación · aprox.</span><strong>{fechaBogota(lote.recibidaEn)}</strong></div>
-        </div>}
-        {lote?.temperatura === 0 && lote.humedad === 0 &&
-          <p className="aviso advertencia">El par 0 / 0 requiere revisión de la medición.</p>}
-        {lote && <details className="identificacion"><summary>Identificación de la captura</summary>
-          <p>Origen: {origen} · Nodo: {nodo.codigo}</p>{lote.adcLdr !== undefined && <p>Lectura ADC del sensor de luz: {lote.adcLdr} / 4095</p>}<code>{lote.mensajeId}</code></details>}
-      </article>;
-    })}
-    {nodos.filter(n => n.tipo_nodo !== 'virtual' && !esDht22(n.id, capacidades) && !esAmbiental(n.id, capacidades)).map(n => <div className="aviso neutral" key={n.id}>
-      <strong>{n.codigo}</strong><p>Las variables de este nodo todavía no están integradas en esta pantalla.</p>
-    </div>)}
-    <p className="pie-consulta" aria-live="polite">{cargando ? 'Actualizando lecturas…' : consulta
-      ? 'Última consulta correcta: ' + fechaBogota(consulta) : 'Sin una consulta completa todavía.'}</p>
-  </section>;
-}
-
 type Vista = 'monitoreo' | 'sugerencias' | 'red' | 'historial' | 'cultivos' | 'dispositivos' | 'alertas';
 function Icono({ tipo }: { tipo: Vista | 'menu' | 'actualizar' }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{
@@ -183,7 +92,8 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
   const [cultivoId, setCultivoId] = useState('');
   const [revision, setRevision] = useState(0);
   const [vista, setVista] = useState<Vista>('monitoreo');
-  const [vistaMonitor, setVistaMonitor] = useState<'real' | 'zonas'>('real');
+  // Nodo con el que se abre el Historial desde el detalle de nodo de Inicio.
+  const [nodoHistorial, setNodoHistorial] = useState('');
   const [menu, setMenu] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [revisionAvisos,setRevisionAvisos]=useState(0);
@@ -230,7 +140,9 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
   const [origenPreferido, setOrigenPreferido] = useState<'real' | 'simulado'>('real');
   const origen = origenes.includes(origenPreferido) ? origenPreferido : origenes[0] ?? 'real';
   const mixto = origenes.length > 1;
-  function navegar(v: Vista) { setVista(v); setMenu(false); }
+  function navegar(v: Vista) { setVista(v); setMenu(false); if (v !== 'historial') setNodoHistorial(''); }
+  // Desde Inicio: abre Alertas o Sugerencias ya en el origen (real o simulado) de lo que se tocó.
+  function irConOrigen(v: 'alertas' | 'sugerencias', o: Origen) { setOrigenPreferido(o); navegar(v); }
   function abrir(id: string, historial: boolean) { setCultivoId(id); navegar(historial ? 'historial' : 'monitoreo'); }
   async function salir() {
     setSaliendo(true);
@@ -272,11 +184,11 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
       <div className="titulo-pagina"><div><span className="sobre-titulo">AGROVIGÍA</span><h1>{titulos[vista]}</h1></div></div>
       <div className="acciones-encabezado"><button className="btn boton-secundario boton-actualizar" onClick={() => setRevision(v => v + 1)}><Icono tipo="actualizar"/><span>{vista === 'monitoreo' ? 'Actualizar' : 'Actualizar cuenta'}</span></button></div>
     </header>
-    {vista === 'monitoreo' && <div className="vistas-monitoreo" role="group" aria-label="Vista del monitoreo"><button aria-pressed={vistaMonitor === 'real'} onClick={() => setVistaMonitor('real')}>Lecturas reales</button><button aria-pressed={vistaMonitor === 'zonas'} onClick={() => setVistaMonitor('zonas')}>Zonas y nodos</button></div>}
-    {(vista === 'historial' || (vista === 'monitoreo' && vistaMonitor === 'real')) && <div className="linea-contexto"><span className={'etiqueta-origen' + (vista === 'historial' && mixto ? ' mixto' : vista === 'historial' && origen === 'simulado' ? ' simulado' : '')}>{vista === 'historial' && mixto ? 'Datos reales y simulados' : vista === 'historial' && origen === 'simulado' ? 'Datos simulados' : 'Datos reales'}</span><span>{vista === 'monitoreo' ? 'Consulta automática cada 30 s' : 'Historial bajo consulta'}</span></div>}
+    {vista === 'historial' && <div className="linea-contexto"><span className={'etiqueta-origen' + (mixto ? ' mixto' : origen === 'simulado' ? ' simulado' : '')}>{mixto ? 'Datos reales y simulados' : origen === 'simulado' ? 'Datos simulados' : 'Datos reales'}</span><span>Historial bajo consulta</span></div>}
     <p id="estado-contador-alertas" className="visually-hidden" role="status">{avisos.error?'Contador de alertas sin actualizar.':avisos.resumen?`${numeroAvisos} alertas reales activas sin revisar en tus cultivos.`:'Consultando alertas pendientes.'}</p>
     {avisos.error&&<p className="contador-sin-actualizar" role="status">No pudimos actualizar el contador de alertas. Reintenta con Actualizar cuenta.</p>}
-    {avisos.aviso&&!avisos.error&&<aside className="notificacion-alertas" aria-label="Aviso de alertas pendientes"><div role="status"><strong>{avisos.aviso.cantidad===1?'Tienes una alerta pendiente':`Tienes ${avisos.aviso.cantidad} alertas pendientes`}</strong><p>Activas y sin revisar, con datos reales, en tus cultivos.</p></div><button className="btn boton-principal" onClick={verPendientes}>Ver alertas</button><button className="cerrar-aviso" aria-label="Ocultar aviso" onClick={avisos.ocultar}>×</button></aside>}
+    {/* En Inicio lo dice el resumen de atención y en Alertas ya se está mirando: el aviso flotante sobraría. */}
+    {avisos.aviso&&!avisos.error&&vista!=='monitoreo'&&vista!=='alertas'&&<aside className="notificacion-alertas" aria-label="Aviso de alertas pendientes"><div role="status"><strong>{avisos.aviso.cantidad===1?'Tienes una alerta pendiente':`Tienes ${avisos.aviso.cantidad} alertas pendientes`}</strong><p>Activas y sin revisar, con datos reales, en tus cultivos.</p></div><button className="btn boton-principal" onClick={verPendientes}>Ver alertas</button><button className="cerrar-aviso" aria-label="Ocultar aviso" onClick={avisos.ocultar}>×</button></aside>}
     {error && <div className="aviso error" role="alert">{error}<button className="enlace-boton" onClick={() => setRevision(v => v + 1)}>Reintentar</button></div>}
     {!contexto && !error && <p className="vacio" role="status">Consultando tus cultivos…</p>}
     {contexto && (vista === 'red' ? <Suspense fallback={<p role="status">Cargando la simulación…</p>}><Escenario client={client} cultivos={contexto.cultivos} cultivoId={idActual} elegirCultivo={setCultivoId} verHistorial={id => abrir(id, true)} alCambiarCultivo={() => setRevision(v => v + 1)}/></Suspense> : vista === 'dispositivos' ? <Suspense fallback={<p role="status">Cargando dispositivos…</p>}><Dispositivos client={client} contexto={contexto} revision={revision} actualizado={() => setRevision(v => v + 1)}/></Suspense> : vista === 'cultivos' ? <Suspense fallback={<p role="status">Cargando tus cultivos…</p>}><Cultivos client={client} contexto={contexto} actualizado={() => setRevision(v => v + 1)} abrir={abrir}/></Suspense> : <>
@@ -289,8 +201,10 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
           <span>Este cultivo tiene nodos físicos y simulados. Ver:</span>
           {origenes.map(o => <button key={o} type="button" className={'btn ' + (o === origen ? 'boton-principal' : 'boton-secundario')} aria-pressed={o === origen} onClick={() => setOrigenPreferido(o)}>{o === 'real' ? 'Datos reales' : 'Datos simulados'}</button>)}
         </div>}
-        {vista === 'alertas' ? <><CondicionesActivas client={client} cultivo={seleccionado} revision={revision} verEscenario={() => navegar('red')} /><Suspense fallback={<p role="status">Cargando alertas…</p>}><Alertas key={'alertas:' + sesion.user.id + ':' + idActual + ':' + origen + ':' + aperturaAlertas} client={client} cultivo={seleccionado} nodos={contexto.nodos} revision={revision} onCambio={() => setRevisionAvisos(v=>v+1)} origen={origen} onPlantilla={() => setRevision(v => v + 1)}/></Suspense></> : vista === 'sugerencias' ? <Suspense fallback={<p role="status">Cargando sugerencias…</p>}><Sugerencias key={'ia:' + sesion.user.id + ':' + idActual + ':' + origen} client={client} cultivo={seleccionado} origen={origen} revision={revision}/></Suspense> : vista === 'monitoreo' ? vistaMonitor === 'zonas' ? <Suspense fallback={<p role="status">Cargando zonas.</p>}><Zonas key={'zonas:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} usuarioId={sesion.user.id} revision={revision}/></Suspense> : <><Lecturas key={'monitor:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} nodos={nodos} capacidades={contexto.capacidades} revision={revision}/>{nodos.some(n => n.tipo_nodo === 'virtual') && <NodosSimulados key={'sim:' + idActual} client={client} cultivoId={idActual} revision={revision} verEscenario={() => navegar('red')} />}</>
-          : <><Suspense fallback={<p role="status">Cargando el historial…</p>}><Historial key={'historial:' + sesion.user.id + ':' + idActual} client={client} cultivoId={idActual} nodos={contexto.nodos} capacidades={contexto.capacidades} plantillaCodigo={seleccionado.plantilla_codigo ?? null}/></Suspense><RegistroSimulacion client={client} cultivoId={idActual} revision={revision} /></>}
+        {vista === 'alertas' ? <><CondicionesActivas client={client} cultivo={seleccionado} revision={revision} verEscenario={() => navegar('red')} /><Suspense fallback={<p role="status">Cargando alertas…</p>}><Alertas key={'alertas:' + sesion.user.id + ':' + idActual + ':' + origen + ':' + aperturaAlertas} client={client} cultivo={seleccionado} nodos={contexto.nodos} revision={revision} onCambio={() => setRevisionAvisos(v=>v+1)} origen={origen} onPlantilla={() => setRevision(v => v + 1)}/></Suspense></> : vista === 'sugerencias' ? <Suspense fallback={<p role="status">Cargando sugerencias…</p>}><Sugerencias key={'ia:' + sesion.user.id + ':' + idActual + ':' + origen} client={client} cultivo={seleccionado} origen={origen} revision={revision}/></Suspense> : vista === 'monitoreo' ? <Inicio key={'inicio:' + sesion.user.id + ':' + idActual} client={client} cultivo={seleccionado} usuarioId={sesion.user.id} revision={revision}
+            verAlertas={o => irConOrigen('alertas', o)} verSugerencias={o => irConOrigen('sugerencias', o)}
+            verHistorial={id => { navegar('historial'); setNodoHistorial(id); }} verDispositivos={() => navegar('dispositivos')} />
+          : <><Suspense fallback={<p role="status">Cargando el historial…</p>}><Historial key={'historial:' + sesion.user.id + ':' + idActual + ':' + nodoHistorial} client={client} cultivoId={idActual} nodos={contexto.nodos} capacidades={contexto.capacidades} plantillaCodigo={seleccionado.plantilla_codigo ?? null} nodoInicial={nodoHistorial}/></Suspense><RegistroSimulacion client={client} cultivoId={idActual} revision={revision} /></>}
       </>}
     </>)}
     <footer className="pie-app">AgroVigía · Prototipo académico <span>Fechas en hora de Colombia</span></footer>

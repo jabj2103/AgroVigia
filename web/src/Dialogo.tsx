@@ -2,8 +2,12 @@
 // devuelve el foco al control que lo abrio. Clic fuera del panel tambien cierra.
 import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+// Los estilos del dialogo viven en escenario.css. Se importan aqui para que el detalle de nodo de Inicio
+// los tenga aunque todavia no se haya abierto Simulacion, Cultivos ni Dispositivos.
+import './escenario.css';
 
-export function Dialogo({ titulo, detalle, alCerrar, children }: { titulo: string; detalle?: ReactNode; alCerrar: () => void; children: ReactNode }) {
+// variante 'panel': pantalla completa en el telefono y panel lateral derecho desde 900 px (detalle de nodo).
+export function Dialogo({ titulo, detalle, alCerrar, children, variante }: { titulo: string; detalle?: ReactNode; alCerrar: () => void; children: ReactNode; variante?: 'panel' }) {
   const ref = useRef<HTMLDialogElement>(null), id = useId();
   useEffect(() => {
     const d = ref.current; if (!d) return;
@@ -17,7 +21,7 @@ export function Dialogo({ titulo, detalle, alCerrar, children }: { titulo: strin
       if (!quedan) raiz.classList.remove('con-dialogo');
     };
   }, []);
-  return <dialog ref={ref} className="dialogo-agv" aria-labelledby={id}
+  return <dialog ref={ref} className={'dialogo-agv' + (variante === 'panel' ? ' dialogo-panel' : '')} aria-labelledby={id}
     onCancel={e => { e.preventDefault(); alCerrar(); }} onClick={e => { if (e.target === ref.current) alCerrar(); }}>
     <header className="dialogo-cabecera">
       <div><h2 id={id}>{titulo}</h2>{detalle && <p>{detalle}</p>}</div>

@@ -376,3 +376,90 @@ p { margin-top: 0; }
   .croquis { aspect-ratio: 1.75; }
   .selector-nodo-zona { width: 100%; }
 }
+
+/* ===== Inicio (E2): resumen de atencion, croquis, lista por sector y ultima sugerencia ===== */
+/* Telefono: una columna en orden de lectura. Desde 1200 px: croquis y lista a la izquierda; resumen y sugerencia a la derecha. */
+.inicio-cultivo { display: grid; gap: var(--agv-sp-5); margin-top: var(--agv-sp-4); grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "frescura" "fallo" "resumen" "mapa" "lista" "sugerencia"; }
+.inicio-cultivo > .frescura { grid-area: frescura; }
+.inicio-cultivo > .aviso { grid-area: fallo; margin: 0; }
+.inicio-resumen { grid-area: resumen; }
+.inicio-mapa { grid-area: mapa; min-width: 0; }
+.inicio-lista { grid-area: lista; min-width: 0; }
+.inicio-sugerencia { grid-area: sugerencia; }
+.inicio-cultivo h2 { margin: 0 0 var(--agv-sp-3); font-size: var(--agv-t-lg); font-weight: 700; }
+.frescura { display: flex; align-items: center; gap: var(--agv-sp-2); margin: 0; font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+.frescura i { width: var(--agv-punto); height: var(--agv-punto); border-radius: 50%; background: var(--agv-recibe-punto); flex: none; }
+.frescura i.con-fallo { background: var(--agv-no-recibe-punto); }
+
+.lista-resumen { margin: 0; padding: 0; list-style: none; border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-tarjeta); background: var(--agv-superficie); overflow: hidden; }
+.lista-resumen > li { display: flex; align-items: center; gap: var(--agv-sp-3); min-height: var(--agv-sp-14); padding: var(--agv-sp-2) var(--agv-sp-4); border-top: var(--agv-linea) solid var(--agv-borde); }
+.lista-resumen > li:first-child { border-top: 0; }
+.lista-resumen > li:has(> button) { padding: 0; }
+.lista-resumen button { display: flex; align-items: center; gap: var(--agv-sp-3); width: 100%; min-height: var(--agv-sp-14); padding: var(--agv-sp-2) var(--agv-sp-4); border: 0; background: none; color: var(--agv-texto); text-align: left; }
+.lista-resumen button:hover { background: var(--agv-superficie-2); }
+.lista-resumen button:focus-visible { outline: 0; box-shadow: inset var(--agv-foco); }
+.lista-resumen .txt { flex: 1; min-width: 0; }
+.lista-resumen strong { display: block; font-size: var(--agv-t-base); line-height: 1.35; }
+.lista-resumen small { display: block; margin-top: var(--agv-sp-0-5); font-size: var(--agv-t-sm); line-height: 1.45; color: var(--agv-texto-2); overflow-wrap: anywhere; }
+.lista-resumen .flecha { font-size: var(--agv-t-2xl); line-height: 1; color: var(--agv-texto-2); }
+.ico-resumen { display: grid; place-items: center; width: var(--agv-sp-8); height: var(--agv-sp-8); flex: none; border-radius: var(--agv-r-control); }
+.ico-resumen svg { width: var(--agv-icono); height: var(--agv-icono); }
+/* Clases propias: .aviso, .error e .info ya son recuadros de aviso con relleno y desplazaban el icono. */
+.ico-resumen.ico-alerta, .ico-resumen.ico-error { background: var(--agv-error-suave); color: var(--agv-error); }
+.ico-resumen.ico-aviso { background: var(--agv-aviso-suave); color: var(--agv-no-recibe-punto); }
+.ico-resumen.ico-info { background: var(--agv-inactivo); color: var(--agv-texto-2); }
+
+.cabecera-seccion { display: flex; align-items: center; justify-content: space-between; gap: var(--agv-sp-3); flex-wrap: wrap; }
+.cabecera-seccion h2 { margin: 0; }
+.inicio-mapa .leyenda-croquis { margin: var(--agv-sp-3) 0; font-size: var(--agv-t-sm); }
+.leyenda-croquis .marca-sin-recibir { width: 1.625rem; height: 1.625rem; display: grid; place-items: center; border-radius: 50%; border: var(--agv-linea-fuerte) dashed var(--agv-no-recibe-punto); background: var(--agv-superficie); font-size: var(--agv-t-xs); }
+.leyenda-croquis .marca-alerta-leyenda { width: 1.25rem; height: 1.25rem; display: grid; place-items: center; border-radius: 50%; background: var(--agv-error); color: var(--agv-sobre-verde); font-size: var(--agv-t-xs); }
+.nodo-croquis.sin-recibir { border: var(--agv-linea-fuerte) dashed var(--agv-no-recibe-punto); background: var(--agv-superficie); }
+.nodo-croquis.con-alerta { overflow: visible; }
+.marca-alerta { position: absolute; top: calc(var(--agv-sp-2) * -1); right: calc(var(--agv-sp-2) * -1); display: grid; place-items: center; width: var(--agv-sp-5); height: var(--agv-sp-5);
+  border: var(--agv-linea-fuerte) solid var(--agv-superficie); border-radius: 50%; background: var(--agv-error); color: var(--agv-sobre-verde); font-size: var(--agv-t-xs); font-weight: 700; line-height: 1; }
+
+.grupos-nodos { display: grid; gap: var(--agv-sp-4); }
+.grupo-nodos h3 { margin: 0 0 var(--agv-sp-2); font-size: var(--agv-t-sm); font-weight: 700; color: var(--agv-texto-2); }
+.grupo-nodos ul { margin: 0; padding: 0; list-style: none; border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-tarjeta); background: var(--agv-superficie); overflow: hidden; }
+.grupo-nodos li + li { border-top: var(--agv-linea) solid var(--agv-borde); }
+.fila-nodo { display: flex; align-items: center; gap: var(--agv-sp-3); width: 100%; min-height: var(--agv-sp-16); padding: var(--agv-sp-2) var(--agv-sp-4); border: 0; background: none; color: var(--agv-texto); text-align: left; }
+.fila-nodo:hover { background: var(--agv-superficie-2); }
+.fila-nodo.activa { background: var(--agv-verde-suave); }
+.fila-nodo:focus-visible { outline: 0; box-shadow: inset var(--agv-foco); }
+.fila-nodo .txt { flex: 1; min-width: 0; }
+.fila-nodo .linea-1 { display: flex; align-items: center; gap: var(--agv-sp-2); flex-wrap: wrap; }
+.fila-nodo .linea-1 strong { font-size: var(--agv-t-base); overflow-wrap: anywhere; }
+.marcador-nodo { display: grid; place-items: center; width: var(--agv-sp-9); height: var(--agv-sp-9); flex: none; font-size: var(--agv-t-sm); font-weight: 800; border: var(--agv-linea-fuerte) solid; }
+.marcador-nodo.fisico { border-radius: 50%; background: var(--agv-verde-suave); border-color: var(--agv-verde); }
+.marcador-nodo.simulado { border-radius: var(--agv-r-control); background: var(--agv-simulado-suave); border-color: var(--agv-simulado); }
+.estado-nodo { display: flex; align-items: center; gap: var(--agv-sp-1-5); margin-top: var(--agv-sp-0-5); font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+.estado-nodo i { width: var(--agv-punto); height: var(--agv-punto); border-radius: 50%; flex: none; background: var(--agv-inactivo-punto); }
+.estado-nodo.recibe i { background: var(--agv-recibe-punto); }
+.estado-nodo.no-recibe i { background: var(--agv-superficie); border: var(--agv-linea-fuerte) solid var(--agv-no-recibe-punto); }
+.dato-nodo { flex: none; text-align: right; font-size: var(--agv-t-lg); font-weight: 700; white-space: nowrap; }
+.dato-nodo small { display: block; font-size: var(--agv-t-sm); font-weight: 500; color: var(--agv-texto-2); }
+.dato-nodo.con-alerta { color: var(--agv-error); }
+.dato-nodo.viejo { color: var(--agv-texto-2); }
+
+.inicio-sugerencia .tarjeta-mini { display: grid; gap: var(--agv-sp-2); padding: var(--agv-sp-4); border: var(--agv-linea) solid var(--agv-borde); border-radius: var(--agv-r-tarjeta); background: var(--agv-superficie); }
+.inicio-sugerencia .tarjeta-mini p { margin: 0; }
+.inicio-sugerencia .tarjeta-mini .btn { justify-self: start; }
+.meta-sugerencia { font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+.etiqueta-ia { font-weight: 700; color: var(--agv-info); }
+
+/* Detalle de nodo */
+.alertas-nodo { display: grid; gap: var(--agv-sp-3); margin: 0 0 var(--agv-sp-3); padding: 0; list-style: none; }
+.alertas-nodo li { display: grid; gap: var(--agv-sp-1); padding: var(--agv-sp-3); border: var(--agv-linea) solid var(--agv-error); border-radius: var(--agv-r-control); background: var(--agv-error-suave); font-size: var(--agv-t-sm); }
+.alertas-nodo li .estado { justify-self: start; }
+.detalle-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: var(--agv-sp-3); }
+.detalle-zona .estado-captura-zona span + span { margin-left: var(--agv-sp-2); font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+
+@media (min-width: 37.5rem) {
+  .grupos-nodos { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+@media (min-width: 75rem) {
+  .inicio-cultivo { grid-template-columns: minmax(0, 1fr) 22.5rem; align-items: start;
+    grid-template-areas: "frescura frescura" "fallo fallo" "mapa resumen" "lista sugerencia"; }
+}

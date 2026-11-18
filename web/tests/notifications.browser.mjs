@@ -21,6 +21,10 @@ try{
   const badge=nav.locator('.contador-alertas');
   await badge.filter({hasText:/^23$/}).waitFor();
   assert.equal(await page.locator('.campana-alertas').count(),0,'sin campana duplicada en el encabezado');
+  // E2: en Inicio lo dice el resumen de atención; el aviso flotante solo aparece en las demás secciones.
+  await page.locator('.lista-resumen').getByText('23 alertas sin revisar',{exact:true}).waitFor();
+  assert.equal(await page.locator('.notificacion-alertas').count(),0,'sin aviso duplicado en Inicio');
+  await nav.getByRole('button',{name:'Historial',exact:true}).click();
   await page.getByRole('complementary',{name:'Aviso de alertas pendientes'}).waitFor();
   await page.getByRole('button',{name:'Ocultar aviso',exact:true}).click();
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
@@ -28,7 +32,7 @@ try{
   assert.equal(await page.locator('.notificacion-alertas').count(),0);
   await page.evaluate(()=>{window.qaBadgeNueva();window.dispatchEvent(new Event('focus'));});
   await badge.filter({hasText:/^24$/}).waitFor();await page.getByText('Tienes 24 alertas pendientes',{exact:true}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Inicio',exact:true}).count(),1);
+  assert.equal(await page.getByRole('heading',{name:'Historial y estadísticas',exact:true}).count(),1);
   await page.getByRole('complementary',{name:'Aviso de alertas pendientes'}).getByRole('button',{name:'Ver alertas',exact:true}).click();
   await page.locator('.tarjeta-alerta').first().waitFor();await page.getByRole('button',{name:'Marcar como revisada',exact:true}).first().click();
   await badge.filter({hasText:/^23$/}).waitFor();assert.equal(await page.locator('.tarjeta-alerta.activa').count(),20);
