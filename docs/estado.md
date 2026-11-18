@@ -4,6 +4,15 @@ Actualización: 25 de octubre de 2026. Fuentes: decisiones del chat, archivos lo
 
 ## Preparado en esta carpeta
 
+17 de noviembre de 2026 (Bogotá): en la rama `juan/auditoria-ux` se añadió el diseño de escritorio y tablet a la auditoría UX: sección 6 de [revisiones/2026-11-17-auditoria-ux-movil.md](revisiones/2026-11-17-auditoria-ux-movil.md) y wireframes en [revisiones/wireframes-escritorio.html](revisiones/wireframes-escritorio.html). Contenido:
+- Reglas por ancho: barra inferior por debajo de 900 px, incluida la tablet vertical, y barra lateral desde 900 px.
+- Inicio en dos columnas desde 1200 px.
+- Detalle de punto como panel lateral.
+- Alertas con lista y detalle juntos.
+- Visor con ratón: arrastrar para girar, Ctrl + rueda para acercar, nombre al pasar el ratón y botones de zoom.
+
+Se asignó cada parte a E2, E3, E4 y E5. Comprobaciones: revisión visual en el navegador integrado e impresión a PDF con Chrome sin ventana, que da 4 páginas A4. Es solo diseño: no se cambió código y no se ha validado con usuarios.
+
 17 de noviembre de 2026 (Bogotá): Juan pide empezar E1 de la auditoría UX sin esperar la validación con agricultores, porque de momento no tiene acceso a ellos. Implementado en la rama `juan/auditoria-ux`, sin tocar `juan/integracion-camilo`:
 - Teléfono: barra inferior fija con Inicio, Alertas (con contador), Sugerencias, Historial y Más. Más abre el menú solo con Configuración (Cultivos, Dispositivos, Simulación) y la cuenta.
 - Escritorio: barra lateral con los cuatro destinos diarios y un grupo «Configuración».

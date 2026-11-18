@@ -79,7 +79,7 @@ T1–T4 son diarias y T5 es ocasional. Hoy T5 aparece con el mismo peso visual q
 │Inicio│ Alertas │Sugerencias │ Historial │  Más │
 └─────┴─────────┴────────────┴───────────┴──────┘
 ```
-- La barra va **abajo y fija**, al alcance del pulgar. En escritorio se conserva la barra lateral actual.
+- La barra va **abajo y fija**, al alcance del pulgar. En escritorio se conserva la barra lateral actual, con un grupo «Configuración»; el detalle está en la sección 6.
 - **Más** contiene: Mis cultivos (con Límites, Terreno y sectores), Dispositivos, **Simulación** (el Escenario actual renombrado), Cuenta y Cerrar sesión.
 - Se eliminan la tira desplazable, la campana del encabezado en móvil (el contador pasa a la pestaña Alertas) y el aviso flotante de alertas pendientes. Este último se sustituye por el resumen de atención de Inicio.
 - «IA» pasa a llamarse **Sugerencias**, con el icono ✦ y el subtítulo «generadas por IA» dentro de la pantalla. Hay que validar el término con usuarios.
@@ -330,6 +330,51 @@ Cada etapa es pequeña y verificable y se registra en `docs/estado.md`. No requi
 - QA en navegador con datos de prueba a 360, 390, 768 y 1280 px. Revisar sin desbordamiento horizontal, desplazamiento de página sobre el visor, selección sincronizada visor/lista/hoja, alternativa forzada sin WebGL y navegación con teclado y lector de pantalla en la lista.
 - Lighthouse de accesibilidad y rendimiento con limitación 4G.
 - Revisión de Juan con su sesión real y los servicios en marcha. Sin escrituras a Supabase ni n8n salvo en E4 si se aprueba la migración.
+
+## 6. Escritorio y tablet
+
+Añadido después de E1. Wireframes en [wireframes-escritorio.html](wireframes-escritorio.html): 4 hojas A4 horizontales con los mismos datos de ejemplo que E0. Las pantallas de escritorio están dibujadas a 1280 × 800 y la tablet a 768 × 1024.
+
+### Reglas por ancho
+| Ancho | Navegación | Inicio | Detalle de punto o alerta | Visor |
+|---|---|---|---|---|
+| Menos de 600 px (teléfono) | Barra inferior de 5 y Más | Una columna | Pantalla completa con «‹ Volver» | Quieto; tocar elige; «Explorar en 3D» a pantalla completa |
+| 600 a 899 px (tablet vertical) | Barra inferior de 5 y Más | Una columna; punto y sugerencia lado a lado; lista en dos columnas | Pantalla completa | Igual que en el teléfono, más alto |
+| 900 a 1199 px (tablet horizontal, portátil pequeño) | Barra lateral con grupo Configuración | Una columna ancha; lista en dos columnas | Panel lateral derecho | Ratón: arrastrar gira, Ctrl + rueda acerca; táctil: igual que el teléfono |
+| 1200 px o más (escritorio) | Barra lateral con grupo Configuración | Dos columnas: lote y lista \| atención, punto y sugerencia | Punto: panel lateral. Alertas: lista y detalle juntos | Como en 900 px, con el nombre del punto al pasar el ratón |
+
+- **La tablet usa la barra inferior.** A 768 px una barra lateral ocuparía casi un tercio del ancho, y la tablet se usa con los dedos. La barra lateral empieza en 900 px, como ya hace la web desde E1, así que no cambia nada al girar la tablet a menos de ese ancho.
+- **Lo que no cambia con el ancho:** los textos, los avisos de datos simulados, antigüedad y luz relativa, la letra mínima de 14 px, los botones de 44 px y el orden de lectura (primero lo que pide atención, luego dónde, luego el detalle).
+
+### Inicio en escritorio (hoja 1)
+- **Columna izquierda:** el visor y la lista por sector en dos columnas.
+- **Columna derecha:** el resumen de atención, el punto elegido y la última sugerencia, siempre visibles mientras se mira el lote.
+- **Visor con ratón:**
+  - Arrastrar gira, porque con ratón no hay conflicto con el desplazamiento de la página.
+  - La rueda solo acerca con Ctrl, para no secuestrar el desplazamiento.
+  - Al pasar el ratón por un punto se ve su nombre y un valor.
+  - Los botones «+», «−» y «centrar» sirven a quien no usa la rueda.
+  - El teclado sigue usando la lista.
+
+### Detalle de un punto en escritorio (hoja 2)
+- Panel lateral de 440 px a la derecha: el lote sigue visible con el punto marcado.
+- Tiene el mismo contenido que la pantalla del teléfono, incluidos los avisos de captura antigua, reloj y ubicación anterior.
+- Escape o × lo cierra, y el foco vuelve a la fila o al punto que lo abrió.
+
+### Alertas en escritorio (hoja 3)
+- La lista (380 px) y el detalle se ven juntos; elegir una alerta cambia el panel derecho sin salir de la pantalla.
+- «Marcar como revisada» va arriba del detalle, separado de los estados, para no confundirlo con cerrar la alerta.
+- En el detalle, «Qué pasó» (con la gráfica) y la sugerencia relacionada van lado a lado.
+- En el teléfono, la lista y el detalle siguen siendo dos pantallas.
+
+### Dónde entra en el plan
+- **E2:** maquetación de Inicio en una y dos columnas, y detalle de punto como panel lateral desde 900 px.
+- **E3:** gestos de ratón del visor (arrastrar, Ctrl + rueda, nombre al pasar el ratón, botones de zoom).
+- **E4:** Alertas con lista y detalle juntos desde 1200 px.
+- **E5:** Historial y Configuración se mantienen como hoy en escritorio; solo cambian las acciones que pasan al menú «⋯».
+
+### Pendiente de validar
+Si en escritorio el agricultor prefiere ver primero el lote o la lista, si entiende que el panel lateral se cierra y si usa el visor con ratón o prefiere la lista.
 
 ## Qué falta validar con usuarios
 - Si el 3D ayuda más que el croquis 2D a ubicar problemas (comparar tiempo y errores en T2), y si «Explorar en 3D» se descubre y se entiende.
