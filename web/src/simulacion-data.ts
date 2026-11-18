@@ -107,8 +107,8 @@ export async function ultimaSolicitud(client: SupabaseClient, cultivoId: string,
   return (r.data[0] as SolicitudIA | undefined) ?? null;
 }
 export const TEXTO_SOLICITUD: Record<SolicitudIA['estado'], string> = {
-  pendiente: 'Petición registrada. n8n la toma en menos de un minuto.',
-  en_proceso: 'n8n está pidiendo el análisis a la IA con las condiciones actuales.',
+  pendiente: 'Petición registrada. El análisis empieza en menos de un minuto.',
+  en_proceso: 'La IA está analizando las condiciones actuales.',
   atendida: 'Análisis listo.',
   rechazada: 'No se generó: se alcanzó el tope diario de sugerencias de este cultivo.',
   sin_datos: 'No se generó: no hay lecturas recientes de este origen para analizar.',

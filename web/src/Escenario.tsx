@@ -12,6 +12,7 @@ import type { Escena } from './escena-3d.ts';
 import { IconoClima } from './iconos-clima.tsx';
 import { Buscador, Selector, coincide } from './Filtros.tsx';
 import { Dialogo } from './Dialogo.tsx';
+import { Informacion } from './Informacion.tsx';
 import NodoDialogo from './NodoDialogo.tsx';
 import ParametrosDialogo from './ParametrosDialogo.tsx';
 import AjusteManual from './AjusteManual.tsx';
@@ -143,7 +144,7 @@ export default function Escenario({ client, cultivos, cultivoId, elegirCultivo, 
     .map(g => ({ ...g, total: g.nodos, nodos: g.nodos.filter(f => (fEstado === 'todos' || tonoConexion(estadoConexion(f, ahora)) === fEstado)
       && coincide([f.codigo, g.nombre, f.zona_nombre ?? '', f.simulado ? 'simulado virtual' : 'fisico'].join(' '), qNodo)) })).filter(g => g.nodos.length);
   const sinCambio = evento === eventoActivo && (evento === 'normal' || intensidad === intensidadActiva) && !todos;
-  return <section className="escenario" aria-label="Escenario del cultivo">
+  return <section className="escenario" aria-label="Simulación del cultivo">
     <div className="esc-barra">
       <p className="esc-resumen" role="status">{filas ? <><strong>{recibiendo} de {filas.length}</strong> nodos recibiendo</> : 'Consultando los nodos…'}</p>
       <span className="pastilla-tono" data-tono={enVivo ? 'recibe' : 'inactivo'}><i aria-hidden="true" />{enVivo ? 'En vivo' : `Consulta cada ${cadaSegundos} s`}</span>
@@ -180,7 +181,8 @@ export default function Escenario({ client, cultivos, cultivoId, elegirCultivo, 
         <button className="btn boton-principal" disabled={aplicando || !idActual || sinCambio}>{aplicando ? 'Aplicando…' : evento === 'normal' ? 'Volver a clima normal' : 'Aplicar clima'}</button>
       </div>
       {errorClima && <p className="aviso error" role="alert">{errorClima}</p>}{avisoClima && <p className="aviso exito" role="status">{avisoClima}</p>}
-      <p className="esc-nota">Evento de prueba. Cambia los nodos virtuales y proyecta su efecto sobre la lectura real del nodo físico como dato simulado: la lectura real no se modifica. Requiere el servicio de simulación en marcha.</p>
+      <p className="esc-nota">Evento de prueba: solo cambia datos simulados. La lectura real no se modifica.</p>
+      <Informacion titulo="Cómo funciona">Cambia los nodos virtuales y calcula su efecto sobre la lectura del nodo físico como un dato simulado aparte. Requiere el servicio de simulación en marcha.</Informacion>
     </form>
 
     {idActual && <AjusteManual client={client} cultivoId={idActual} activos={ajustes.get(idActual) ?? SIN_AJUSTE} todosDefecto={prefs?.clima_alcance === 'todos'} alCambiar={() => setRefresco(r => r + 1)} />}
@@ -191,7 +193,7 @@ export default function Escenario({ client, cultivos, cultivoId, elegirCultivo, 
       <li><span className="pastilla-tono" data-tono="no_recibe"><i aria-hidden="true" />Sin recibir</span></li>
       <li><span className="pastilla-tono" data-tono="inactivo"><i aria-hidden="true" />En pausa o fuera de servicio</span></li>
     </ul>
-    <p className="esc-nota">Cada cultivo se dibuja con la forma de su terreno, sus sectores y cada nodo en el punto donde está, a escala. El nodo alto con antena es el físico. Toca un nodo para ver qué datos envía, pausarlo o configurar su dispositivo. Los sectores y las ubicaciones se cambian en Cultivos, Terreno y sectores.</p>
+    <Informacion titulo="Cómo leer el dibujo">Cada cultivo se dibuja con la forma de su terreno, sus sectores y cada nodo en el punto donde está, a escala. El nodo alto con antena es el físico. Toca un nodo para ver qué datos envía, pausarlo o configurar su dispositivo. Los sectores y las ubicaciones se cambian en Cultivos › Terreno y sectores.</Informacion>
 
     {(filas?.length ?? 0) > 4 && <div className="barra-filtros" role="search" aria-label="Filtrar nodos">
       <Buscador etiqueta="Buscar nodo" valor={qNodo} alCambiar={setQNodo} marcador="Código, cultivo o sector" />

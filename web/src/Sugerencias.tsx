@@ -5,6 +5,7 @@ import type { Cultivo, Origen } from './types.ts';
 import { ESTADOS_GENERALES, PRIORIDADES, VARIABLES_IA, cargarSugerencias, textoFallo } from './sugerencia-data.ts';
 import type { RespuestaIA, Sugerencia } from './sugerencia-data.ts';
 import { antiguedad, fechaBogota } from './domain.ts';
+import { Informacion } from './Informacion.tsx';
 
 const UNIDADES: Record<string, string> = { temperatura_aire: '°C', humedad_aire: '% HR', iluminacion_relativa: '% relativo', radiacion_solar: 'W/m²',
   humedad_suelo_vwc: '% VWC', temperatura_suelo: '°C', ph_suelo: '', conductividad_suelo_ece: 'dS/m', precipitacion_60min: 'mm', velocidad_viento: 'm/s' };
@@ -58,7 +59,7 @@ export default function Sugerencias({ client, cultivo, origen, revision }: { cli
         if (sol && ['rechazada', 'sin_datos', 'error'].includes(sol.estado)) { setPeticion({ tono: sol.estado === 'error' ? 'error' : 'advertencia', texto: TEXTO_SOLICITUD[sol.estado] }); setEspera(0); return; }
         if (sol?.estado === 'en_proceso') setPeticion({ tono: 'neutral', texto: TEXTO_SOLICITUD.en_proceso });
         setRefresco(r => r + 1); setEspera(n => n - 1);
-        if (espera === 1) setPeticion({ tono: 'advertencia', texto: 'El análisis está tardando más de lo normal. Comprueba que n8n esté en marcha y actualiza las sugerencias en un momento.' });
+        if (espera === 1) setPeticion({ tono: 'advertencia', texto: 'El análisis está tardando más de lo normal. Actualiza las sugerencias en un momento; si sigue igual, avisa al equipo de AgroVigía.' });
       }).catch(() => { setRefresco(r => r + 1); setEspera(n => n - 1); });
     }, 4000);
     return () => window.clearTimeout(t);
@@ -81,16 +82,17 @@ export default function Sugerencias({ client, cultivo, origen, revision }: { cli
     <div className="cabecera-alertas"><span className={'etiqueta-origen' + (origen === 'simulado' ? ' simulado' : '')}>{origen === 'simulado' ? 'Datos simulados' : 'Datos reales'}</span>
       <div className="acciones-ia"><button className="btn boton-secundario" disabled={cargando} onClick={() => setRefresco(r => r + 1)}>Actualizar sugerencias</button>
         <button className="btn boton-principal" disabled={pidiendo || !!espera || !!cultivo.archivado_en} onClick={analizar}>{pidiendo ? 'Enviando…' : espera ? 'Analizando…' : 'Analizar ahora'}</button></div></div>
-    <p className="ayuda-gestion">Analizar ahora pide a n8n una sugerencia con las condiciones de este momento{origen === 'simulado' ? ', incluidos el clima y el ajuste manual activos en el Escenario' : ''}. Cuenta dentro del tope diario del cultivo.</p>
+    <p className="ayuda-gestion">Analizar ahora prepara una sugerencia con las condiciones de este momento{origen === 'simulado' ? ', incluido el clima simulado activo' : ''}. Hay un número máximo de análisis por día para cada cultivo.</p>
     {peticion && <p className={'aviso ' + peticion.tono} role="status">{peticion.texto}</p>}
-    <p className="aviso advertencia">Sugerencias generadas por IA (Gemini) a partir de las lecturas guardadas. Son orientativas y no reemplazan la asistencia técnica. {origen === 'simulado' ? 'Los nodos virtuales traen humedad del suelo simulada; ' : 'No hay sensor de humedad del suelo; '}la luz es un índice relativo, no lux.</p>
+    <p className="aviso advertencia">Sugerencias generadas por IA (Gemini) con las lecturas guardadas. Son orientativas y no reemplazan la asistencia técnica.</p>
+    <Informacion titulo="Qué datos usa la IA">{origen === 'simulado' ? 'Los nodos virtuales traen humedad del suelo simulada. ' : 'No hay sensor de humedad del suelo: el riego se orienta con la temperatura y la humedad del aire. '}La luz es un índice relativo, no lux. Cada sugerencia indica sus propias limitaciones y los datos que usó.</Informacion>
     {error && <p className="aviso error" role="alert">{error}{vigente ? ' Se conserva la última consulta correcta.' : ''}</p>}
     {cargando && !vigente && <p role="status">Consultando sugerencias…</p>}
     {vigente && <>
       {ultimoIntento?.estado === 'pendiente' && <p className="aviso neutral" role="status">Generando una sugerencia nueva desde {fechaBogota(ultimoIntento.solicitada_en)}…</p>}
       {ultimoIntento?.estado === 'fallida' && <p className="aviso error" role="status">El último intento ({fechaBogota(ultimoIntento.solicitada_en)}) no se completó. {textoFallo(ultimoIntento.error_codigo)}</p>}
       {!ultimaGenerada ? <div className="vacio"><h3>Aún no hay sugerencias para este cultivo</h3>
-        <p>n8n pide una cada 30 minutos como máximo, o cuando se abre una alerta, siempre que lleguen lecturas recientes. Esto no indica el estado del cultivo.</p></div>
+        <p>Se genera una como máximo cada 30 minutos, o cuando se abre una alerta, si llegan lecturas recientes. También puedes pedirla con Analizar ahora. Que no haya sugerencias no indica el estado del cultivo.</p></div>
         : <article className="tarjeta-sugerencia">
           <span className="sobre-titulo">ÚLTIMA SUGERENCIA · {fechaBogota(ultimaGenerada.completada_en ?? ultimaGenerada.solicitada_en)}</span>
           {minutos > 60 && <p className="aviso advertencia">Sugerencia de {antiguedad(ultimaGenerada.completada_en!, ahora).toLowerCase()}: puede no reflejar la condición actual.</p>}
@@ -100,7 +102,7 @@ export default function Sugerencias({ client, cultivo, origen, revision }: { cli
         <ul>{vigente.filas.filter(s => s !== ultimaGenerada).map(s => <li key={s.id}><details><summary>
           <span className={'estado ' + (s.estado === 'generada' ? ESTADOS_GENERALES[s.respuesta!.estado_general].clase : s.estado === 'fallida' ? 'revisar' : 'neutral')}>
             {s.estado === 'generada' ? ESTADOS_GENERALES[s.respuesta!.estado_general].texto : s.estado === 'fallida' ? 'No completada' : 'En curso'}</span> {fechaBogota(s.solicitada_en)}</summary>
-          {s.estado === 'generada' && s.respuesta ? <Detalle s={s} r={s.respuesta} /> : <p>{s.estado === 'fallida' ? textoFallo(s.error_codigo) : 'Esperando la respuesta de n8n.'}</p>}
+          {s.estado === 'generada' && s.respuesta ? <Detalle s={s} r={s.respuesta} /> : <p>{s.estado === 'fallida' ? textoFallo(s.error_codigo) : 'Esperando la respuesta del análisis.'}</p>}
         </details></li>)}</ul></section>}
       <p className="pie-consulta">Consulta correcta: {fechaBogota(vigente.fecha)} · se actualiza cada minuto</p>
     </>}

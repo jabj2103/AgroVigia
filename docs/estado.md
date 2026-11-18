@@ -4,6 +4,19 @@ Actualización: 25 de octubre de 2026. Fuentes: decisiones del chat, archivos lo
 
 ## Preparado en esta carpeta
 
+17 de noviembre de 2026 (Bogotá): Juan pide empezar E1 de la auditoría UX sin esperar la validación con agricultores, porque de momento no tiene acceso a ellos. Implementado en la rama `juan/auditoria-ux`, sin tocar `juan/integracion-camilo`:
+- Teléfono: barra inferior fija con Inicio, Alertas (con contador), Sugerencias, Historial y Más. Más abre el menú solo con Configuración (Cultivos, Dispositivos, Simulación) y la cuenta.
+- Escritorio: barra lateral con los cuatro destinos diarios y un grupo «Configuración».
+- Nombres: «IA» pasa a «Sugerencias» y «Escenario» a «Simulación».
+- Duplicados retirados: la campana del encabezado, el botón de menú y la descripción fija de cada vista. El aviso de alertas nuevas se conserva y ahora dice que cuenta alertas con datos reales.
+- Notas largas pasan a un desplegable «Más información» (`Informacion.tsx`) en el croquis, Simulación, Sugerencias y condiciones simuladas. Siguen siempre visibles: «que no haya alertas no confirma que el cultivo esté sano», «revisar no cierra la alerta», datos simulados y luz relativa sin lux.
+- Textos: «Favorable» pasa a «Sin acciones urgentes». Los mensajes que nombraban n8n, Gemini o el panel externo están reescritos para el agricultor. La lectura ADC pasa a Identificación de la captura.
+- Texto de lectura a 14 px en 34 estilos (alertas, mediciones, fechas, nodos simulados, historial). Botones Mover y Quitar y marcadores del croquis a 44 px. Las etiquetas de la barra inferior quedan en 11 px para que quepan desde 360 px.
+
+Las pruebas de navegador se adaptaron a la navegación nueva. Comprobaciones: 58 pruebas web, TypeScript y compilación (con el aviso existente de tamaño), y las siete suites de navegador con fixtures (historial, cultivos, dispositivos, alertas, avisos, zonas e IA/escenario). Además, capturas a 360 y 390 px sin desborde y con las cinco etiquetas completas. Las dependencias de la carpeta de la rama se instalaron con `npm ci --ignore-scripts` desde el lockfile; un enlace a las de la otra carpeta producía un 403 del servidor de pruebas.
+
+No se probó con la sesión real ni con usuarios. Pendiente de E1: un indicador único de frescura en lugar de los botones Actualizar por vista, que se deja para E2 junto al resumen de Inicio. El menú Más se abre desde la izquierda; una hoja inferior queda por evaluar. El diseño de escritorio y tablet sigue sin detallar.
+
 17 de noviembre de 2026 (Bogotá): en la rama `juan/auditoria-ux` se prepararon las pantallas imprimibles de la validación E0 en [validacion/wireframes-e0.html](validacion/wireframes-e0.html). Contenido:
 - Pantalla A: Inicio de hoy, dibujado desde el código de 77d8661 con el mismo nivel de detalle que las propuestas.
 - Pantallas B–E: Inicio propuesto, detalle de un punto, lista de alertas y detalle de alerta.

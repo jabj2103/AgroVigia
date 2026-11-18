@@ -55,7 +55,7 @@ function InicioSesion({ client }: { client: SupabaseClient }) {
       <Marca /><div className="relato-centro"><span className="sobre-titulo">MONITOREO AMBIENTAL</span>
         <p className="relato-titular">Tu cultivo,<br />con datos<br />a la vista.</p>
         <p>Consulta las condiciones del aire y la fecha de cada lectura para decidir con contexto.</p>
-        <div className="variables-portada"><span>Temperatura del aire</span><span>Humedad del aire</span><span>Iluminacion relativa</span></div>
+        <div className="variables-portada"><span>Temperatura del aire</span><span>Humedad del aire</span><span>Iluminación relativa</span></div>
       </div><p className="nota-prototipo">Prototipo académico · Universidad de Cartagena</p>
     </section>
     <section className="acceso-formulario"><div className="formulario-interior">
@@ -143,13 +143,11 @@ function Lecturas({ client, cultivoId, nodos, capacidades, revision }: {
           </div>
         </div>
         {esAmbiental(nodo.id, capacidades) && <div className="medicion medicion-luz">
-          <div className="titulo-medicion"><span className="simbolo" aria-hidden="true"><IconoClima evento="sol_fuerte" /></span><h4>Iluminacion relativa</h4></div>
+          <div className="titulo-medicion"><span className="simbolo" aria-hidden="true"><IconoClima evento="sol_fuerte" /></span><h4>Iluminación relativa</h4></div>
           <div className="valor">{lote?.iluminacion !== undefined ? lote.iluminacion.toLocaleString('es-CO', { minimumFractionDigits: 1 }) : '—'} <span>% relativo</span></div>
-          <p>{lote?.iluminacion !== undefined ? 'Indice del ADC; no mide lux.' : 'Esta captura todavia no incluye el LDR.'}</p>
-          {lote?.adcLdr !== undefined && <p>Lectura ADC: {lote.adcLdr} / 4095</p>}
-          {lote?.adcLdr === 4095 && <p className="aviso advertencia">Limite superior del ADC: no distingue mas luz en esta captura.</p>}
-          {lote?.adcLdr === 0 && <p className="aviso advertencia">Limite inferior del ADC; no equivale a una medicion de lux.</p>}
-          <p className="texto-secundario">Las diferencias entre sensores requieren comprobarse antes de comparar ubicaciones.</p>
+          <p>{lote?.iluminacion !== undefined ? 'Índice relativo del sensor; no mide lux. No compares sensores distintos sin comprobarlos antes.' : 'Esta captura todavía no incluye el sensor de luz.'}</p>
+          {lote?.adcLdr === 4095 && <p className="aviso advertencia">Límite superior del sensor: no distingue más luz en esta captura.</p>}
+          {lote?.adcLdr === 0 && <p className="aviso advertencia">Límite inferior del sensor; no equivale a una medición de lux.</p>}
         </div>}
         {lote && <div className="detalle-captura">
           <div><span>Fecha de captura</span><strong>{fechaBogota(lote.tomadaEn)}</strong></div>
@@ -158,7 +156,7 @@ function Lecturas({ client, cultivoId, nodos, capacidades, revision }: {
         {lote?.temperatura === 0 && lote.humedad === 0 &&
           <p className="aviso advertencia">El par 0 / 0 requiere revisión de la medición.</p>}
         {lote && <details className="identificacion"><summary>Identificación de la captura</summary>
-          <p>Origen: {origen} · Nodo: {nodo.codigo}</p><code>{lote.mensajeId}</code></details>}
+          <p>Origen: {origen} · Nodo: {nodo.codigo}</p>{lote.adcLdr !== undefined && <p>Lectura ADC del sensor de luz: {lote.adcLdr} / 4095</p>}<code>{lote.mensajeId}</code></details>}
       </article>;
     })}
     {nodos.filter(n => n.tipo_nodo !== 'virtual' && !esDht22(n.id, capacidades) && !esAmbiental(n.id, capacidades)).map(n => <div className="aviso neutral" key={n.id}>
@@ -209,7 +207,8 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
     if (!menu) return;
     const anterior = document.activeElement as HTMLElement | null;
     const panel = document.getElementById('menu-principal');
-    const botones = () => Array.from(panel?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+    // Solo los botones visibles: en el telefono el grupo principal del menu esta oculto (ya va en la barra inferior).
+    const botones = () => Array.from(panel?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []).filter(b => b.offsetParent !== null);
     botones()[0]?.focus();
     const cerrar = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMenu(false);
@@ -241,34 +240,46 @@ export function Panel({ client, sesion }: { client: SupabaseClient; sesion: Sess
     } catch { setError('No pudimos cerrar la sesión. Inténtalo otra vez.'); }
     finally { setSaliendo(false); }
   }
-  const titulos = { monitoreo:'Panel', sugerencias:'Sugerencias IA', red:'Escenario', historial:'Historial y estadísticas', cultivos:'Mis cultivos', dispositivos:'Mis dispositivos', alertas:'Alertas' };
-  const opciones: {vista:Vista;texto:string}[] = [{vista:'monitoreo',texto:'Inicio'},{vista:'sugerencias',texto:'IA'},{vista:'red',texto:'Escenario'},{vista:'alertas',texto:'Alertas'},{vista:'historial',texto:'Historial'},{vista:'cultivos',texto:'Cultivos'},{vista:'dispositivos',texto:'Dispositivos'}];
+  const titulos = { monitoreo:'Inicio', sugerencias:'Sugerencias', red:'Simulación', historial:'Historial y estadísticas', cultivos:'Mis cultivos', dispositivos:'Mis dispositivos', alertas:'Alertas' };
+  // Lo de uso diario va en la barra inferior del telefono; la configuracion, en Mas (en escritorio, en su propio grupo).
+  const principales: {vista:Vista;texto:string}[] = [{vista:'monitoreo',texto:'Inicio'},{vista:'alertas',texto:'Alertas'},{vista:'sugerencias',texto:'Sugerencias'},{vista:'historial',texto:'Historial'}];
+  const configuracion: {vista:Vista;texto:string}[] = [{vista:'cultivos',texto:'Cultivos'},{vista:'dispositivos',texto:'Dispositivos'},{vista:'red',texto:'Simulación'}];
+  const enMas = configuracion.some(o => o.vista === vista);
+  const contador = (v: Vista) => v === 'alertas' && (numeroAvisos > 0 || avisos.error)
+    ? <span className={'contador-alertas'+(avisos.error?' incierto':'')} aria-hidden="true">{textoContador}</span> : null;
+  const opcion = (o: {vista:Vista;texto:string}) => <button key={o.vista} className={'menu-opcion' + (vista === o.vista ? ' seleccionada' : '')} aria-current={vista === o.vista ? 'page' : undefined}
+    aria-describedby={o.vista === 'alertas' ? 'estado-contador-alertas' : undefined} onClick={() => navegar(o.vista)}><span className="icono-con-contador"><Icono tipo={o.vista}/>{contador(o.vista)}</span>{o.texto}</button>;
   return <div className="aplicacion">
     {menu && <button className="fondo-menu" aria-label="Cerrar menú" onClick={() => setMenu(false)} />}
     <aside id="menu-principal" className={'barra-lateral' + (menu ? ' abierta' : '')}>
       <Marca /><button className="cerrar-menu" aria-label="Cerrar navegación" onClick={() => setMenu(false)}>×</button>
-      <nav className="navegacion" aria-label="Secciones">{opciones.map(o =>
-        <button key={o.vista} className={'menu-opcion' + (vista === o.vista ? ' seleccionada' : '')} aria-current={vista === o.vista ? 'page' : undefined} onClick={() => navegar(o.vista)}><span className="icono-con-contador"><Icono tipo={o.vista}/>{o.vista==='alertas'&&(numeroAvisos>0||avisos.error)&&<span className={'contador-alertas'+(avisos.error?' incierto':'')} aria-hidden="true">{textoContador}</span>}</span>{o.texto}</button>)}
+      <nav className="navegacion" aria-label="Secciones">
+        <div className="grupo-principal">{principales.map(opcion)}</div>
+        <p className="titulo-grupo-menu" id="titulo-configuracion">Configuración</p>
+        <div className="grupo-configuracion" role="group" aria-labelledby="titulo-configuracion">{configuracion.map(opcion)}</div>
       </nav>
       <div className="cuenta"><span className="sobre-titulo">TU CUENTA</span>
         <strong>{contexto?.nombre ?? 'AgroVigía'}</strong><span className="correo-cuenta">{sesion.user.email}</span>
         <button className="boton-salir" onClick={() => { void salir(); }} disabled={saliendo}>{saliendo ? 'Cerrando…' : 'Cerrar sesión'}</button></div>
     </aside>
-    <nav className="navegacion-movil" aria-label="Navegación móvil">{opciones.map(o => <button key={o.vista} aria-current={vista === o.vista ? 'page' : undefined} onClick={() => navegar(o.vista)}><span className="icono-con-contador"><Icono tipo={o.vista}/>{o.vista==='alertas'&&(numeroAvisos>0||avisos.error)&&<span className={'contador-alertas'+(avisos.error?' incierto':'')} aria-hidden="true">{textoContador}</span>}</span><span>{o.texto}</span></button>)}</nav>
+    <nav className="navegacion-movil" aria-label="Navegación móvil">
+      {principales.map(o => <button key={o.vista} aria-current={vista === o.vista ? 'page' : undefined} aria-describedby={o.vista === 'alertas' ? 'estado-contador-alertas' : undefined} onClick={() => navegar(o.vista)}>
+        <span className="icono-con-contador"><Icono tipo={o.vista}/>{contador(o.vista)}</span><span className="etiqueta-nav">{o.texto}</span></button>)}
+      <button className={enMas ? 'activa' : undefined} aria-expanded={menu} aria-controls="menu-principal" onClick={() => setMenu(!menu)}>
+        <span className="icono-con-contador"><Icono tipo="menu"/></span><span className="etiqueta-nav">Más</span>{enMas && <span className="visually-hidden">, sección actual: {titulos[vista]}</span>}</button>
+    </nav>
     <main className="contenido"><header className="encabezado">
-      <div className="titulo-pagina"><button className="abrir-menu" aria-label="Abrir menú" aria-expanded={menu} aria-controls="menu-principal" onClick={() => setMenu(!menu)}><Icono tipo="menu"/></button>
-        <div><span className="sobre-titulo">AGROVIGÍA</span><h1>{titulos[vista]}</h1></div></div>
-      <div className="acciones-encabezado"><button className="campana-alertas" aria-label="Ver alertas pendientes" aria-describedby="estado-contador-alertas" title="Alertas reales activas sin revisar de todos tus cultivos" onClick={verPendientes}><Icono tipo="alertas"/><span className={'contador-alertas'+(avisos.error?' incierto':'')} aria-hidden="true">{textoContador}</span></button><button className="btn boton-secundario boton-actualizar" onClick={() => setRevision(v => v + 1)}><Icono tipo="actualizar"/><span>{vista === 'monitoreo' ? 'Actualizar' : 'Actualizar cuenta'}</span></button></div>
+      <div className="titulo-pagina"><div><span className="sobre-titulo">AGROVIGÍA</span><h1>{titulos[vista]}</h1></div></div>
+      <div className="acciones-encabezado"><button className="btn boton-secundario boton-actualizar" onClick={() => setRevision(v => v + 1)}><Icono tipo="actualizar"/><span>{vista === 'monitoreo' ? 'Actualizar' : 'Actualizar cuenta'}</span></button></div>
     </header>
-    <p className="descripcion-vista">{vista === 'monitoreo' ? 'Consulta las lecturas reales o explora los puntos del cultivo por zona.' : vista === 'sugerencias' ? 'Recomendaciones de la IA a partir de tus lecturas, la plantilla y las alertas.' : vista === 'red' ? 'Tus nodos en vivo, el clima simulado y la configuración de cada dispositivo, en un solo lugar.' : vista === 'historial' ? 'Explora las mediciones guardadas de cada nodo y compáralas con la plantilla del cultivo.' : vista === 'cultivos' ? 'Organiza tus lotes y los dispositivos asignados.' : vista === 'alertas' ? 'Configura tus límites y consulta las condiciones detectadas.' : 'Consulta tus sensores y su asignación a los cultivos.'}</p>
     {vista === 'monitoreo' && <div className="vistas-monitoreo" role="group" aria-label="Vista del monitoreo"><button aria-pressed={vistaMonitor === 'real'} onClick={() => setVistaMonitor('real')}>Lecturas reales</button><button aria-pressed={vistaMonitor === 'zonas'} onClick={() => setVistaMonitor('zonas')}>Zonas y nodos</button></div>}
     {(vista === 'historial' || (vista === 'monitoreo' && vistaMonitor === 'real')) && <div className="linea-contexto"><span className={'etiqueta-origen' + (vista === 'historial' && mixto ? ' mixto' : vista === 'historial' && origen === 'simulado' ? ' simulado' : '')}>{vista === 'historial' && mixto ? 'Datos reales y simulados' : vista === 'historial' && origen === 'simulado' ? 'Datos simulados' : 'Datos reales'}</span><span>{vista === 'monitoreo' ? 'Consulta automática cada 30 s' : 'Historial bajo consulta'}</span></div>}
     <p id="estado-contador-alertas" className="visually-hidden" role="status">{avisos.error?'Contador de alertas sin actualizar.':avisos.resumen?`${numeroAvisos} alertas reales activas sin revisar en tus cultivos.`:'Consultando alertas pendientes.'}</p>
     {avisos.error&&<p className="contador-sin-actualizar" role="status">No pudimos actualizar el contador de alertas. Reintenta con Actualizar cuenta.</p>}
-    {avisos.aviso&&!avisos.error&&<aside className="notificacion-alertas" aria-label="Aviso de alertas pendientes"><div role="status"><strong>{avisos.aviso.cantidad===1?'Tienes una alerta pendiente':`Tienes ${avisos.aviso.cantidad} alertas pendientes`}</strong><p>Activas y sin revisar en tus cultivos.</p></div><button className="btn boton-principal" onClick={verPendientes}>Ver alertas</button><button className="cerrar-aviso" aria-label="Ocultar aviso" onClick={avisos.ocultar}>×</button></aside>}
+    {avisos.aviso&&!avisos.error&&<aside className="notificacion-alertas" aria-label="Aviso de alertas pendientes"><div role="status"><strong>{avisos.aviso.cantidad===1?'Tienes una alerta pendiente':`Tienes ${avisos.aviso.cantidad} alertas pendientes`}</strong><p>Activas y sin revisar, con datos reales, en tus cultivos.</p></div><button className="btn boton-principal" onClick={verPendientes}>Ver alertas</button><button className="cerrar-aviso" aria-label="Ocultar aviso" onClick={avisos.ocultar}>×</button></aside>}
     {error && <div className="aviso error" role="alert">{error}<button className="enlace-boton" onClick={() => setRevision(v => v + 1)}>Reintentar</button></div>}
     {!contexto && !error && <p className="vacio" role="status">Consultando tus cultivos…</p>}
-    {contexto && (vista === 'red' ? <Suspense fallback={<p role="status">Cargando el escenario…</p>}><Escenario client={client} cultivos={contexto.cultivos} cultivoId={idActual} elegirCultivo={setCultivoId} verHistorial={id => abrir(id, true)} alCambiarCultivo={() => setRevision(v => v + 1)}/></Suspense> : vista === 'dispositivos' ? <Suspense fallback={<p role="status">Cargando dispositivos…</p>}><Dispositivos client={client} contexto={contexto} revision={revision} actualizado={() => setRevision(v => v + 1)}/></Suspense> : vista === 'cultivos' ? <Suspense fallback={<p role="status">Cargando tus cultivos…</p>}><Cultivos client={client} contexto={contexto} actualizado={() => setRevision(v => v + 1)} abrir={abrir}/></Suspense> : <>
+    {contexto && (vista === 'red' ? <Suspense fallback={<p role="status">Cargando la simulación…</p>}><Escenario client={client} cultivos={contexto.cultivos} cultivoId={idActual} elegirCultivo={setCultivoId} verHistorial={id => abrir(id, true)} alCambiarCultivo={() => setRevision(v => v + 1)}/></Suspense> : vista === 'dispositivos' ? <Suspense fallback={<p role="status">Cargando dispositivos…</p>}><Dispositivos client={client} contexto={contexto} revision={revision} actualizado={() => setRevision(v => v + 1)}/></Suspense> : vista === 'cultivos' ? <Suspense fallback={<p role="status">Cargando tus cultivos…</p>}><Cultivos client={client} contexto={contexto} actualizado={() => setRevision(v => v + 1)} abrir={abrir}/></Suspense> : <>
       {!seleccionado && <section className="vacio"><h2>{vista === 'monitoreo' ? 'No tienes cultivos activos' : 'Aún no tienes cultivos'}</h2><p>Puedes gestionar tus cultivos y dispositivos disponibles desde Mis cultivos.</p><button className="btn boton-principal" onClick={() => navegar('cultivos')}>Ir a Mis cultivos</button></section>}
       {seleccionado && <>
         <section className="selector-cultivo"><div><Selector id="cultivo" etiqueta="CULTIVO SELECCIONADO" claseEtiqueta="sobre-titulo" valor={idActual} alCambiar={setCultivoId} opciones={seleccionables.map(c => ({ valor: c.id, texto: c.nombre + (c.archivado_en ? ' (archivado)' : ''), detalle: c.tipo }))} />

@@ -136,7 +136,7 @@ export default function Cultivos({ client, contexto, actualizado, abrir }: {
             <button className="enlace-archivo" onClick={() => {setArchivo(c);setConfirmado(false);setError('');setAviso('');}}>Archivar</button>
             <button className="enlace-archivo" onClick={() => setDialogo({ tipo: 'eliminar', cultivo: c })}>Eliminar</button></>}</div>
       </article>)}</div>
-      <p className="ayuda-gestion">Los nodos físicos se habilitan previamente para tu cuenta; los simulados los creas tú. Puedes vincular o desvincular nodos desde Dispositivos. Cada cultivo con nodos aparece en el Escenario con su propio hexágono.</p>
+      <p className="ayuda-gestion">Los nodos físicos se habilitan previamente para tu cuenta; los simulados los creas tú. Puedes vincular o desvincular nodos desde Dispositivos. Cada cultivo con nodos aparece en Simulación con su propio dibujo.</p>
       {dialogo?.tipo === 'parametros' && <ParametrosDialogo client={client} cultivo={dialogo.cultivo} origenes={origenesCultivo(contexto.nodos.filter(n => n.cultivo_id === dialogo.cultivo.id))} alGuardar={actualizado} alCerrar={() => setDialogo(null)} />}
       {dialogo?.tipo === 'mover' && dialogo.nodo && <NodoVirtualDialogo client={client} cultivos={contexto.cultivos} cultivoInicial={dialogo.cultivo.id} nodo={dialogo.nodo} alGuardar={m => { setAviso(m); actualizado(); }} alCerrar={() => setDialogo(null)} />}
       {dialogo?.tipo === 'eliminar' && <Confirmar titulo={'Eliminar ' + dialogo.cultivo.nombre} accion="Eliminar cultivo" alCerrar={() => setDialogo(null)}

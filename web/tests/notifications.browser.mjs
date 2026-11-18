@@ -17,26 +17,27 @@ try{
   await page.route('https://**/*',r=>r.abort());
   await page.goto('http://127.0.0.1:5187/__crops_qa');
   await page.getByText('agv-prueba-01',{exact:true}).waitFor();
-  const badge=page.locator('.campana-alertas .contador-alertas');
+  const nav=page.getByRole('navigation',{name:'Navegación móvil'});
+  const badge=nav.locator('.contador-alertas');
   await badge.filter({hasText:/^23$/}).waitFor();
-  const nav=page.getByRole('navigation',{name:'Navegación móvil'});assert.equal(await nav.locator('.contador-alertas').innerText(),'23');
+  assert.equal(await page.locator('.campana-alertas').count(),0,'sin campana duplicada en el encabezado');
   await page.getByRole('complementary',{name:'Aviso de alertas pendientes'}).waitFor();
   await page.getByRole('button',{name:'Ocultar aviso',exact:true}).click();
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
-  await page.waitForFunction(()=>document.querySelector('.campana-alertas .contador-alertas')?.textContent==='23');
+  await page.waitForFunction(()=>document.querySelector('.navegacion-movil .contador-alertas')?.textContent==='23');
   assert.equal(await page.locator('.notificacion-alertas').count(),0);
   await page.evaluate(()=>{window.qaBadgeNueva();window.dispatchEvent(new Event('focus'));});
   await badge.filter({hasText:/^24$/}).waitFor();await page.getByText('Tienes 24 alertas pendientes',{exact:true}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Panel',exact:true}).count(),1);
-  await page.getByRole('button',{name:'Ver alertas pendientes',exact:true}).click();
+  assert.equal(await page.getByRole('heading',{name:'Inicio',exact:true}).count(),1);
+  await page.getByRole('complementary',{name:'Aviso de alertas pendientes'}).getByRole('button',{name:'Ver alertas',exact:true}).click();
   await page.locator('.tarjeta-alerta').first().waitFor();await page.getByRole('button',{name:'Marcar como revisada',exact:true}).first().click();
   await badge.filter({hasText:/^23$/}).waitFor();assert.equal(await page.locator('.tarjeta-alerta.activa').count(),20);
   await page.evaluate(()=>{window.qaAlertsError=true;window.dispatchEvent(new Event('focus'));});await badge.filter({hasText:/^\?$/}).waitFor();
   await page.getByText('No pudimos actualizar el contador de alertas.',{exact:false}).waitFor();
-  await page.evaluate(()=>{window.qaAlertsError=false;window.qaBadgeCerrar();window.dispatchEvent(new Event('focus'));});await badge.filter({hasText:/^0$/}).waitFor();assert.equal(await nav.locator('.contador-alertas').count(),0);
+  await page.evaluate(()=>{window.qaAlertsError=false;window.qaBadgeCerrar();window.dispatchEvent(new Event('focus'));});await page.waitForFunction(()=>!document.querySelector('.navegacion-movil .contador-alertas'));
   await page.evaluate(()=>{window.qaBadgeNueva();window.dispatchEvent(new Event('focus'));});await badge.filter({hasText:/^1$/}).waitFor();
   for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:844});await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);if(width===390)await page.screenshot({path:path.join(images,'contador-movil.png'),fullPage:false});}
-  await page.getByRole('button',{name:'Cuenta vacía',exact:true}).click();await page.getByRole('heading',{name:'No tienes cultivos activos'}).waitFor();await badge.filter({hasText:/^0$/}).waitFor();assert.equal(await page.locator('.notificacion-alertas').count(),0);
-  assert.deepEqual(errors,[]);console.log('QA avisos OK: contador en Inicio/nav, aviso inicial/nuevo, ocultar sin repeticion, abrir Alertas, revisar reduce sin cerrar, error no es cero, cierre limpia, cambio cuenta y 360/390/768/1280. Fixtures.');
+  await page.getByRole('button',{name:'Cuenta vacía',exact:true}).click();await page.getByRole('heading',{name:'No tienes cultivos activos'}).waitFor();await page.waitForFunction(()=>!document.querySelector('.navegacion-movil .contador-alertas'));assert.equal(await page.locator('.notificacion-alertas').count(),0);
+  assert.deepEqual(errors,[]);console.log('QA avisos OK: contador en la barra inferior, aviso inicial/nuevo, ocultar sin repeticion, abrir Alertas, revisar reduce sin cerrar, error no es cero, cierre limpia, cambio cuenta y 360/390/768/1280. Fixtures.');
 
 }finally{if(browser)await browser.close();if(server)await server.close();}

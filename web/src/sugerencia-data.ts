@@ -2,7 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Origen } from './types.ts';
 
 export const ESTADOS_GENERALES = {
-  favorable: { texto: 'Favorable', clase: 'reciente' },
+  // Sin textos que sugieran «cultivo sano»: la IA solo ve las lecturas disponibles.
+  favorable: { texto: 'Sin acciones urgentes', clase: 'reciente' },
   atencion: { texto: 'Requiere atención', clase: 'antiguo' },
   critico: { texto: 'Crítico', clase: 'revisar' },
   datos_insuficientes: { texto: 'Datos insuficientes', clase: 'neutral' },
@@ -53,9 +54,9 @@ export function textoFallo(codigo: string | null): string {
   if (!codigo) return 'La solicitud no se completó.';
   if (codigo === 'GEMINI_HTTP_429') return 'Gemini rechazó la solicitud por límite de uso o saldo agotado (429).';
   if (codigo === 'GEMINI_HTTP_401' || codigo === 'GEMINI_HTTP_403') return 'La API key de Gemini no es válida o no tiene permiso.';
-  if (codigo === 'GEMINI_HTTP_404') return 'El modelo de Gemini configurado en n8n no existe o no está disponible.';
-  if (codigo.startsWith('GEMINI_HTTP_5') || codigo === 'GEMINI_SIN_RESPUESTA') return 'Gemini no respondió a tiempo. n8n volverá a intentarlo en unos minutos.';
-  if (codigo === 'SIN_RESPUESTA') return 'n8n no completó la solicitud a tiempo.';
+  if (codigo === 'GEMINI_HTTP_404') return 'El servicio de IA no está disponible con la configuración actual. Avisa al equipo de AgroVigía.';
+  if (codigo.startsWith('GEMINI_HTTP_5') || codigo === 'GEMINI_SIN_RESPUESTA') return 'La IA no respondió a tiempo. Se volverá a intentar en unos minutos.';
+  if (codigo === 'SIN_RESPUESTA') return 'El análisis no se completó a tiempo. Puedes pedirlo de nuevo en un momento.';
   if (['RESPUESTA_INVALIDA', 'GEMINI_FORMA_INVALIDA', 'GEMINI_JSON_INVALIDO', 'GEMINI_RESPUESTA_TRUNCADA'].includes(codigo)) return 'La respuesta de la IA no tenía el formato esperado y no se guardó.';
   if (codigo === 'GEMINI_BLOQUEADA') return 'Gemini bloqueó la respuesta por sus filtros de seguridad.';
   return 'La solicitud no se completó (código ' + codigo + ').';

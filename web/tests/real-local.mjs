@@ -59,7 +59,7 @@ try {
     return `${cultivoSimulado}: ${recibe} de ${n} recibiendo. Primer nodo: ${valores}`;
   });
   await paso('3 escenario: fichas, tiempo real y filtros', async () => {
-    await ir('Escenario'); await page.locator('.ficha-nodo').first().waitFor({ timeout: 20000 });
+    await ir('Simulación'); await page.locator('.ficha-nodo').first().waitFor({ timeout: 20000 });
     const total = await page.locator('.ficha-nodo').count();
     const enVivo = await page.locator('.esc-barra .pastilla-tono', { hasText: 'En vivo' }).waitFor({ timeout: 20000 }).then(() => true, () => false);
     const filtros = page.getByRole('search', { name: 'Filtrar nodos' }); await filtros.getByLabel('Buscar nodo').fill('yuca 03'); await page.waitForFunction(() => document.querySelectorAll('.ficha-nodo').length === 1, null, { timeout: 8000 });
@@ -93,7 +93,7 @@ try {
     return nodos + ' opciones en el desplegable de nodo, gráfica dibujada';
   });
   await paso('7 IA: Analizar ahora con Gemini real', async () => {
-    await ir('IA'); await page.getByRole('button', { name: 'Analizar ahora' }).click();
+    await ir('Sugerencias'); await page.getByRole('button', { name: 'Analizar ahora' }).click();
     await page.getByText('Análisis listo', { exact: false }).waitFor({ timeout: 120000 }); await foto('6-ia');
     const texto = (await page.locator('main').innerText()).replace(/\s+/g, ' '), i = texto.indexOf('ÚLTIMA SUGERENCIA');
     return 'respuesta de Gemini en pantalla: ' + texto.slice(i, i + 330);
@@ -108,8 +108,8 @@ try {
     const codigo = await tarjeta.locator('.nodos-cultivo li strong').first().innerText(); await foto('7-cultivo-nuevo');
     return `${nombreCultivo} creado con ${codigo}`;
   });
-  await paso('9 el cultivo nuevo aparece en el Escenario y su nodo empieza a recibir', async () => {
-    const t = Date.now(); await ir('Escenario');
+  await paso('9 el cultivo nuevo aparece en Simulación y su nodo empieza a recibir', async () => {
+    const t = Date.now(); await ir('Simulación');
     const grupo = page.locator('.esc-grupo', { hasText: nombreCultivo.slice(0, 20) }); await grupo.waitFor({ timeout: 60000 });
     const aparecio = Math.round((Date.now() - t) / 1000);
     await grupo.locator('.ficha-nodo[data-tono=recibe]').first().waitFor({ timeout: 240000 });

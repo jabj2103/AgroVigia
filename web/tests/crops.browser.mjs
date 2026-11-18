@@ -19,7 +19,7 @@ try{
   await page.goto('http://127.0.0.1:5184/__crops_qa');
   await page.getByText('agv-prueba-01',{exact:true}).waitFor();
   await page.screenshot({path:path.join(images,'panel-movil.png'),fullPage:true});
-  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:'Cultivos',exact:true}).click();
+  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:/^Más/}).click();await page.getByRole('navigation',{name:'Secciones'}).getByRole('button',{name:'Cultivos',exact:true}).click();
   await page.getByRole('heading',{name:'Lote QA',exact:true}).waitFor();
   await page.getByRole('button',{name:'Editar',exact:true}).click();
   await page.locator('#cult-nombre').fill('Lote editado');await page.getByRole('button',{name:'Guardar cultivo',exact:true}).click();
@@ -49,8 +49,8 @@ try{
   await page.getByText('Cultivo archivado. Se conserva su historial; no recibe nuevas mediciones.',{exact:true}).waitFor();
   await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:'Inicio',exact:true}).click();
   assert.equal((await opcionesDe(page,'#cultivo')).opciones.length,1);assert.equal(await valorDe(page,'#cultivo'),'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
-  await page.getByRole('button',{name:'Abrir menú',exact:true}).click();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).waitFor({state:'visible'});await page.keyboard.press('Escape');
-  assert.equal(await page.getByRole('button',{name:'Abrir menú',exact:true}).getAttribute('aria-expanded'),'false');
+  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:/^Más/}).click();await page.getByRole('button',{name:'Cerrar sesión',exact:true}).waitFor({state:'visible'});await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:/^Más/}).getAttribute('aria-expanded'),'false');
   for(const width of [360,390,768,1280]){await page.setViewportSize({width,height:844});await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);}
   await page.screenshot({path:path.join(images,'panel-escritorio.png'),fullPage:true});assert.deepEqual(errors,[]);
   console.log('QA cultivos OK: navegacion movil, editar, crear/reintentar misma solicitud, sin nodos, cancelar/confirmar archivado, historico accesible, monitor sin archivados y anchos 360/390/768/1280. Solo fixtures.');

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Capacidad } from './types.ts';
 import { Selector } from './Filtros.tsx';
+import { Informacion } from './Informacion.tsx';
 import { antiguedad, ANTIGUEDAD_MAXIMA_MS, fechaBogota } from './domain.ts';
 import { cargarCapturaZona, cargarPlano } from './zone-data.ts';
 import { puntoNodo, ubicacionCoincide } from './zone-domain.ts';
@@ -42,7 +43,7 @@ function LecturaZona({ client, cultivoId, nodo, capacidades, revision }: {
     <p className="estado-captura-zona"><span className={'estado ' + (error || futuro ? 'revisar' : antigua ? 'antiguo' : !captura || !nodo.habilitado ? 'neutral' : 'reciente')}>{estado}</span></p>
     {error && <p className="aviso error" role="alert">{error}{captura ? ' Se conserva la última captura consultada; su actualización no está confirmada.' : ''}</p>}
     {!nodo.habilitado && <p className="aviso neutral">Nodo deshabilitado. Las capturas guardadas se conservan como referencia.</p>}
-    {!captura && !cargando && !error && <p className="vacio">{virtual ? 'Todavía no hay una captura simulada guardada para este nodo. Envía una desde el panel externo.' : 'Todavía no hay una captura real guardada para este nodo.'}</p>}
+    {!captura && !cargando && !error && <p className="vacio">{virtual ? 'Todavía no hay una captura simulada guardada para este nodo.' : 'Todavía no hay una captura real guardada para este nodo.'}</p>}
     {captura && <>
       {!ubicacionCoincide(captura, nodo) && <p className="aviso advertencia" role="status">Esta captura corresponde a una ubicación o asignación anterior. Zona de captura: {captura.zonaNombre ?? 'Sin ubicar'}. Consulta su fecha antes de relacionarla con el croquis actual.</p>}
       <div className="resumen-captura-zona"><p><strong>{captura.valores.length} variables · {virtual ? 'Simuladas' : 'Reales'}</strong><br/>Captura: {antiguedad(captura.tomadaEn, ahora)}</p><p>Zona de captura: <strong>{captura.zonaNombre ?? 'Sin ubicar'}</strong></p></div>
@@ -103,7 +104,7 @@ export default function Zonas({ client, cultivoId, usuarioId, revision }: { clie
         })}
         {!zonas.length && <p className="croquis-vacio">Este cultivo todavía no tiene zonas configuradas. Sus nodos aparecen en la lista.</p>}
       </div></div>
-      <p className="nota-croquis">Croquis esquemático de las posiciones registradas. No representa coordenadas GPS, cobertura ni salud del cultivo. También puedes seleccionar zonas y nodos en la lista.</p>
+      <Informacion titulo="Sobre este croquis">Es un dibujo aproximado de dónde está cada nodo. No representa coordenadas GPS, cobertura ni salud del cultivo. También puedes elegir zonas y nodos en la lista.</Informacion>
       <div className="filtros-zonas"><div><Selector id="zona-cultivo" etiqueta="Zona" valor={zonaActual} alCambiar={seleccionarZona} opciones={[{ valor: 'todas', texto: 'Todas las zonas' }, ...zonas.map(z => ({ valor: z.id, texto: z.nombre })), { valor: 'sin-ubicar', texto: 'Sin ubicar' }]} /></div><div><Selector id="origen-zonas" etiqueta="Tipo de nodo" valor={origen} alCambiar={v => { setOrigen(v); setNodoId(''); }} opciones={[{ valor: 'todos', texto: 'Todos los nodos' }, { valor: 'fisico', texto: 'Físicos · datos reales' }, { valor: 'virtual', texto: 'Virtuales · datos simulados' }]} /></div></div>
       <div className="contenido-zonas"><div className="lista-nodos-zona" role="group" aria-label="Nodos de la zona seleccionada">
         <p className="sobre-titulo">{lista.length} {lista.length === 1 ? 'NODO' : 'NODOS'} EN ESTA VISTA</p>

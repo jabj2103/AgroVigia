@@ -8,6 +8,7 @@ import { EVENTOS_CLIMA, INTENSIDADES } from './escenario-data.ts';
 import { IconoClima } from './iconos-clima.tsx';
 import { antiguedad, fechaBogota } from './domain.ts';
 import type { Cultivo } from './types.ts';
+import { Informacion } from './Informacion.tsx';
 
 const titulo = (c: CondicionSimulada) => c.tipo === 'clima' ? `${EVENTOS_CLIMA[c.evento!].nombre}, intensidad ${INTENSIDADES[c.intensidad ?? 2]?.toLowerCase()}` : 'Ajuste manual';
 const detalle = (c: CondicionSimulada) => c.tipo === 'clima' ? EVENTOS_CLIMA[c.evento!].efecto : resumenAjustes(c.ajustes ?? {}) || 'Sin cambios';
@@ -34,13 +35,13 @@ export function CondicionesActivas({ client, cultivo, revision, verEscenario }: 
   return <section className="condiciones" aria-label="Condiciones simuladas activas">
     <div className="sim-cabecera"><div><h2>Condiciones simuladas activas</h2>
       <p role="status">{!lista ? 'Consultando…' : lista.length ? 'Estas condiciones de prueba están cambiando los datos simulados de este cultivo.' : 'No hay clima ni ajuste manual activo en este cultivo.'}</p></div>
-      <button type="button" className="btn boton-secundario" onClick={verEscenario}>Abrir Escenario</button></div>
+      <button type="button" className="btn boton-secundario" onClick={verEscenario}>Abrir Simulación</button></div>
     {error && <p className="aviso neutral" role="status">{error}</p>}
     {!!lista?.length && <ul className="condiciones-lista">{lista.map(c => <li key={c.id} className="condicion">
       <span className="condicion-icono"><Icono c={c} /></span>
       <div><strong>{titulo(c)}</strong><p>{detalle(c)}</p><span className="condicion-tiempo">Activa desde {antiguedad(c.iniciado_en, ahora).toLowerCase()}</span></div>
     </li>)}</ul>}
-    <p className="esc-nota">Las alertas se abren por reglas fijas sobre los valores que llegan. Las que nacen de estas condiciones aparecen en Datos simulados; las del nodo físico, en Datos reales.</p>
+    <Informacion titulo="Cómo se relacionan con las alertas">Las alertas se abren por reglas fijas sobre los valores que llegan. Las que nacen de estas condiciones aparecen en Datos simulados; las del nodo físico, en Datos reales.</Informacion>
   </section>;
 }
 
@@ -50,7 +51,7 @@ export function RegistroSimulacion({ client, cultivoId, revision }: { client: Su
   return <section className="resultado-historial registro-simulacion" aria-label="Registro de la simulación">
     <span className="sobre-titulo">REGISTRO DE LA SIMULACIÓN</span>
     <h2>Cambios de clima y ajustes manuales</h2>
-    <p className="esc-nota">Cada cambio hecho en el Escenario queda aquí con su inicio y su fin. Sirve para leer las curvas de los nodos simulados y la proyección del nodo físico.</p>
+    <Informacion titulo="Para qué sirve">Cada cambio hecho en Simulación queda aquí con su inicio y su fin. Sirve para leer las curvas de los nodos simulados y la proyección del nodo físico.</Informacion>
     {error && <p className="aviso neutral" role="status">{error}</p>}
     {lista && !lista.length && <p className="aviso neutral">Todavía no se ha activado ningún clima ni ajuste manual en este cultivo.</p>}
     {!!lista?.length && <ol className="registro-lista">{lista.map(c => <li key={c.id} className="condicion">

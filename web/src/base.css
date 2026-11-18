@@ -99,11 +99,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .barra-lateral { display: none; flex-direction: column; gap: var(--agv-sp-8); padding: var(--agv-sp-8) var(--agv-sp-4) var(--agv-sp-6); background: var(--agv-superficie); border-right: var(--agv-linea) solid var(--agv-borde); color: var(--agv-texto); }
 .barra-lateral .marca { padding-inline: var(--agv-sp-3); }
 .navegacion { display: flex; flex-direction: column; gap: var(--agv-sp-1); }
+.grupo-principal, .grupo-configuracion { display: flex; flex-direction: column; gap: var(--agv-sp-1); }
+.titulo-grupo-menu { margin: var(--agv-sp-5) 0 var(--agv-sp-1); padding-inline: var(--agv-sp-3); font-size: var(--agv-t-xs); font-weight: 700; letter-spacing: var(--agv-tracking-amplio); text-transform: uppercase; color: var(--agv-texto-2); }
 .menu-opcion { display: flex; align-items: center; gap: var(--agv-sp-3); width: 100%; min-height: var(--agv-toque); padding: var(--agv-sp-2-5) var(--agv-sp-3); border: var(--agv-linea) solid transparent; border-radius: var(--agv-r-control);
   background: transparent; color: var(--agv-texto); font-size: var(--agv-t-sm); font-weight: 500; line-height: 1.4; text-align: left; transition: background-color var(--agv-rapido), color var(--agv-rapido); }
 .menu-opcion:hover { background: var(--agv-superficie-2); }
 .menu-opcion.seleccionada { background: var(--agv-verde); border-color: var(--agv-verde); color: var(--agv-sobre-verde); font-weight: 600; }
-.menu-opcion svg, .abrir-menu svg, .campana-alertas svg { width: var(--agv-icono-nav); height: var(--agv-icono-nav); flex: none; fill: none; }
+.menu-opcion svg { width: var(--agv-icono-nav); height: var(--agv-icono-nav); flex: none; fill: none; }
 .icono-con-contador { position: relative; display: inline-flex; flex: none; }
 .cuenta { display: flex; flex-direction: column; gap: var(--agv-sp-1); margin-top: auto; padding: var(--agv-sp-4) var(--agv-sp-3) 0; border-top: var(--agv-linea) solid var(--agv-borde); font-size: var(--agv-t-sm); overflow-wrap: anywhere; }
 .cuenta strong { color: var(--agv-texto); }
@@ -118,21 +120,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .encabezado .sobre-titulo { display: none; }
 .encabezado h1 { margin: 0; font-size: var(--agv-t-2xl); font-weight: 700; letter-spacing: var(--agv-tracking-apretado); line-height: 1.2; color: var(--agv-texto); overflow-wrap: anywhere; }
 .acciones-encabezado { display: flex; align-items: center; gap: var(--agv-sp-2); flex: none; }
-.abrir-menu, .campana-alertas { position: relative; display: grid; place-items: center; width: var(--agv-toque); height: var(--agv-toque); flex: none; border: var(--agv-linea) solid var(--agv-borde-fuerte); border-radius: var(--agv-r-control); background: var(--agv-superficie); color: var(--agv-texto); }
-.abrir-menu:hover, .campana-alertas:hover { background: var(--agv-superficie-2); border-color: var(--agv-verde); }
 .boton-actualizar { width: var(--agv-toque); padding: 0; }
 .boton-actualizar svg { width: var(--agv-icono); height: var(--agv-icono); flex: none; }
 .boton-actualizar span { position: absolute; width: var(--agv-linea); height: var(--agv-linea); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .contador-alertas { position: absolute; top: calc(var(--agv-sp-2) * -1); right: calc(var(--agv-sp-2) * -1); display: grid; place-items: center; min-width: var(--agv-sp-5); height: var(--agv-sp-5); padding: 0 var(--agv-sp-1);
   border: var(--agv-linea-fuerte) solid var(--agv-superficie); border-radius: var(--agv-r-pastilla); background: var(--agv-error); color: var(--agv-sobre-verde); font-size: var(--agv-t-xs); font-weight: 700; line-height: 1; letter-spacing: 0; }
 .contador-alertas.incierto { background: var(--agv-no-recibe); color: var(--agv-texto); }
-.descripcion-vista { max-width: var(--agv-medida); margin: var(--agv-sp-3) 0 0; color: var(--agv-texto-2); font-size: var(--agv-t-sm); line-height: 1.6; }
 .contador-sin-actualizar { margin-top: var(--agv-sp-4); font-size: var(--agv-t-sm); color: var(--agv-texto); }
 .notificacion-alertas { position: relative; margin: var(--agv-sp-5) 0; padding: var(--agv-sp-4) var(--agv-sp-12) var(--agv-sp-4) var(--agv-sp-4); border: var(--agv-linea) solid var(--agv-no-recibe-punto); border-radius: var(--agv-r-tarjeta); background: var(--agv-aviso-suave); }
 .notificacion-alertas strong { font-size: var(--agv-t-base); }
 .notificacion-alertas p { margin: var(--agv-sp-1) 0 0; font-size: var(--agv-t-sm); color: var(--agv-texto); }
 .notificacion-alertas .btn { margin-top: var(--agv-sp-3); white-space: nowrap; }
 .cerrar-aviso { position: absolute; top: var(--agv-sp-1); right: var(--agv-sp-1); width: var(--agv-toque); height: var(--agv-toque); border: 0; border-radius: var(--agv-r-control); background: none; color: var(--agv-texto); font-size: var(--agv-t-2xl); line-height: 1; }
+.informacion { margin: var(--agv-sp-3) 0; font-size: var(--agv-t-sm); color: var(--agv-texto-2); }
+.informacion summary { display: inline-flex; align-items: center; gap: var(--agv-sp-2); min-height: var(--agv-toque); padding-right: var(--agv-sp-2); cursor: pointer; font-weight: 600; color: var(--agv-texto); list-style: none; }
+.informacion summary::-webkit-details-marker { display: none; }
+.informacion summary svg { width: var(--agv-icono); height: var(--agv-icono); flex: none; }
+.informacion summary:focus-visible { outline: 0; border-radius: var(--agv-r-control); box-shadow: var(--agv-foco); }
+.informacion-cuerpo { max-width: var(--agv-medida); padding: 0 0 var(--agv-sp-2) var(--agv-sp-7); line-height: 1.7; }
 .pie-app { margin-top: var(--agv-sp-10); padding-top: var(--agv-sp-5); border-top: var(--agv-linea) solid var(--agv-borde); color: var(--agv-texto-2); font-size: var(--agv-t-xs); line-height: 1.8; }
 .pie-app span { display: block; }
 .pantalla-cargando { display: grid; place-content: center; gap: var(--agv-sp-6); min-height: 100dvh; color: var(--agv-texto); text-align: center; }
@@ -140,17 +145,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .configuracion h1 { margin: var(--agv-sp-11) 0 var(--agv-sp-6); font-size: var(--agv-t-3xl); }
 .configuracion p { line-height: 1.8; }
 
-/* Navegacion del telefono: tira de pestanas arriba, se desliza si no cabe. No tapa el contenido. */
-.navegacion-movil { display: flex; gap: var(--agv-sp-1); position: sticky; top: 0; z-index: 20; padding: var(--agv-sp-2) var(--agv-sp-3); border-bottom: var(--agv-linea) solid var(--agv-borde); background: var(--agv-superficie); overflow-x: auto; scrollbar-width: none; }
-.navegacion-movil::-webkit-scrollbar { display: none; }
-.navegacion-movil button { display: inline-flex; flex: none; align-items: center; gap: var(--agv-sp-2); min-height: var(--agv-toque); padding: var(--agv-sp-2) var(--agv-sp-3); border: 0; border-radius: var(--agv-r-control);
-  background: none; color: var(--agv-texto); font-size: var(--agv-t-sm); font-weight: 500; line-height: 1.2; white-space: nowrap; transition: background-color var(--agv-rapido), color var(--agv-rapido); }
+/* Navegacion del telefono: cinco destinos fijos abajo, al alcance del pulgar. Mas abre el menu con la configuracion. */
+.navegacion-movil { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; inset: auto 0 0 0; z-index: 20; padding: var(--agv-sp-1) var(--agv-sp-1) calc(var(--agv-sp-1) + env(safe-area-inset-bottom, 0px));
+  border-top: var(--agv-linea) solid var(--agv-borde); background: var(--agv-superficie); }
+.navegacion-movil button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--agv-sp-0-5); min-width: 0; min-height: var(--agv-sp-14); padding: var(--agv-sp-1) 0; border: 0; border-radius: var(--agv-r-control);
+  background: none; color: var(--agv-texto-2); font-size: var(--agv-t-xs); font-weight: 600; line-height: 1.2; transition: background-color var(--agv-rapido), color var(--agv-rapido); }
+/* Etiquetas de 11 px, como en las barras inferiores habituales, para que «Sugerencias» quepa desde 360 px. */
+.navegacion-movil .etiqueta-nav { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.6875rem; letter-spacing: -0.01em; }
 .navegacion-movil button:hover { background: var(--agv-superficie-2); }
-.navegacion-movil button[aria-current=page] { background: var(--agv-verde); color: var(--agv-sobre-verde); font-weight: 600; }
-.navegacion-movil svg { width: var(--agv-icono); height: var(--agv-icono); flex: none; }
+.navegacion-movil button[aria-current=page], .navegacion-movil button.activa { color: var(--agv-verde); }
+.navegacion-movil button[aria-current=page] .icono-con-contador, .navegacion-movil button.activa .icono-con-contador { padding: var(--agv-sp-0-5) var(--agv-sp-4); border-radius: var(--agv-r-pastilla); background: var(--agv-verde-suave); }
+.navegacion-movil button:focus-visible { outline: 0; box-shadow: var(--agv-foco); }
+.navegacion-movil svg { width: var(--agv-icono-nav); height: var(--agv-icono-nav); flex: none; }
 
 /* El menu lateral se abre como cajon solo en pantallas angostas. */
 @media (width < 56.25rem) {
+  .contenido { padding-bottom: calc(var(--agv-sp-24) + env(safe-area-inset-bottom, 0px)); }
+  .barra-lateral .grupo-principal { display: none; }
+  .barra-lateral .titulo-grupo-menu { margin-top: 0; }
   .barra-lateral.abierta { display: flex; position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(20rem, 85vw); height: 100dvh; overflow-y: auto; }
 }
 
@@ -181,7 +193,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 
   .aplicacion { display: grid; grid-template-columns: var(--agv-lateral) minmax(0, 1fr); }
   .barra-lateral { display: flex; position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
-  .cerrar-menu, .fondo-menu, .abrir-menu, .navegacion-movil { display: none; }
+  .cerrar-menu, .fondo-menu, .navegacion-movil { display: none; }
   .contenido { align-self: start; min-height: 100dvh; padding: var(--agv-sp-10) clamp(var(--agv-sp-6), 4vw, var(--agv-sp-16)) var(--agv-sp-6); }
   .encabezado { gap: var(--agv-sp-6); }
   .encabezado .sobre-titulo { display: block; margin-bottom: var(--agv-sp-1); }

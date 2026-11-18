@@ -21,7 +21,7 @@ const copia = async (p, nombre, soloDialogo = false) => { if (!conHtml) return; 
   const d = document.documentElement.cloneNode(true); d.querySelectorAll('script,canvas,link[rel=modulepreload]').forEach(x => x.remove());
   if (solo) { const dlg = d.querySelector('dialog[open]'), cuerpo = d.querySelector('body'); cuerpo.innerHTML = ''; dlg.style.position = 'static'; dlg.style.margin = '1rem auto'; dlg.style.maxHeight = 'none'; cuerpo.appendChild(dlg); }
   return '<!doctype html>' + d.outerHTML; }, soloDialogo)); };
-const VISTAS = ['Inicio', 'IA', 'Escenario', 'Alertas', 'Historial', 'Cultivos', 'Dispositivos'];
+const VISTAS = ['Inicio', 'Sugerencias', 'Simulación', 'Alertas', 'Historial', 'Cultivos', 'Dispositivos'];
 try {
   for (const [ancho, alto, tag] of [[1280, 900, 'e'], [390, 844, 'm']]) {
     const p = await navegador.newPage({ viewport: { width: ancho, height: alto } }); p.on('pageerror', e => errores.push(tag + ': ' + e.message));
@@ -29,13 +29,20 @@ try {
     await p.goto('http://127.0.0.1:5196/'); await p.locator('.acceso').waitFor({ timeout: 15000 }).catch(() => errores.push(tag + ': sin pantalla de acceso')); await p.waitForTimeout(300);
     await p.screenshot({ path: `${out}/${tag}-0-acceso.png`, fullPage: true }); if (tag === 'e') await copia(p, 'acceso');
     await p.goto('http://127.0.0.1:5196/demo'); await p.locator('#cultivo').waitFor();
-    const nav = nombre => p.getByRole('navigation', { name: ancho < 900 ? 'Navegación móvil' : 'Secciones' }).getByRole('button', { name: nombre, exact: true }).click();
+    // E1: en el teléfono, Cultivos, Dispositivos y Simulación se abren desde «Más».
+    const nav = async nombre => {
+      if (ancho < 900 && ['Cultivos', 'Dispositivos', 'Simulación'].includes(nombre)) {
+        await p.getByRole('navigation', { name: 'Navegación móvil' }).getByRole('button', { name: /^Más/ }).click();
+        return p.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: nombre, exact: true }).click();
+      }
+      return p.getByRole('navigation', { name: ancho < 900 ? 'Navegación móvil' : 'Secciones' }).getByRole('button', { name: nombre, exact: true }).click();
+    };
     // Primero el Escenario, para dejar activos una lluvia y un ajuste manual que las demas vistas reflejan.
-    for (const v of ['Escenario', ...VISTAS.filter(x => x !== 'Escenario')]) {
+    for (const v of ['Simulación', ...VISTAS.filter(x => x !== 'Simulación')]) {
       const i = VISTAS.indexOf(v) + 1;
       try {
         await nav(v); await p.waitForTimeout(900);
-        if (v === 'Escenario') {
+        if (v === 'Simulación') {
           await p.locator('.esc-grupo').first().waitFor();
           await p.locator('.esc-clima').first().getByRole('radio', { name: 'Lluvia fuerte' }).check(); await p.getByRole('button', { name: 'Aplicar clima' }).click();
           await p.locator('.etiqueta-cultivo[data-clima=lluvia]').waitFor();
@@ -43,7 +50,7 @@ try {
           await p.getByRole('button', { name: 'Aplicar ajuste' }).click(); await p.getByText('Ajuste aplicado', { exact: false }).waitFor(); await p.waitForTimeout(1200);
         }
         if (v === 'Historial') { const c = p.getByRole('button', { name: /Consultar/ }); if (await c.count()) { await c.first().click(); await p.waitForTimeout(1200); } }
-        if (v === 'IA') { const b = p.getByRole('button', { name: 'Datos simulados' }); if (await b.count()) { await b.click(); await p.waitForTimeout(600); } }
+        if (v === 'Sugerencias') { const b = p.getByRole('button', { name: 'Datos simulados' }); if (await b.count()) { await b.click(); await p.waitForTimeout(600); } }
         await p.screenshot({ path: `${out}/${tag}-${i}-${v.toLowerCase()}.png`, fullPage: true }); if (tag === 'e') await copia(p, v.toLowerCase());
         if (v === 'Cultivos') {
           await p.locator('.tarjeta-cultivo', { hasText: 'Lote Plátano QA' }).getByRole('button', { name: 'Terreno y sectores' }).click(); await p.locator('.terreno-plano svg').waitFor(); await p.waitForTimeout(500);
@@ -52,7 +59,7 @@ try {
           await p.getByRole('button', { name: 'Volver a mis cultivos' }).click();
         }
         if (v === 'Inicio') { await p.getByRole('button', { name: 'Zonas y nodos' }).click(); await p.waitForTimeout(1200); await p.screenshot({ path: `${out}/${tag}-${i}-zonas.png`, fullPage: true }); if (tag === 'e') await copia(p, 'zonas'); await p.getByRole('button', { name: 'Lecturas reales' }).click(); }
-        if (v === 'Escenario') {
+        if (v === 'Simulación') {
           await p.locator('.ficha-nodo', { hasText: 'agv-dht22-01' }).click(); await p.locator('dialog[open] .dlg-datos').first().waitFor(); await p.waitForTimeout(400);
           await p.screenshot({ path: `${out}/${tag}-${i}-escenario-nodo.png` }); if (tag === 'e') await copia(p, 'dialogo-nodo', true); await p.keyboard.press('Escape');
           await p.getByRole('button', { name: 'Parámetros del cultivo' }).click(); await p.locator('dialog[open] .rangos-grupo').first().waitFor(); await p.waitForTimeout(300);

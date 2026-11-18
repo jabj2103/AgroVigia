@@ -84,7 +84,7 @@
 .ficha-nodo > * { min-width: 0; max-width: 100%; }
 .ficha-nodo .pastilla-tono { white-space: normal; text-align: left; }
 .ficha-nodo strong { font-size: var(--agv-t-base); overflow-wrap: anywhere; }
-.ficha-sub, .ficha-valores { font-size: var(--agv-t-xs); color: var(--agv-texto-2); line-height: 1.5; }
+.ficha-sub, .ficha-valores { font-size: var(--agv-t-sm); color: var(--agv-texto-2); line-height: 1.5; }
 
 /* Dialogos. */
 .dialogo-agv { width: min(100% - var(--agv-sp-6), var(--agv-dialogo-ancho)); max-height: calc(100dvh - var(--agv-sp-12)); padding: 0; border: 0;
@@ -115,9 +115,9 @@
 .dlg-nota, .dlg-vacio { margin: 0; font-size: var(--agv-t-sm); line-height: 1.6; color: var(--agv-texto-2); max-width: 70ch; }
 .dlg-datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--agv-sp-2); margin: 0; }
 .dlg-datos > div { padding: var(--agv-sp-2) var(--agv-sp-3); border-radius: var(--agv-r-control); background: var(--agv-fondo); min-width: 0; }
-.dlg-datos dt { font-size: var(--agv-t-xs); font-weight: 500; color: var(--agv-texto-2); line-height: 1.4; }
+.dlg-datos dt { font-size: var(--agv-t-sm); font-weight: 500; color: var(--agv-texto-2); line-height: 1.4; }
 .dlg-datos dd { margin: 0; font-size: var(--agv-t-lg); font-weight: 650; }
-.dlg-datos dd span { font-size: var(--agv-t-xs); font-weight: 500; color: var(--agv-texto-2); }
+.dlg-datos dd span { font-size: var(--agv-t-sm); font-weight: 500; color: var(--agv-texto-2); }
 .dlg-proyeccion { display: grid; gap: var(--agv-sp-2); padding: var(--agv-sp-3); border: var(--agv-linea) dashed var(--agv-borde-fuerte); border-radius: var(--agv-r-control); }
 .dlg-interruptor { display: flex; align-items: flex-start; gap: var(--agv-sp-3); }
 .dlg-interruptor strong { font-size: var(--agv-t-base); }

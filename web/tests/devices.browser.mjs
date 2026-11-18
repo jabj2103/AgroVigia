@@ -17,7 +17,7 @@ try{
   await page.route('https://**/*',r=>r.abort());
   await page.goto('http://127.0.0.1:5185/__crops_qa');
   await page.getByText('agv-prueba-01',{exact:true}).waitFor();
-  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:'Dispositivos',exact:true}).click();
+  await page.getByRole('navigation',{name:'Navegación móvil'}).getByRole('button',{name:/^Más/}).click();await page.getByRole('navigation',{name:'Secciones'}).getByRole('button',{name:'Dispositivos',exact:true}).click();
   await page.getByRole('heading',{name:'agv-prueba-02',exact:true}).waitFor();
   const card=page.locator('.tarjeta-cultivo').filter({has:page.getByRole('heading',{name:'agv-prueba-02',exact:true})});
   await card.getByRole('button',{name:'Vincular a cultivo',exact:true}).click();

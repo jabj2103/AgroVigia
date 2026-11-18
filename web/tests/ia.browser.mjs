@@ -27,6 +27,13 @@ try {
   await page.goto('http://127.0.0.1:5187/__ia_qa');
   await page.locator('#cultivo').waitFor();
   const nav = page.getByRole('navigation', { name: 'Navegación móvil' });
+  // E1: Cultivos, Dispositivos y Simulación están dentro de «Más» en el teléfono.
+  const irMovil = async v => {
+    if (['Cultivos', 'Dispositivos', 'Simulación'].includes(v)) {
+      await nav.getByRole('button', { name: /^Más/ }).click();
+      await page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: v, exact: true }).click();
+    } else await nav.getByRole('button', { name: v, exact: true }).click();
+  };
 
   const P = 'sim-bbbbbbbbbbbb-', Y = 'sim-cccccccccccc-', H = 'sim-dddddddddddd-';
   // Inicio muestra cada nodo simulado con sus valores; el que aun no envia queda sin dato.
@@ -39,7 +46,7 @@ try {
 
   // 2. Cultivo mixto (fisico + 5 simulados): IA separa origenes con un selector; nunca los mezcla.
   await elegir(page, '#cultivo', { label: 'Lote Plátano QA' });
-  await nav.getByRole('button', { name: 'IA', exact: true }).click();
+  await irMovil('Sugerencias');
   const origenes = page.getByRole('group', { name: 'Origen de los datos' });
   await origenes.getByRole('button', { name: 'Datos reales', exact: true, pressed: true }).waitFor();
   await page.getByText('Requiere atención', { exact: true }).first().waitFor();
@@ -105,7 +112,7 @@ try {
   await page.screenshot({ path: path.join(images, 'historial-movil.png'), fullPage: true });
 
   // Dispositivos por cultivo y sector: el fisico sin sector; virtuales con su ultima recepcion simulada.
-  await nav.getByRole('button', { name: 'Dispositivos', exact: true }).click();
+  await irMovil('Dispositivos');
   const platanoDisp = page.getByRole('region', { name: 'Dispositivos de Lote Plátano QA' });
   await platanoDisp.waitFor();
   await platanoDisp.locator('.sector-dispositivos', { hasText: 'Sin sector (físicos)' }).locator('h2', { hasText: 'agv-dht22-01' }).waitFor();
@@ -116,7 +123,7 @@ try {
   await page.screenshot({ path: path.join(images, 'dispositivos-movil.png'), fullPage: true });
 
   // 5. Escenario: un hexagono por cultivo, WebGL dibujando, nodos en tres tonos y detalle en dialogo.
-  await nav.getByRole('button', { name: 'Escenario', exact: true }).click();
+  await irMovil('Simulación');
   await page.locator('.escena-red canvas').waitFor();
   await page.locator('.esc-resumen', { hasText: '16 de 18' }).waitFor();
   await page.locator('.esc-barra .pastilla-tono', { hasText: 'Consulta cada 10 s' }).waitFor();
@@ -231,13 +238,13 @@ try {
 
   for (const width of [360, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const v of ['IA', 'Escenario', 'Historial', 'Dispositivos']) {
-      const boton = width < 900 ? nav.getByRole('button', { name: v, exact: true }) : page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: v, exact: true });
-      await boton.click(); await page.waitForTimeout(250);
+    for (const v of ['Sugerencias', 'Simulación', 'Historial', 'Dispositivos']) {
+      if (width < 900) await irMovil(v); else await page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: v, exact: true }).click();
+      await page.waitForTimeout(250);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `sin desborde ${v} a ${width}px`);
     }
   }
-  await page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: 'Escenario', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Secciones' }).getByRole('button', { name: 'Simulación', exact: true }).click();
   await page.waitForFunction(() => [...document.querySelectorAll('.etiqueta-nodo')].filter(e => e.style.display !== 'none').length === 18, null, { timeout: 5000 });
   assert.equal(await page.locator('.etiqueta-cultivo.activo').innerText().then(t => t.includes('Yuca')), true, 'el hexagono del cultivo abierto queda resaltado');
   await page.screenshot({ path: path.join(images, 'escenario-escritorio.png'), fullPage: true });
@@ -252,7 +259,7 @@ try {
   await ir('Alertas'); await page.locator('.condiciones .condicion', { hasText: 'Ajuste manual' }).waitFor();
   await page.locator('.tarjeta-alerta.activa', { hasText: 'Humedad del suelo por debajo del mínimo' }).first().waitFor();
   await ir('Historial'); await page.locator('.registro-lista .condicion', { hasText: 'Ajuste manual' }).waitFor();
-  await ir('IA'); await page.getByRole('button', { name: 'Analizar ahora' }).click(); await page.getByText('Análisis listo', { exact: false }).waitFor({ timeout: 30000 });
+  await ir('Sugerencias'); await page.getByRole('button', { name: 'Analizar ahora' }).click(); await page.getByText('Análisis listo', { exact: false }).waitFor({ timeout: 30000 });
   await page.locator('.tarjeta-sugerencia', { hasText: 'Recuperar humedad del suelo' }).waitFor();
   await ir('Inicio'); await notasVirtuales();
   await ir('Cultivos'); const tarjetaYuca = page.locator('.tarjeta-cultivo', { hasText: 'Simulado · Yuca' });
@@ -276,7 +283,7 @@ try {
   assert.equal(await page.locator('dialog[open]').getByRole('button', { name: 'Eliminar cultivo' }).count(), 0);
   await page.locator('dialog[open]').getByRole('button', { name: 'Archivar en su lugar' }).click(); await page.getByRole('heading', { name: 'Archivar Simulado · Yuca' }).waitFor();
   await page.getByRole('button', { name: 'Cancelar' }).click();
-  await ir('Escenario'); await page.locator('.esc-grupo', { hasText: 'Hortalizas' }).locator('.ficha-nodo').nth(6).waitFor();
+  await ir('Simulación'); await page.locator('.esc-grupo', { hasText: 'Hortalizas' }).locator('.ficha-nodo').nth(6).waitFor();
   await ir('Dispositivos'); const tarjetaNueva = page.locator('.tarjeta-cultivo').filter({ has: page.getByRole('heading', { name: 'sim-cccccccccccc-07', exact: true }) });
   await tarjetaNueva.getByRole('button', { name: 'Desvincular nodo simulado' }).click(); await page.getByText('sim-cccccccccccc-07 quedó sin cultivo', { exact: false }).waitFor();
   // Suelto se puede eliminar, con confirmacion.
@@ -318,7 +325,7 @@ try {
   await page.getByText('sim-cccccccccccc-01 ubicado en Bodega', { exact: false }).waitFor();
   await page.getByRole('button', { name: 'Volver a mis cultivos' }).click();
   // En el Escenario el sector nuevo aparece dibujado al elegir ese cultivo.
-  await ir('Escenario'); await page.locator('.esc-cultivos').getByRole('radio', { name: 'Lote Plátano QA' }).check();
+  await ir('Simulación'); await page.locator('.esc-cultivos').getByRole('radio', { name: 'Lote Plátano QA' }).check();
   await page.locator('.etiqueta-sector', { hasText: 'Vivero' }).waitFor({ state: 'attached' });
   // 12. Nodo fisico: registro con clave propia y configuracion por USB contra la placa simulada de la demo.
   await ir('Dispositivos'); await page.getByRole('button', { name: '+ Registrar nodo físico' }).click();
@@ -364,7 +371,7 @@ try {
   await filtrosC.getByRole('button', { name: 'Borrar la búsqueda' }).click(); await page.waitForFunction(() => document.querySelectorAll('.tarjeta-cultivo').length > 1);
   await filtrosC.getByRole('button', { name: /^Ver/ }).click(); await page.getByRole('option', { name: /Yuca/ }).click(); await page.waitForFunction(() => document.querySelectorAll('.tarjeta-cultivo').length === 1);
   await page.screenshot({ path: path.join(images, 'filtros-cultivos.png'), fullPage: true });
-  await ir('Escenario'); const filtrosE = page.getByRole('search', { name: 'Filtrar nodos' });
+  await ir('Simulación'); const filtrosE = page.getByRole('search', { name: 'Filtrar nodos' });
   await filtrosE.getByLabel('Buscar nodo').fill('yuca 03'); await page.waitForFunction(() => document.querySelectorAll('.esc-nodos li').length === 1);
   await filtrosE.getByRole('button', { name: 'Borrar la búsqueda' }).click();
   await page.getByRole('button', { name: 'Volver a automático' }).click(); await page.getByText('Simulación en automático', { exact: false }).waitFor();
